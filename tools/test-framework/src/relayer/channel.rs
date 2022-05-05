@@ -1,7 +1,7 @@
 use core::time::Duration;
 use eyre::eyre;
 use ibc::core::ics04_channel::channel::State as ChannelState;
-use ibc::core::ics04_channel::channel::{ChannelEnd, Order};
+use ibc::core::ics04_channel::channel::{ChannelEnd, IdentifiedChannelEnd, Order};
 use ibc::Height;
 use ibc_relayer::chain::handle::ChainHandle;
 use ibc_relayer::channel::{extract_channel_id, Channel, ChannelSide};
@@ -23,8 +23,7 @@ impl<ChainA, ChainB> TaggedChannelEndExt<ChainA, ChainB>
     for DualTagged<ChainA, ChainB, ChannelEnd>
 {
     fn tagged_counterparty_channel_id(&self) -> Option<TaggedChannelId<ChainB, ChainA>> {
-        self.contra_map(|c| c.counterparty().channel_id.clone())
-            .transpose()
+        self.contra_map(|c| c.counterparty().channel_id).transpose()
     }
 
     fn tagged_counterparty_port_id(&self) -> TaggedPortId<ChainB, ChainA> {
@@ -65,7 +64,7 @@ pub fn init_channel<ChainA: ChainHandle, ChainB: ChainHandle>(
 
     let event = channel.build_chan_open_init_and_send()?;
 
-    let channel_id = extract_channel_id(&event)?.clone();
+    let channel_id = *extract_channel_id(&event)?;
 
     let channel2 = Channel::restore_from_event(handle_b.clone(), handle_a.clone(), event)?;
 
@@ -80,6 +79,19 @@ pub fn query_channel_end<ChainA: ChainHandle, ChainB>(
     let channel_end = handle.query_channel(port_id.value(), channel_id.value(), Height::zero())?;
 
     Ok(DualTagged::new(channel_end))
+}
+
+pub fn query_identified_channel_end<ChainA: ChainHandle, ChainB>(
+    handle: &ChainA,
+    channel_id: TaggedChannelIdRef<ChainA, ChainB>,
+    port_id: TaggedPortIdRef<ChainA, ChainB>,
+) -> Result<DualTagged<ChainA, ChainB, IdentifiedChannelEnd>, Error> {
+    let channel_end = handle.query_channel(port_id.value(), channel_id.value(), Height::zero())?;
+    Ok(DualTagged::new(IdentifiedChannelEnd::new(
+        port_id.into_value().clone(),
+        *channel_id.into_value(),
+        channel_end,
+    )))
 }
 
 pub fn assert_eventually_channel_established<ChainA: ChainHandle, ChainB: ChainHandle>(

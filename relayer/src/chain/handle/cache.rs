@@ -38,12 +38,14 @@ use crate::cache::{Cache, CacheStatus};
 use crate::chain::client::ClientSettings;
 use crate::chain::handle::{ChainHandle, ChainRequest, Subscription};
 use crate::chain::tx::TrackedMsgs;
-use crate::chain::{HealthCheck, StatusResponse};
+use crate::chain::{ChainStatus, HealthCheck};
 use crate::config::ChainConfig;
 use crate::error::Error;
 use crate::telemetry;
 use crate::{connection::ConnectionMsgType, keyring::KeyEntry};
 
+/// A chain handle with support for caching.
+/// To be used for the passive relaying mode (i.e., `start` CLI).
 #[derive(Debug, Clone)]
 pub struct CachingChainHandle<Handle> {
     inner: Handle,
@@ -127,8 +129,8 @@ impl<Handle: ChainHandle> ChainHandle for CachingChainHandle<Handle> {
         self.inner().ibc_version()
     }
 
-    fn query_status(&self) -> Result<StatusResponse, Error> {
-        self.inner().query_status()
+    fn query_application_status(&self) -> Result<ChainStatus, Error> {
+        self.inner().query_application_status()
     }
 
     fn query_latest_height(&self) -> Result<Height, Error> {
@@ -281,7 +283,7 @@ impl<Handle: ChainHandle> ChainHandle for CachingChainHandle<Handle> {
         let handle = self.inner();
         if height.is_zero() {
             let (result, in_cache) = self.cache.get_or_try_insert_channel_with(
-                &PortChannelId::new(channel_id.clone(), port_id.clone()),
+                &PortChannelId::new(*channel_id, port_id.clone()),
                 || handle.query_channel(port_id, channel_id, height),
             )?;
 

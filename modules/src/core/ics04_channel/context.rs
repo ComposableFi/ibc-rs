@@ -8,8 +8,10 @@ use crate::core::ics02_client::client_consensus::AnyConsensusState;
 use crate::core::ics02_client::client_state::AnyClientState;
 use crate::core::ics03_connection::connection::ConnectionEnd;
 use crate::core::ics04_channel::channel::ChannelEnd;
+use crate::core::ics04_channel::commitment::{AcknowledgementCommitment, PacketCommitment};
 use crate::core::ics04_channel::handler::recv_packet::RecvPacketResult;
 use crate::core::ics04_channel::handler::{ChannelIdState, ChannelResult};
+use crate::core::ics04_channel::msgs::acknowledgement::Acknowledgement;
 use crate::core::ics04_channel::{error::Error, packet::Receipt};
 use crate::core::ics05_port::capabilities::ChannelCapability;
 use crate::core::ics05_port::context::CapabilityReader;
@@ -58,17 +60,40 @@ pub trait ChannelReader: CapabilityReader {
         port_channel_id: &(PortId, ChannelId),
     ) -> Result<Sequence, Error>;
 
-    fn get_packet_commitment(&self, key: &(PortId, ChannelId, Sequence)) -> Result<String, Error>;
+    fn get_packet_commitment(
+        &self,
+        key: &(PortId, ChannelId, Sequence),
+    ) -> Result<PacketCommitment, Error>;
 
     fn get_packet_receipt(&self, key: &(PortId, ChannelId, Sequence)) -> Result<Receipt, Error>;
 
     fn get_packet_acknowledgement(
         &self,
         key: &(PortId, ChannelId, Sequence),
-    ) -> Result<String, Error>;
+    ) -> Result<AcknowledgementCommitment, Error>;
+
+    fn packet_commitment(
+        &self,
+        packet_data: Vec<u8>,
+        timeout_height: Height,
+        timeout_timestamp: Timestamp,
+    ) -> PacketCommitment {
+        let mut input = timeout_timestamp.nanoseconds().to_be_bytes().to_vec();
+        let revision_number = timeout_height.revision_number.to_be_bytes();
+        input.append(&mut revision_number.to_vec());
+        let revision_height = timeout_height.revision_height.to_be_bytes();
+        input.append(&mut revision_height.to_vec());
+        let data = self.hash(packet_data);
+        input.append(&mut data.to_vec());
+        self.hash(input).into()
+    }
+
+    fn ack_commitment(&self, ack: Acknowledgement) -> AcknowledgementCommitment {
+        self.hash(ack.into_bytes()).into()
+    }
 
     /// A hashing function for packet commitments
-    fn hash(&self, value: String) -> String;
+    fn hash(&self, value: Vec<u8>) -> Vec<u8>;
 
     /// Returns the current height of the local chain.
     fn host_height(&self) -> Height;
@@ -121,7 +146,7 @@ pub trait ChannelKeeper {
     fn store_channel_result(&mut self, result: ChannelResult) -> Result<(), Error> {
         // The handler processed this channel & some modifications occurred, store the new end.
         self.store_channel(
-            (result.port_id.clone(), result.channel_id.clone()),
+            (result.port_id.clone(), result.channel_id),
             &result.channel_end,
         )?;
 
@@ -133,18 +158,12 @@ pub trait ChannelKeeper {
             // Associate also the channel end to its connection.
             self.store_connection_channels(
                 result.channel_end.connection_hops()[0].clone(),
-                &(result.port_id.clone(), result.channel_id.clone()),
+                &(result.port_id.clone(), result.channel_id),
             )?;
 
             // Initialize send, recv, and ack sequence numbers.
-            self.store_next_sequence_send(
-                (result.port_id.clone(), result.channel_id.clone()),
-                1.into(),
-            )?;
-            self.store_next_sequence_recv(
-                (result.port_id.clone(), result.channel_id.clone()),
-                1.into(),
-            )?;
+            self.store_next_sequence_send((result.port_id.clone(), result.channel_id), 1.into())?;
+            self.store_next_sequence_recv((result.port_id.clone(), result.channel_id), 1.into())?;
             self.store_next_sequence_ack((result.port_id, result.channel_id), 1.into())?;
         }
 
@@ -155,15 +174,13 @@ pub trait ChannelKeeper {
         match general_result {
             PacketResult::Send(res) => {
                 self.store_next_sequence_send(
-                    (res.port_id.clone(), res.channel_id.clone()),
+                    (res.port_id.clone(), res.channel_id),
                     res.seq_number,
                 )?;
 
                 self.store_packet_commitment(
-                    (res.port_id.clone(), res.channel_id.clone(), res.seq),
-                    res.timeout_timestamp,
-                    res.timeout_height,
-                    res.data,
+                    (res.port_id.clone(), res.channel_id, res.seq),
+                    res.commitment,
                 )?;
             }
             PacketResult::Recv(res) => {
@@ -175,14 +192,14 @@ pub trait ChannelKeeper {
                     None => {
                         // Ordered channel
                         self.store_next_sequence_recv(
-                            (res.port_id.clone(), res.channel_id.clone()),
+                            (res.port_id.clone(), res.channel_id),
                             res.seq_number,
                         )?
                     }
                     Some(r) => {
                         // Unordered channel
                         self.store_packet_receipt(
-                            (res.port_id.clone(), res.channel_id.clone(), res.seq),
+                            (res.port_id.clone(), res.channel_id, res.seq),
                             r,
                         )?
                     }
@@ -190,8 +207,8 @@ pub trait ChannelKeeper {
             }
             PacketResult::WriteAck(res) => {
                 self.store_packet_acknowledgement(
-                    (res.port_id.clone(), res.channel_id.clone(), res.seq),
-                    res.ack,
+                    (res.port_id.clone(), res.channel_id, res.seq),
+                    res.ack_commitment,
                 )?;
             }
             PacketResult::Ack(res) => {
@@ -204,7 +221,7 @@ pub trait ChannelKeeper {
                         //Unordered Channel
                         self.delete_packet_commitment((
                             res.port_id.clone(),
-                            res.channel_id.clone(),
+                            res.channel_id,
                             res.seq,
                         ))?;
                     }
@@ -213,13 +230,9 @@ pub trait ChannelKeeper {
             PacketResult::Timeout(res) => {
                 if let Some(c) = res.channel {
                     //Ordered Channel
-                    self.store_channel((res.port_id.clone(), res.channel_id.clone()), &c)?;
+                    self.store_channel((res.port_id.clone(), res.channel_id), &c)?;
                 }
-                self.delete_packet_commitment((
-                    res.port_id.clone(),
-                    res.channel_id.clone(),
-                    res.seq,
-                ))?;
+                self.delete_packet_commitment((res.port_id.clone(), res.channel_id, res.seq))?;
             }
         }
         Ok(())
@@ -228,9 +241,7 @@ pub trait ChannelKeeper {
     fn store_packet_commitment(
         &mut self,
         key: (PortId, ChannelId, Sequence),
-        timestamp: Timestamp,
-        heigh: Height,
-        data: Vec<u8>,
+        commitment: PacketCommitment,
     ) -> Result<(), Error>;
 
     fn delete_packet_commitment(&mut self, key: (PortId, ChannelId, Sequence))
@@ -245,7 +256,7 @@ pub trait ChannelKeeper {
     fn store_packet_acknowledgement(
         &mut self,
         key: (PortId, ChannelId, Sequence),
-        ack: Vec<u8>,
+        ack_commitment: AcknowledgementCommitment,
     ) -> Result<(), Error>;
 
     fn delete_packet_acknowledgement(

@@ -37,7 +37,7 @@ use ibc_proto::ibc::core::connection::v1::QueryClientConnectionsRequest;
 use ibc_proto::ibc::core::connection::v1::QueryConnectionsRequest;
 
 use crate::{
-    chain::{client::ClientSettings, tx::TrackedMsgs, StatusResponse},
+    chain::{client::ClientSettings, tx::TrackedMsgs, ChainStatus},
     config::ChainConfig,
     connection::ConnectionMsgType,
     error::Error,
@@ -46,6 +46,8 @@ use crate::{
 
 use super::{reply_channel, ChainHandle, ChainRequest, HealthCheck, ReplyTo, Subscription};
 
+/// A basic chain handle implementation.
+/// For use in interactive CLIs, e.g., `query`, `tx raw`, etc.
 #[derive(Debug, Clone)]
 pub struct BaseChainHandle {
     /// Chain identifier
@@ -142,8 +144,8 @@ impl ChainHandle for BaseChainHandle {
         self.send(|reply_to| ChainRequest::IbcVersion { reply_to })
     }
 
-    fn query_status(&self) -> Result<StatusResponse, Error> {
-        self.send(|reply_to| ChainRequest::QueryStatus { reply_to })
+    fn query_application_status(&self) -> Result<ChainStatus, Error> {
+        self.send(|reply_to| ChainRequest::QueryApplicationStatus { reply_to })
     }
 
     fn query_clients(
@@ -263,7 +265,7 @@ impl ChainHandle for BaseChainHandle {
     ) -> Result<ChannelEnd, Error> {
         self.send(|reply_to| ChainRequest::QueryChannel {
             port_id: port_id.clone(),
-            channel_id: channel_id.clone(),
+            channel_id: *channel_id,
             height,
             reply_to,
         })
@@ -392,7 +394,7 @@ impl ChainHandle for BaseChainHandle {
     ) -> Result<Proofs, Error> {
         self.send(|reply_to| ChainRequest::BuildChannelProofs {
             port_id: port_id.clone(),
-            channel_id: channel_id.clone(),
+            channel_id: *channel_id,
             height,
             reply_to,
         })
@@ -409,7 +411,7 @@ impl ChainHandle for BaseChainHandle {
         self.send(|reply_to| ChainRequest::BuildPacketProofs {
             packet_type,
             port_id: port_id.clone(),
-            channel_id: channel_id.clone(),
+            channel_id: *channel_id,
             sequence,
             height,
             reply_to,

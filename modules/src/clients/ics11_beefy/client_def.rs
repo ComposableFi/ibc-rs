@@ -3,6 +3,7 @@ use beefy_client::traits::{StorageRead, StorageWrite};
 use beefy_client::BeefyLightClient;
 use codec::Encode;
 use core::convert::TryInto;
+use std::collections::BTreeMap;
 use pallet_mmr_primitives::BatchProof;
 use prost::Message;
 use sp_core::H256;
@@ -103,116 +104,14 @@ impl<Store: BeefyLCStore> ClientDef for BeefyClient<Store> {
         light_client
             .verify_parachain_headers(parachain_update_proof)
             .map_err(|e| Ics02Error::Beefy(Error::invalid_mmmr_update(format!("{:?}", e))))?;
-        // Check if a consensus state is already installed; if so it should
-        // match the untrusted header
-        let mut consensus_states = header
-            .parachain_headers
-            .into_iter()
-            .map(ConsensusState::from)
-            .collect::<Vec<_>>();
-        consensus_states.sort_by(|a, b| {
-            a.parachain_header
-                .parachain_header
-                .number
-                .cmp(&b.parachain_header.parachain_header.number)
-        });
 
-        let mut latest_para_height = client_state.latest_height();
-        let trusted_consensus_state =
-            downcast_consensus_state(ctx.consensus_state(&client_id, latest_para_height)?)?;
-        let mut last_seen_cs = None;
-        let mut last_seen_height = None;
-        for cs_state in consensus_states {
-            let height = Height::new(
-                client_state.para_id as u64,
-                cs_state.parachain_header.parachain_header.number as u64,
-            );
-            let existing_consensus_state = match ctx.maybe_consensus_state(&client_id, height)? {
-                Some(cs) => {
-                    let cs = downcast_consensus_state(cs)?;
-                    // If this consensus state matches, skip verification
-                    // (optimization)
-                    if cs == cs_state {
-                        // Header is already installed and matches the incoming
-                        // header (already verified)
-                        continue;
-                    }
-                    Some(cs)
-                }
-                None => None,
-            };
-
-            // If the header has verified, but its corresponding consensus state
-            // differs from the existing consensus state for that height, freeze the
-            // client and return the installed consensus state.
-            if let Some(cs) = existing_consensus_state {
-                if cs != cs_state {
-                    let frozen_height = Height::new(
-                        client_state.para_id as u64,
-                        client_state.latest_beefy_height as u64,
-                    );
-                    return Ok((client_state.with_frozen_height(frozen_height)?, cs));
-                }
-            }
-
-            // Monotonicity checks for timestamps for in-the-middle updates
-            // (cs-new, cs-next, cs-latest)
-            if height < latest_para_height {
-                let maybe_next_cs = ctx
-                    .next_consensus_state(&client_id, height)?
-                    .map(downcast_consensus_state)
-                    .transpose()?;
-
-                if let Some(next_cs) = maybe_next_cs {
-                    // New (untrusted) header timestamp cannot occur after next
-                    // consensus state's height
-                    if cs_state.timestamp > next_cs.timestamp {
-                        // return Err(Ics02Error::beefy(
-                        //     Error::header_timestamp_too_high(
-                        //         cs_state.timestamp.to_string(),
-                        //         next_cs.timestamp.to_string(),
-                        //     ),
-                        // ));
-                        continue;
-                    }
-                }
-            }
-            // (cs-trusted, cs-prev, cs-new)
-            if height > latest_para_height {
-                let maybe_prev_cs = ctx
-                    .prev_consensus_state(&client_id, header.height())?
-                    .map(downcast_consensus_state)
-                    .transpose()?;
-
-                if let Some(maybe_prev_cs) = maybe_prev_cs {
-                    // New (untrusted) header timestamp cannot occur before the
-                    // previous consensus state's height
-                    if cs_state.timestamp < maybe_prev_cs.timestamp {
-                        // return Err(Ics02Error::beefy(
-                        //     Error::header_timestamp_too_low(
-                        //         header.signed_header.header().time.to_string(),
-                        //         prev_cs.timestamp.to_string(),
-                        //     ),
-                        // ));
-                        continue;
-                    }
-                }
-            }
-            last_seen_height = Some(height);
-            last_seen_cs = Some(cs_state)
+        let mut parachain_cs_states: BTreeMap<u32, Vec<ConsensusState>> = alloc::collections::BTreeMap::new();
+        for header in header.parachain_headers {
+            let para_id = header.para_id;
+            let cs_states = parachain_cs_states.entry(para_id).or_default();
+            cs_states.push(ConsensusState::from(header));
         }
 
-        let best_cs_state = if let Some(cs_state) = last_seen_cs {
-            cs_state
-        } else {
-            trusted_consensus_state
-        };
-
-        let best_para_height = if let Some(best_height) = last_seen_height {
-            best_height
-        } else {
-            latest_para_height
-        };
         let mmr_state = self
             .store
             .mmr_state()
@@ -222,7 +121,7 @@ impl<Store: BeefyLCStore> ClientDef for BeefyClient<Store> {
             .authority_set()
             .map_err(|e| Ics02Error::Beefy(Error::implementation_specific(format!("{:?}", e))))?;
         Ok((
-            client_state.with_updates(mmr_state, authorities, latest_para_height),
+            client_state.with_updates(mmr_state, authorities),
             best_cs_state,
         ))
     }
@@ -246,7 +145,7 @@ impl<Store: BeefyLCStore> ClientDef for BeefyClient<Store> {
             height: consensus_height.revision_height,
         };
         let value = expected_consensus_state.encode_vec().unwrap();
-        verify_membership(client_state, prefix, proof, root, path, value)
+
     }
 
     fn verify_connection_state(
@@ -263,7 +162,7 @@ impl<Store: BeefyLCStore> ClientDef for BeefyClient<Store> {
 
         let path = ConnectionsPath(connection_id.clone());
         let value = expected_connection_end.encode_vec().unwrap();
-        verify_membership(client_state, prefix, proof, root, path, value)
+
     }
 
     fn verify_channel_state(
@@ -277,11 +176,11 @@ impl<Store: BeefyLCStore> ClientDef for BeefyClient<Store> {
         channel_id: &ChannelId,
         expected_channel_end: &ChannelEnd,
     ) -> Result<(), Ics02Error> {
-        client_state.verify_height(height)?;
+        // verify parachain height
 
         let path = ChannelEndsPath(port_id.clone(), channel_id.clone());
         let value = expected_channel_end.encode_vec().unwrap();
-        verify_membership(client_state, prefix, proof, root, path, value)
+
     }
 
     fn verify_client_full_state(
@@ -294,11 +193,11 @@ impl<Store: BeefyLCStore> ClientDef for BeefyClient<Store> {
         client_id: &ClientId,
         expected_client_state: &AnyClientState,
     ) -> Result<(), Ics02Error> {
-        client_state.verify_height(height)?;
+        // verify parachain height
 
         let path = ClientStatePath(client_id.clone());
         let value = expected_client_state.encode_vec().unwrap();
-        verify_membership(client_state, prefix, proof, root, path, value)
+
     }
 
     fn verify_packet_data(
@@ -314,7 +213,7 @@ impl<Store: BeefyLCStore> ClientDef for BeefyClient<Store> {
         sequence: Sequence,
         commitment: String,
     ) -> Result<(), Ics02Error> {
-        client_state.verify_height(height)?;
+        // verify parachain height
         verify_delay_passed(ctx, height, connection_end)?;
 
         let commitment_path = CommitmentsPath {
@@ -328,14 +227,6 @@ impl<Store: BeefyLCStore> ClientDef for BeefyClient<Store> {
             .encode(&mut commitment_bytes)
             .expect("buffer size too small");
 
-        verify_membership(
-            client_state,
-            connection_end.counterparty().prefix(),
-            proof,
-            root,
-            commitment_path,
-            commitment_bytes,
-        )
     }
 
     fn verify_packet_acknowledgement(

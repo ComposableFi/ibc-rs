@@ -76,6 +76,8 @@ pub trait ClientReader {
     /// Returns a natural number, counting how many clients have been created thus far.
     /// The value of this counter should increase only via method `ClientKeeper::increase_client_counter`.
     fn client_counter(&self) -> Result<u64, Error>;
+
+    fn latest_parachain_height(&self, para_id: u32) -> Result<Option<u32>, Error>;
 }
 
 /// Defines the write-only part of ICS2 (client functions) context.
@@ -182,4 +184,6 @@ pub trait ClientKeeper {
         height: Height,
         host_height: Height,
     ) -> Result<(), Error>;
+
+    fn store_parachain_latest_height(&mut self, para_id: u32, height: u32) -> Result<(), Error>;
 }

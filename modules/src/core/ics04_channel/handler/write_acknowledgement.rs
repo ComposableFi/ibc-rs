@@ -1,4 +1,5 @@
 use crate::core::ics04_channel::channel::State;
+use crate::core::ics04_channel::commitment::AcknowledgementCommitment;
 use crate::core::ics04_channel::events::WriteAcknowledgement;
 use crate::core::ics04_channel::packet::{Packet, PacketResult, Sequence};
 use crate::core::ics04_channel::{context::ChannelReader, error::Error};
@@ -14,7 +15,7 @@ pub struct WriteAckPacketResult {
     pub port_id: PortId,
     pub channel_id: ChannelId,
     pub seq: Sequence,
-    pub ack: Vec<u8>,
+    pub ack_commitment: AcknowledgementCommitment,
 }
 
 pub fn process(
@@ -24,10 +25,8 @@ pub fn process(
 ) -> HandlerResult<PacketResult, Error> {
     let mut output = HandlerOutput::builder();
 
-    let dest_channel_end = ctx.channel_end(&(
-        packet.destination_port.clone(),
-        packet.destination_channel.clone(),
-    ))?;
+    let dest_channel_end =
+        ctx.channel_end(&(packet.destination_port.clone(), packet.destination_channel))?;
 
     if !dest_channel_end.state_matches(&State::Open) {
         return Err(Error::invalid_channel_state(
@@ -43,7 +42,7 @@ pub fn process(
     // set on the store and return an error if so.
     match ctx.get_packet_acknowledgement(&(
         packet.destination_port.clone(),
-        packet.destination_channel.clone(),
+        packet.destination_channel,
         packet.sequence,
     )) {
         Ok(_) => return Err(Error::acknowledgement_exists(packet.sequence)),
@@ -58,15 +57,15 @@ pub fn process(
 
     let result = PacketResult::WriteAck(WriteAckPacketResult {
         port_id: packet.source_port.clone(),
-        channel_id: packet.source_channel.clone(),
+        channel_id: packet.source_channel,
         seq: packet.sequence,
-        ack: ack.clone(),
+        ack_commitment: ctx.ack_commitment(ack.clone().into()),
     });
 
     output.log("success: packet write acknowledgement");
 
     output.emit(IbcEvent::WriteAcknowledgement(WriteAcknowledgement {
-        height: Default::default(),
+        height: ctx.host_height(),
         packet,
         ack,
     }));
@@ -76,6 +75,7 @@ pub fn process(
 
 #[cfg(test)]
 mod tests {
+    use crate::core::ics04_channel::context::ChannelReader;
     use crate::prelude::*;
 
     use test_log::test;
@@ -118,10 +118,7 @@ mod tests {
         let dest_channel_end = ChannelEnd::new(
             State::Open,
             Order::default(),
-            Counterparty::new(
-                packet.source_port.clone(),
-                Some(packet.source_channel.clone()),
-            ),
+            Counterparty::new(packet.source_port.clone(), Some(packet.source_channel)),
             vec![ConnectionId::default()],
             Version::ics20(),
         );
@@ -167,7 +164,7 @@ mod tests {
                     .with_port_capability(packet.destination_port.clone())
                     .with_channel(
                         packet.destination_port.clone(),
-                        packet.destination_channel.clone(),
+                        packet.destination_channel,
                         dest_channel_end.clone(),
                     ),
                 packet: packet.clone(),
@@ -206,6 +203,7 @@ mod tests {
 
                     for e in proto_output.events.iter() {
                         assert!(matches!(e, &IbcEvent::WriteAcknowledgement(_)));
+                        assert_eq!(e.height(), test.ctx.host_height());
                     }
                 }
                 Err(e) => {

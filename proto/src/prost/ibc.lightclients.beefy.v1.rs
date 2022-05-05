@@ -1,4 +1,4 @@
-/// ClientState from Tendermint tracks the current validator set, latest height,
+/// ClientState from Beefy tracks the current validator set, latest height,
 /// and a possible frozen height.
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ClientState {
@@ -12,7 +12,7 @@ pub struct ClientState {
     #[prost(uint64, tag = "3")]
     pub frozen_height: u64,
     /// block number that the beefy protocol was activated on the relay chain.
-    /// This shoould be the first block in the merkle-mountain-range tree.
+    /// This should be the first block in the merkle-mountain-range tree.
     #[prost(uint32, tag = "4")]
     pub beefy_activation_block: u32,
     /// authorities for the current round
@@ -84,7 +84,7 @@ pub struct MmrUpdateProof {
     #[prost(bytes = "vec", repeated, tag = "5")]
     pub authorities_proof: ::prost::alloc::vec::Vec<::prost::alloc::vec::Vec<u8>>,
 }
-/// ConsensusState defines the consensus state from Tendermint.
+/// ConsensusState defines the consensus state from a Parachain.
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ConsensusState {
     /// timestamp that corresponds to the block height in which the ConsensusState
@@ -94,9 +94,6 @@ pub struct ConsensusState {
     /// packet commitment root
     #[prost(bytes = "vec", tag = "2")]
     pub root: ::prost::alloc::vec::Vec<u8>,
-    /// proof of inclusion for this parachain header in the Mmr.
-    #[prost(message, optional, tag = "4")]
-    pub parachain_header: ::core::option::Option<ParachainHeader>,
 }
 /// Misbehaviour is a wrapper over two conflicting Headers
 /// that implements Misbehaviour interface expected by ICS-02
@@ -178,6 +175,7 @@ pub struct BeefyAuthoritySet {
     #[prost(bytes = "vec", tag = "3")]
     pub authority_root: ::prost::alloc::vec::Vec<u8>,
 }
+/// BeefyMmrLeaf leaf data
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct BeefyMmrLeaf {
     /// leaf version

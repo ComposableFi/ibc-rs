@@ -31,16 +31,14 @@ pub const IBC_CONSENSUS_ID: [u8; 4] = *b"/IBC";
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ConsensusState {
     pub timestamp: Time,
-    pub root: Vec<u8>,
-    pub parachain_header: ParachainHeader,
+    pub root: Vec<u8>
 }
 
 impl ConsensusState {
-    pub fn new(root: Vec<u8>, timestamp: Time, parachain_header: ParachainHeader) -> Self {
+    pub fn new(root: Vec<u8>, timestamp: Time) -> Self {
         Self {
             timestamp,
-            root,
-            parachain_header,
+            root
         }
     }
 }
@@ -75,58 +73,9 @@ impl TryFrom<RawConsensusState> for ConsensusState {
             .try_into()
             .map_err(|e| Error::invalid_raw_consensus_state(format!("invalid timestamp: {}", e)))?;
 
-        let parachain_header = raw
-            .parachain_header
-            .ok_or_else(|| Error::invalid_raw_consensus_state("missing parachain header".into()))?;
-
-        let parachain_header = ParachainHeader {
-            parachain_header: decode_parachain_header(parachain_header.parachain_header).map_err(
-                |_| Error::invalid_raw_consensus_state("invalid parachain header".into()),
-            )?,
-            partial_mmr_leaf: {
-                let partial_leaf = parachain_header.mmr_leaf_partial.ok_or_else(
-                    Error::invalid_raw_consensus_state("missing mmr leaf".into()),
-                )?;
-                PartialMmrLeaf {
-                    version: {
-                        let (major, minor) =
-                            split_leaf_version(partial_leaf.version.saturated_into::<u8>());
-                        MmrLeafVersion::new(major, minor)
-                    },
-                    parent_number_and_hash: (
-                        partial_leaf.parent_number,
-                        H256::from_slice(&partial_leaf.parent_hash),
-                    ),
-                    beefy_next_authority_set: {
-                        let next_set = partial_leaf.beefy_next_authority_set.ok_or_else(
-                            Error::invalid_raw_consensus_state("missing next authority set".into()),
-                        )?;
-                        BeefyNextAuthoritySet {
-                            id: next_set.id,
-                            len: next_set.len,
-                            root: H256::from_slice(&next_set.authority_root),
-                        }
-                    },
-                }
-            },
-            para_id: parachain_header.para_id,
-            parachain_heads_proof: parachain_header
-                .parachain_heads_proof
-                .into_iter()
-                .map(|item| {
-                    let mut dest = [0u8; 32];
-                    dest.copy_from_slice(&*item);
-                    dest
-                })
-                .collect(),
-            heads_leaf_index: parachain_header.heads_leaf_index,
-            heads_total_count: parachain_header.heads_total_count,
-            extrinsic_proof: parachain_header.extrinsic_proof,
-        };
         Ok(Self {
             root: raw.root,
-            timestamp,
-            parachain_header,
+            timestamp
         })
     }
 }
@@ -138,56 +87,7 @@ impl From<ConsensusState> for RawConsensusState {
 
         RawConsensusState {
             timestamp: Some(timestamp),
-            root: value.root,
-            parachain_header: Some(RawParachainHeader {
-                parachain_header: value.parachain_header.encode(),
-                mmr_leaf_partial: Some(RawPartialMmrLeaf {
-                    version: {
-                        let (major, minor) =
-                            value.parachain_header.partial_mmr_leaf.version.split();
-                        merge_leaf_version(major, minor) as u32
-                    },
-                    parent_number: value
-                        .parachain_header
-                        .partial_mmr_leaf
-                        .parent_number_and_hash
-                        .0,
-                    parent_hash: value
-                        .parachain_header
-                        .partial_mmr_leaf
-                        .parent_number_and_hash
-                        .1
-                        .encode(),
-                    beefy_next_authority_set: Some(BeefyAuthoritySet {
-                        id: value
-                            .parachain_header
-                            .partial_mmr_leaf
-                            .beefy_next_authority_set
-                            .id,
-                        len: value
-                            .parachain_header
-                            .partial_mmr_leaf
-                            .beefy_next_authority_set
-                            .len,
-                        authority_root: value
-                            .parachain_header
-                            .partial_mmr_leaf
-                            .beefy_next_authority_set
-                            .root
-                            .encode(),
-                    }),
-                }),
-                para_id: value.parachain_header.para_id,
-                parachain_heads_proof: value
-                    .parachain_header
-                    .parachain_heads_proof
-                    .into_iter()
-                    .map(|item| item.encode())
-                    .collect(),
-                heads_leaf_index: value.parachain_header.heads_leaf_index,
-                heads_total_count: value.parachain_header.heads_total_count,
-                extrinsic_proof: value.parachain_header.extrinsic_proof,
-            }),
+            root: value.root
         }
     }
 }
@@ -213,8 +113,7 @@ impl From<ParachainHeader> for ConsensusState {
 
         Self {
             root,
-            timestamp: timestamp.into(),
-            parachain_header: header,
+            timestamp: timestamp.into()
         }
     }
 }

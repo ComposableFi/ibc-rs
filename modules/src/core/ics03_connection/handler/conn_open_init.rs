@@ -56,6 +56,7 @@ pub(crate) fn process(
 
     let event_attributes = Attributes {
         connection_id: Some(conn_id),
+        height: ctx.host_current_height(),
         ..Default::default()
     };
     output.emit(IbcEvent::OpenInitConnection(event_attributes.into()));
@@ -65,19 +66,18 @@ pub(crate) fn process(
 
 #[cfg(test)]
 mod tests {
-    use crate::core::ics03_connection::context::ConnectionReader;
-    use crate::core::ics03_connection::version::Version;
-    use crate::prelude::*;
-
     use test_log::test;
 
     use crate::core::ics03_connection::connection::State;
+    use crate::core::ics03_connection::context::ConnectionReader;
     use crate::core::ics03_connection::handler::{dispatch, ConnectionResult};
     use crate::core::ics03_connection::msgs::conn_open_init::test_util::get_dummy_raw_msg_conn_open_init;
     use crate::core::ics03_connection::msgs::conn_open_init::MsgConnectionOpenInit;
     use crate::core::ics03_connection::msgs::ConnectionMsg;
+    use crate::core::ics03_connection::version::Version;
     use crate::events::IbcEvent;
     use crate::mock::context::MockContext;
+    use crate::prelude::*;
     use crate::Height;
 
     use ibc_proto::ibc::core::connection::v1::Version as RawVersion;
@@ -158,6 +158,7 @@ mod tests {
 
                     for e in proto_output.events.iter() {
                         assert!(matches!(e, &IbcEvent::OpenInitConnection(_)));
+                        assert_eq!(e.height(), test.ctx.host_current_height());
                     }
 
                     assert_eq!(res.connection_end.versions(), test.expected_versions);

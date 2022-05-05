@@ -6,8 +6,9 @@ use flex_error::{define_error, TraceError};
 use ibc_relayer::channel::error::ChannelError;
 use ibc_relayer::connection::ConnectionError;
 use ibc_relayer::error::Error as RelayerError;
+use ibc_relayer::link::error::LinkError;
 use ibc_relayer::supervisor::error::Error as SupervisorError;
-use ibc_relayer::transfer::PacketError;
+use ibc_relayer::transfer::TransferError;
 use std::io::{Error as IoError, ErrorKind as IoErrorKind};
 
 define_error! {
@@ -45,9 +46,26 @@ define_error! {
             [ ConnectionError ]
             | _ | { "connection error"},
 
-        Packet
-            [ PacketError ]
-            | _ | { "packet error"},
+        Transfer
+            [ TransferError ]
+            | _ | { "transfer error"},
+
+        Link
+            [ LinkError ]
+            | _ | { "link error" },
+
+        Retry
+            {
+                task_name: String,
+                attempts: u16,
+            }
+            | e | {
+                format_args!(
+                    "Expected task to eventually succeeed, but failed after {} attempts: {}",
+                    e.attempts,
+                    e.task_name
+                )
+            },
     }
 }
 
@@ -98,8 +116,14 @@ impl From<ConnectionError> for Error {
     }
 }
 
-impl From<PacketError> for Error {
-    fn from(e: PacketError) -> Self {
-        Error::packet(e)
+impl From<TransferError> for Error {
+    fn from(e: TransferError) -> Self {
+        Error::transfer(e)
+    }
+}
+
+impl From<LinkError> for Error {
+    fn from(e: LinkError) -> Self {
+        Error::link(e)
     }
 }

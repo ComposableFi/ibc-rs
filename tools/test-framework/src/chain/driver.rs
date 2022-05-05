@@ -26,13 +26,25 @@ use crate::types::env::{EnvWriter, ExportEnv};
 use crate::types::process::ChildProcess;
 use crate::types::wallet::{Wallet, WalletAddress, WalletId};
 use crate::util::file::pipe_to_file;
-use crate::util::random::random_u32;
 use crate::util::retry::assert_eventually_succeed;
 
 pub mod interchain;
 pub mod query_txs;
 pub mod tagged;
 pub mod transfer;
+
+/**
+   Number of times (seconds) to try and query a wallet to reach the
+   target amount, as used by [`assert_eventual_wallet_amount`].
+
+   We set this to around 60 seconds to make sure that the tests still
+   pass in slower environments like the CI.
+
+   If you encounter retry error, try increasing this constant. If the
+   test is taking much longer to reach eventual consistency, it might
+   be indication of some underlying performance issues.
+*/
+const WAIT_WALLET_AMOUNT_ATTEMPTS: u16 = 60;
 
 const COSMOS_HD_PATH: &str = "m/44'/118'/0'/0/0";
 
@@ -241,15 +253,6 @@ impl ChainDriver {
         let full_path = PathBuf::from(&self.home_path).join(file_path);
         let res = fs::read_to_string(full_path)?;
         Ok(res)
-    }
-
-    /**
-       Add a wallet with random ID to the full node's keyring.
-    */
-    pub fn add_random_wallet(&self, prefix: &str) -> Result<Wallet, Error> {
-        let num = random_u32();
-        let wallet_id = format!("{}-{:x}", prefix, num);
-        self.add_wallet(&wallet_id)
     }
 
     /**
@@ -489,7 +492,7 @@ impl ChainDriver {
     ) -> Result<(), Error> {
         assert_eventually_succeed(
             &format!("wallet reach {} amount {} {}", wallet, target_amount, denom),
-            30,
+            WAIT_WALLET_AMOUNT_ATTEMPTS,
             Duration::from_secs(1),
             || {
                 let amount = self.query_balance(wallet, denom)?;
