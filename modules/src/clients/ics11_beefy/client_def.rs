@@ -1,27 +1,24 @@
-use beefy_client::primitives::{MmrUpdateProof, ParachainHeader, ParachainsUpdateProof};
-use beefy_client::traits::{StorageRead, StorageWrite};
+use beefy_client::primitives::{ParachainHeader, ParachainsUpdateProof};
+use beefy_client::traits::{HostFunctions, StorageRead, StorageWrite};
 use beefy_client::BeefyLightClient;
 use codec::Encode;
-use core::convert::TryInto;
-use std::collections::BTreeMap;
 use pallet_mmr_primitives::BatchProof;
-use prost::Message;
 use sp_core::H256;
-use sp_runtime::traits::BlakeTwo256;
 use tendermint_proto::Protobuf;
 
 use crate::clients::ics11_beefy::client_state::ClientState;
 use crate::clients::ics11_beefy::consensus_state::ConsensusState;
-use crate::clients::ics11_beefy::error::Error;
+use crate::clients::ics11_beefy::error::Error as BeefyError;
 use crate::clients::ics11_beefy::header::BeefyHeader;
 use crate::core::ics02_client::client_consensus::AnyConsensusState;
-use crate::core::ics02_client::client_def::ClientDef;
+use crate::core::ics02_client::client_def::{ClientDef, ConsensusUpdateResult};
 use crate::core::ics02_client::client_state::AnyClientState;
 use crate::core::ics02_client::client_type::ClientType;
 use crate::core::ics02_client::context::ClientReader;
-use crate::core::ics02_client::error::Error as Ics02Error;
+use crate::core::ics02_client::error::Error;
 use crate::core::ics03_connection::connection::ConnectionEnd;
 use crate::core::ics04_channel::channel::ChannelEnd;
+use crate::core::ics04_channel::commitment::{AcknowledgementCommitment, PacketCommitment};
 use crate::core::ics04_channel::context::ChannelReader;
 use crate::core::ics04_channel::packet::Sequence;
 
@@ -41,7 +38,26 @@ use crate::core::ics24_host::path::{
 };
 use crate::downcast;
 
-pub trait BeefyLCStore: StorageRead + StorageWrite + Clone {}
+/// Methods definitions specific to Beefy Light Client operation
+pub trait BeefyLCStore: StorageRead + StorageWrite + HostFunctions + Clone + Default {
+    /// This function should verify membership in a trie proof using parity's sp-trie package
+    /// with a BlakeTwo256 Hasher
+    fn verify_membership_trie_proof(
+        root: &H256,
+        proof: &Vec<Vec<u8>>,
+        key: &[u8],
+        value: &[u8],
+    ) -> Result<(), Error>;
+    /// This function should verify non membership in a trie proof using parity's sp-trie package
+    /// with a BlakeTwo256 Hasher
+    fn verify_non_membership_trie_proof(
+        root: &H256,
+        proof: &Vec<Vec<u8>>,
+        key: &[u8],
+    ) -> Result<(), Error>;
+    fn store_latest_parachains_height(para_id_and_heights: Vec<(u64, u64)>) -> Result<(), Error>;
+    fn get_parachain_latest_height(para_id: u64) -> Result<u64, Error>;
+}
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct BeefyClient<Store: BeefyLCStore> {
@@ -53,18 +69,18 @@ impl<Store: BeefyLCStore> ClientDef for BeefyClient<Store> {
     type ClientState = ClientState;
     type ConsensusState = ConsensusState;
 
-    fn check_header_and_update_state(
+    fn verify_header(
         &self,
-        ctx: &dyn ClientReader,
-        client_id: ClientId,
+        _ctx: &dyn ClientReader,
+        _client_id: ClientId,
         client_state: Self::ClientState,
         header: Self::Header,
-    ) -> Result<(Self::ClientState, Self::ConsensusState), Ics02Error> {
-        let mut light_client = BeefyLightClient::new(self.store.clone());
+    ) -> Result<(), Error> {
+        let mut light_client = BeefyLightClient::<_, Store>::new(self.store.clone());
         if let Some(mmr_update) = header.mmr_update_proof {
             light_client
                 .ingest_mmr_root_with_proof(mmr_update)
-                .map_err(|e| Ics02Error::Beefy(Error::invalid_mmmr_update(format!("{:?}", e))))?;
+                .map_err(|e| Error::beefy(BeefyError::invalid_mmr_update(format!("{:?}", e))))?;
         }
 
         let mut leaf_indices = vec![];
@@ -97,33 +113,75 @@ impl<Store: BeefyLCStore> ClientDef for BeefyClient<Store> {
                 items: header
                     .mmr_proofs
                     .into_iter()
-                    .map(|item| H256::from_slice(&item)),
+                    .map(|item| H256::from_slice(&item))
+                    .collect(),
             },
         };
 
         light_client
             .verify_parachain_headers(parachain_update_proof)
-            .map_err(|e| Ics02Error::Beefy(Error::invalid_mmmr_update(format!("{:?}", e))))?;
+            .map_err(|e| Error::beefy(BeefyError::invalid_mmr_update(format!("{:?}", e))))
+    }
 
-        let mut parachain_cs_states: BTreeMap<u32, Vec<ConsensusState>> = alloc::collections::BTreeMap::new();
+    fn update_state(
+        &self,
+        ctx: &dyn ClientReader,
+        client_id: ClientId,
+        client_state: Self::ClientState,
+        header: Self::Header,
+    ) -> Result<(Self::ClientState, ConsensusUpdateResult), Error> {
+        let mut parachain_cs_states = vec![];
         for header in header.parachain_headers {
-            let para_id = header.para_id;
-            let cs_states = parachain_cs_states.entry(para_id).or_default();
-            cs_states.push(ConsensusState::from(header));
+            let height = Height::new(header.para_id as u64, header.parachain_header.number as u64);
+            // Skip duplicate consensus states
+            if let Ok(_) = ctx.consensus_state(&client_id, height) {
+                continue;
+            }
+            parachain_cs_states.push((
+                height,
+                AnyConsensusState::Beefy(ConsensusState::from(header)),
+            ))
         }
 
         let mmr_state = self
             .store
             .mmr_state()
-            .map_err(|e| Ics02Error::Beefy(Error::implementation_specific(format!("{:?}", e))))?;
+            .map_err(|e| Error::beefy(BeefyError::implementation_specific(format!("{:?}", e))))?;
         let authorities = self
             .store
             .authority_set()
-            .map_err(|e| Ics02Error::Beefy(Error::implementation_specific(format!("{:?}", e))))?;
+            .map_err(|e| Error::beefy(BeefyError::implementation_specific(format!("{:?}", e))))?;
+
+        let client_state = client_state.with_updates(mmr_state, authorities);
+
         Ok((
-            client_state.with_updates(mmr_state, authorities),
-            best_cs_state,
+            client_state,
+            ConsensusUpdateResult::Batch(parachain_cs_states),
         ))
+    }
+
+    fn update_state_on_misbehaviour(
+        &self,
+        client_state: Self::ClientState,
+        _header: Self::Header,
+    ) -> Result<Self::ClientState, Error> {
+        let mmr_state = self
+            .store
+            .mmr_state()
+            .map_err(|_| Error::beefy(BeefyError::missing_latest_height()))?;
+        client_state
+            .with_frozen_height(Height::new(0, mmr_state.latest_beefy_height as u64))
+            .map_err(|e| Error::beefy(BeefyError::implementation_specific(e.to_string())))
+    }
+
+    fn check_for_misbehaviour(
+        &self,
+        _ctx: &dyn ClientReader,
+        _client_id: ClientId,
+        _client_state: Self::ClientState,
+        _header: Self::Header,
+    ) -> Result<bool, Error> {
+        todo!()
     }
 
     fn verify_client_consensus_state(
@@ -136,8 +194,10 @@ impl<Store: BeefyLCStore> ClientDef for BeefyClient<Store> {
         client_id: &ClientId,
         consensus_height: Height,
         expected_consensus_state: &AnyConsensusState,
-    ) -> Result<(), Ics02Error> {
-        client_state.verify_height(height)?;
+    ) -> Result<(), Error> {
+        client_state
+            .verify_parachain_height::<Store>(height)
+            .map_err(|e| Error::beefy(e))?;
 
         let path = ClientConsensusStatePath {
             client_id: client_id.clone(),
@@ -145,7 +205,7 @@ impl<Store: BeefyLCStore> ClientDef for BeefyClient<Store> {
             height: consensus_height.revision_height,
         };
         let value = expected_consensus_state.encode_vec().unwrap();
-
+        verify_membership::<Store, _>(prefix, proof, root, path, value)
     }
 
     fn verify_connection_state(
@@ -157,12 +217,14 @@ impl<Store: BeefyLCStore> ClientDef for BeefyClient<Store> {
         root: &CommitmentRoot,
         connection_id: &ConnectionId,
         expected_connection_end: &ConnectionEnd,
-    ) -> Result<(), Ics02Error> {
-        client_state.verify_height(height)?;
+    ) -> Result<(), Error> {
+        client_state
+            .verify_parachain_height::<Store>(height)
+            .map_err(|e| Error::beefy(e))?;
 
         let path = ConnectionsPath(connection_id.clone());
         let value = expected_connection_end.encode_vec().unwrap();
-
+        verify_membership::<Store, _>(prefix, proof, root, path, value)
     }
 
     fn verify_channel_state(
@@ -175,12 +237,14 @@ impl<Store: BeefyLCStore> ClientDef for BeefyClient<Store> {
         port_id: &PortId,
         channel_id: &ChannelId,
         expected_channel_end: &ChannelEnd,
-    ) -> Result<(), Ics02Error> {
-        // verify parachain height
+    ) -> Result<(), Error> {
+        client_state
+            .verify_parachain_height::<Store>(height)
+            .map_err(|e| Error::beefy(e))?;
 
         let path = ChannelEndsPath(port_id.clone(), channel_id.clone());
         let value = expected_channel_end.encode_vec().unwrap();
-
+        verify_membership::<Store, _>(prefix, proof, root, path, value)
     }
 
     fn verify_client_full_state(
@@ -192,12 +256,14 @@ impl<Store: BeefyLCStore> ClientDef for BeefyClient<Store> {
         root: &CommitmentRoot,
         client_id: &ClientId,
         expected_client_state: &AnyClientState,
-    ) -> Result<(), Ics02Error> {
-        // verify parachain height
+    ) -> Result<(), Error> {
+        client_state
+            .verify_parachain_height::<Store>(height)
+            .map_err(|e| Error::beefy(e))?;
 
         let path = ClientStatePath(client_id.clone());
         let value = expected_client_state.encode_vec().unwrap();
-
+        verify_membership::<Store, _>(prefix, proof, root, path, value)
     }
 
     fn verify_packet_data(
@@ -211,9 +277,11 @@ impl<Store: BeefyLCStore> ClientDef for BeefyClient<Store> {
         port_id: &PortId,
         channel_id: &ChannelId,
         sequence: Sequence,
-        commitment: String,
-    ) -> Result<(), Ics02Error> {
-        // verify parachain height
+        commitment: PacketCommitment,
+    ) -> Result<(), Error> {
+        client_state
+            .verify_parachain_height::<Store>(height)
+            .map_err(|e| Error::beefy(e))?;
         verify_delay_passed(ctx, height, connection_end)?;
 
         let commitment_path = CommitmentsPath {
@@ -222,11 +290,13 @@ impl<Store: BeefyLCStore> ClientDef for BeefyClient<Store> {
             sequence,
         };
 
-        let mut commitment_bytes = Vec::new();
-        commitment
-            .encode(&mut commitment_bytes)
-            .expect("buffer size too small");
-
+        verify_membership::<Store, _>(
+            connection_end.counterparty().prefix(),
+            proof,
+            root,
+            commitment_path,
+            commitment.into_vec(),
+        )
     }
 
     fn verify_packet_acknowledgement(
@@ -240,9 +310,11 @@ impl<Store: BeefyLCStore> ClientDef for BeefyClient<Store> {
         port_id: &PortId,
         channel_id: &ChannelId,
         sequence: Sequence,
-        ack: Vec<u8>,
-    ) -> Result<(), Ics02Error> {
-        client_state.verify_height(height)?;
+        ack: AcknowledgementCommitment,
+    ) -> Result<(), Error> {
+        client_state
+            .verify_parachain_height::<Store>(height)
+            .map_err(|e| Error::beefy(e))?;
         verify_delay_passed(ctx, height, connection_end)?;
 
         let ack_path = AcksPath {
@@ -250,13 +322,12 @@ impl<Store: BeefyLCStore> ClientDef for BeefyClient<Store> {
             channel_id: channel_id.clone(),
             sequence,
         };
-        verify_membership(
-            client_state,
+        verify_membership::<Store, _>(
             connection_end.counterparty().prefix(),
             proof,
             root,
             ack_path,
-            ack,
+            ack.into_vec(),
         )
     }
 
@@ -271,18 +342,16 @@ impl<Store: BeefyLCStore> ClientDef for BeefyClient<Store> {
         port_id: &PortId,
         channel_id: &ChannelId,
         sequence: Sequence,
-    ) -> Result<(), Ics02Error> {
-        client_state.verify_height(height)?;
+    ) -> Result<(), Error> {
+        client_state
+            .verify_parachain_height::<Store>(height)
+            .map_err(|e| Error::beefy(e))?;
         verify_delay_passed(ctx, height, connection_end)?;
 
-        let mut seq_bytes = Vec::new();
-        u64::from(sequence)
-            .encode(&mut seq_bytes)
-            .expect("buffer size too small");
+        let seq_bytes = codec::Encode::encode(&u64::from(sequence));
 
         let seq_path = SeqRecvsPath(port_id.clone(), channel_id.clone());
-        verify_membership(
-            client_state,
+        verify_membership::<Store, _>(
             connection_end.counterparty().prefix(),
             proof,
             root,
@@ -302,8 +371,10 @@ impl<Store: BeefyLCStore> ClientDef for BeefyClient<Store> {
         port_id: &PortId,
         channel_id: &ChannelId,
         sequence: Sequence,
-    ) -> Result<(), Ics02Error> {
-        client_state.verify_height(height)?;
+    ) -> Result<(), Error> {
+        client_state
+            .verify_parachain_height::<Store>(height)
+            .map_err(|e| Error::beefy(e))?;
         verify_delay_passed(ctx, height, connection_end)?;
 
         let receipt_path = ReceiptsPath {
@@ -311,8 +382,7 @@ impl<Store: BeefyLCStore> ClientDef for BeefyClient<Store> {
             channel_id: channel_id.clone(),
             sequence,
         };
-        verify_non_membership(
-            client_state,
+        verify_non_membership::<Store, _>(
             connection_end.counterparty().prefix(),
             proof,
             root,
@@ -324,83 +394,75 @@ impl<Store: BeefyLCStore> ClientDef for BeefyClient<Store> {
         &self,
         _client_state: &Self::ClientState,
         _consensus_state: &Self::ConsensusState,
-        _proof_upgrade_client: RawMerkleProof,
-        _proof_upgrade_consensus_state: RawMerkleProof,
-    ) -> Result<(Self::ClientState, Self::ConsensusState), Ics02Error> {
+        _proof_upgrade_client: Vec<u8>,
+        _proof_upgrade_consensus_state: Vec<u8>,
+    ) -> Result<(Self::ClientState, ConsensusUpdateResult), Error> {
         todo!()
     }
 }
 
-fn verify_membership(
-    _client_state: &ClientState,
+fn verify_membership<Verifier: BeefyLCStore, P: Into<Path>>(
     prefix: &CommitmentPrefix,
     proof: &CommitmentProofBytes,
     root: &CommitmentRoot,
-    path: impl Into<Path>,
+    path: P,
     value: Vec<u8>,
-) -> Result<(), Ics02Error> {
+) -> Result<(), Error> {
     if root.as_bytes().len() != 32 {
-        return Err(Ics02Error::beefy(Error::invalid_commitment_root));
+        return Err(Error::beefy(BeefyError::invalid_commitment_root()));
     }
     let path: Path = path.into();
     let path = path.to_string();
-    let mut prefix = prefix.as_bytes().to_vec();
-    prefix.extend_from_slice(path.as_bytes());
-    let key = codec::Encode::encode(&prefix);
+    let path = vec![prefix.as_bytes(), path.as_bytes()];
+    let key = codec::Encode::encode(&path);
     let trie_proof: Vec<u8> = proof.clone().into();
     let trie_proof: Vec<Vec<u8>> = codec::Decode::decode(&mut &*trie_proof)
-        .map_err(|e| Ics02Error::beefy(Error::scale_decode(e)))?;
-    let root = H256::from_slice(root.into_vec().as_slice());
-    sp_trie::verify_trie_proof::<sp_trie::LayoutV0<BlakeTwo256>, _, _, _>(
-        &root,
-        &trie_proof,
-        vec![&(key, Some(value))],
-    )
-    .map_err(|e| Ics02Error::beefy(Error::ics23_error(e)))
+        .map_err(|e| Error::beefy(BeefyError::scale_decode(e)))?;
+    let root = H256::from_slice(root.as_bytes());
+    Verifier::verify_membership_trie_proof(&root, &trie_proof, &key, &value)
 }
 
-fn verify_non_membership(
-    _client_state: &ClientState,
+fn verify_non_membership<Verifier: BeefyLCStore, P: Into<Path>>(
     prefix: &CommitmentPrefix,
     proof: &CommitmentProofBytes,
     root: &CommitmentRoot,
-    path: impl Into<Path>,
-) -> Result<(), Ics02Error> {
+    path: P,
+) -> Result<(), Error> {
     if root.as_bytes().len() != 32 {
-        return Err(Ics02Error::beefy(Error::invalid_commitment_root));
+        return Err(Error::beefy(BeefyError::invalid_commitment_root()));
     }
     let path: Path = path.into();
     let path = path.to_string();
-    let mut prefix = prefix.as_bytes().to_vec();
-    prefix.extend_from_slice(path.as_bytes());
-    let key = codec::Encode::encode(&prefix);
+    let path = vec![prefix.as_bytes(), path.as_bytes()];
+    let key = codec::Encode::encode(&path);
     let trie_proof: Vec<u8> = proof.clone().into();
     let trie_proof: Vec<Vec<u8>> = codec::Decode::decode(&mut &*trie_proof)
-        .map_err(|e| Ics02Error::beefy(Error::scale_decode(e)))?;
-    let root = H256::from_slice(root.into_vec().as_slice());
-    sp_trie::verify_trie_proof::<sp_trie::LayoutV0<BlakeTwo256>, _, _, _>(
-        &root,
-        &trie_proof,
-        vec![&(key, None)],
-    )
-    .map_err(|e| Ics02Error::beefy(Error::ics23_error(e)))
+        .map_err(|e| Error::beefy(BeefyError::scale_decode(e)))?;
+    let root = H256::from_slice(root.as_bytes());
+    Verifier::verify_non_membership_trie_proof(&root, &trie_proof, &key)
 }
 
 fn verify_delay_passed(
     ctx: &dyn ChannelReader,
     height: Height,
     connection_end: &ConnectionEnd,
-) -> Result<(), Ics02Error> {
+) -> Result<(), Error> {
     let current_timestamp = ctx.host_timestamp();
     let current_height = ctx.host_height();
 
     let client_id = connection_end.client_id();
-    let processed_time = ctx
-        .client_update_time(client_id, height)
-        .map_err(|_| Error::processed_time_not_found(client_id.clone(), height))?;
-    let processed_height = ctx
-        .client_update_height(client_id, height)
-        .map_err(|_| Error::processed_height_not_found(client_id.clone(), height))?;
+    let processed_time = ctx.client_update_time(client_id, height).map_err(|_| {
+        Error::beefy(BeefyError::processed_time_not_found(
+            client_id.clone(),
+            height,
+        ))
+    })?;
+    let processed_height = ctx.client_update_height(client_id, height).map_err(|_| {
+        Error::beefy(BeefyError::processed_height_not_found(
+            client_id.clone(),
+            height,
+        ))
+    })?;
 
     let delay_period_time = connection_end.delay_period();
     let delay_period_height = ctx.block_delay(delay_period_time);
@@ -416,9 +478,9 @@ fn verify_delay_passed(
     .map_err(|e| e.into())
 }
 
-fn downcast_consensus_state(cs: AnyConsensusState) -> Result<ConsensusState, Ics02Error> {
+pub fn downcast_consensus_state(cs: AnyConsensusState) -> Result<ConsensusState, Error> {
     downcast!(
         cs => AnyConsensusState::Beefy
     )
-    .ok_or_else(|| Ics02Error::client_args_type_mismatch(ClientType::Beefy))
+    .ok_or_else(|| Error::client_args_type_mismatch(ClientType::Beefy))
 }

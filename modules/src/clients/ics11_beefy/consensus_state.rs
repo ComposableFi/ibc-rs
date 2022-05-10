@@ -1,44 +1,34 @@
 use crate::prelude::*;
 
-use beefy_client::primitives::PartialMmrLeaf;
-use beefy_primitives::mmr::{BeefyNextAuthoritySet, MmrLeafVersion};
-use codec::Encode;
 use core::convert::Infallible;
-
 use serde::Serialize;
-use sp_core::H256;
 use sp_runtime::SaturatedConversion;
-use tendermint::{hash::Algorithm, time::Time, Hash};
+use tendermint::time::Time;
 use tendermint_proto::google::protobuf as tpb;
 use tendermint_proto::Protobuf;
 
-use ibc_proto::ibc::lightclients::beefy::v1::{
-    BeefyAuthoritySet, BeefyMmrLeafPartial as RawPartialMmrLeaf,
-    ConsensusState as RawConsensusState, ParachainHeader as RawParachainHeader,
-};
+use ibc_proto::ibc::lightclients::beefy::v1::ConsensusState as RawConsensusState;
 
 use crate::clients::ics11_beefy::error::Error;
-use crate::clients::ics11_beefy::header::{
-    decode_parachain_header, decode_timestamp_extrinsic, merge_leaf_version, split_leaf_version,
-    ParachainHeader,
-};
+use crate::clients::ics11_beefy::header::{decode_timestamp_extrinsic, ParachainHeader};
 use crate::core::ics02_client::client_consensus::AnyConsensusState;
 use crate::core::ics02_client::client_type::ClientType;
 use crate::core::ics23_commitment::commitment::CommitmentRoot;
 use crate::timestamp::Timestamp;
 
+// This is a constant that comes from pallet-ibc
 pub const IBC_CONSENSUS_ID: [u8; 4] = *b"/IBC";
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct ConsensusState {
     pub timestamp: Time,
-    pub root: Vec<u8>
+    pub root: CommitmentRoot,
 }
 
 impl ConsensusState {
     pub fn new(root: Vec<u8>, timestamp: Time) -> Self {
         Self {
             timestamp,
-            root
+            root: root.into(),
         }
     }
 }
@@ -51,7 +41,7 @@ impl crate::core::ics02_client::client_consensus::ConsensusState for ConsensusSt
     }
 
     fn root(&self) -> &CommitmentRoot {
-        &self.root.into()
+        &self.root
     }
 
     fn wrap_any(self) -> AnyConsensusState {
@@ -74,8 +64,8 @@ impl TryFrom<RawConsensusState> for ConsensusState {
             .map_err(|e| Error::invalid_raw_consensus_state(format!("invalid timestamp: {}", e)))?;
 
         Ok(Self {
-            root: raw.root,
-            timestamp
+            root: raw.root.into(),
+            timestamp,
         })
     }
 }
@@ -87,7 +77,7 @@ impl From<ConsensusState> for RawConsensusState {
 
         RawConsensusState {
             timestamp: Some(timestamp),
-            root: value.root
+            root: value.root.into_vec(),
         }
     }
 }
@@ -99,9 +89,9 @@ impl From<ParachainHeader> for ConsensusState {
                 .parachain_header
                 .digest
                 .logs
-                .into_iter()
+                .iter()
                 .filter_map(|digest| digest.as_consensus())
-                .find(|(id, value)| id == &IBC_CONSENSUS_ID)
+                .find(|(id, _value)| id == &IBC_CONSENSUS_ID)
                 .map(|(.., root)| root.to_vec())
                 .unwrap_or_default()
         };
@@ -109,11 +99,13 @@ impl From<ParachainHeader> for ConsensusState {
         let timestamp = decode_timestamp_extrinsic(&header).unwrap_or_default();
         let duration = core::time::Duration::from_millis(timestamp);
         let timestamp = Timestamp::from_nanoseconds(duration.as_nanos().saturated_into::<u64>())
-            .unwrap_or_default();
+            .unwrap_or_default()
+            .into_tm_time()
+            .unwrap();
 
         Self {
-            root,
-            timestamp: timestamp.into()
+            root: root.into(),
+            timestamp,
         }
     }
 }

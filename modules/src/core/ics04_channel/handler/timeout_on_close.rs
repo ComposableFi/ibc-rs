@@ -1,3 +1,4 @@
+use crate::clients::ics11_beefy::client_def::BeefyLCStore;
 use crate::core::ics04_channel::channel::State;
 use crate::core::ics04_channel::channel::{ChannelEnd, Counterparty, Order};
 use crate::core::ics04_channel::events::TimeoutOnClosePacket;
@@ -14,7 +15,7 @@ use crate::events::IbcEvent;
 use crate::handler::{HandlerOutput, HandlerResult};
 use crate::prelude::*;
 
-pub fn process(
+pub fn process<Beefy: BeefyLCStore>(
     ctx: &dyn ChannelReader,
     msg: &MsgTimeoutOnClose,
 ) -> HandlerResult<PacketResult, Error> {
@@ -75,7 +76,7 @@ pub fn process(
         source_channel_end.version().clone(),
     );
 
-    verify_channel_proofs(
+    verify_channel_proofs::<Beefy>(
         ctx,
         msg.proofs.height(),
         &source_channel_end,
@@ -91,7 +92,7 @@ pub fn process(
                 msg.next_sequence_recv,
             ));
         }
-        verify_next_sequence_recv(
+        verify_next_sequence_recv::<Beefy>(
             ctx,
             msg.proofs.height(),
             &connection_end,
@@ -107,7 +108,7 @@ pub fn process(
             channel: Some(source_channel_end),
         })
     } else {
-        verify_packet_receipt_absence(
+        verify_packet_receipt_absence::<Beefy>(
             ctx,
             msg.proofs.height(),
             &connection_end,
