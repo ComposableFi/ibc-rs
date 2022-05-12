@@ -29,9 +29,6 @@ pub(crate) fn process<Beefy: BeefyTraits>(
         ));
     }
 
-    // Channel capabilities
-    let channel_cap = ctx.authenticated_capability(&msg.port_id)?;
-
     // An OPEN IBC connection running on the local (host) chain should exist.
 
     if channel_end.connection_hops().len() != 1 {
@@ -92,7 +89,6 @@ pub(crate) fn process<Beefy: BeefyTraits>(
         port_id: msg.port_id.clone(),
         channel_id: msg.channel_id,
         channel_id_state: ChannelIdState::Reused,
-        channel_cap,
         channel_end,
     };
 
@@ -227,29 +223,10 @@ mod tests {
                         &msg_conn_try.client_id,
                         Height::new(0, client_consensus_state_height),
                     )
-                    .with_port_capability(msg_chan_ack.port_id.clone())
                     .with_channel(
                         msg_chan_ack.port_id.clone(),
                         msg_chan_ack.channel_id,
                         failed_chan_end,
-                    ),
-                msg: ChannelMsg::ChannelOpenAck(msg_chan_ack.clone()),
-                want_pass: false,
-            },
-            Test {
-                name: "Processing fails because port does not have a capability associate"
-                    .to_string(),
-                ctx: context
-                    .clone()
-                    .with_client(
-                        &msg_conn_try.client_id,
-                        Height::new(0, client_consensus_state_height),
-                    )
-                    .with_connection(cid.clone(), conn_end.clone())
-                    .with_channel(
-                        msg_chan_ack.port_id.clone(),
-                        msg_chan_ack.channel_id,
-                        chan_end.clone(),
                     ),
                 msg: ChannelMsg::ChannelOpenAck(msg_chan_ack.clone()),
                 want_pass: false,
@@ -262,7 +239,6 @@ mod tests {
                         &msg_conn_try.client_id,
                         Height::new(0, client_consensus_state_height),
                     )
-                    .with_port_capability(msg_chan_ack.port_id.clone())
                     .with_channel(
                         msg_chan_ack.port_id.clone(),
                         msg_chan_ack.channel_id,
@@ -276,7 +252,6 @@ mod tests {
                 ctx: context
                     .clone()
                     .with_connection(cid.clone(), conn_end.clone())
-                    .with_port_capability(msg_chan_ack.port_id.clone())
                     .with_channel(
                         msg_chan_ack.port_id.clone(),
                         msg_chan_ack.channel_id,
@@ -293,7 +268,6 @@ mod tests {
                         Height::new(0, client_consensus_state_height),
                     )
                     .with_connection(cid, conn_end)
-                    .with_port_capability(msg_chan_ack.port_id.clone())
                     .with_channel(
                         msg_chan_ack.port_id.clone(),
                         msg_chan_ack.channel_id,
