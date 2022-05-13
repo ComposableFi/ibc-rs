@@ -1,9 +1,9 @@
-use crate::applications::ics20_fungible_token_transfer::context::Ics20Context;
 use crate::applications::ics20_fungible_token_transfer::error::Error;
 use crate::applications::ics20_fungible_token_transfer::msgs::transfer::MsgTransfer;
 use crate::core::ics04_channel::handler::send_packet::send_packet;
 use crate::core::ics04_channel::packet::Packet;
 use crate::core::ics04_channel::packet::PacketResult;
+use crate::core::ics26_routing::context::LightClientContext;
 use crate::handler::HandlerOutput;
 use crate::prelude::*;
 
@@ -12,7 +12,7 @@ pub(crate) fn send_transfer<Ctx>(
     msg: MsgTransfer,
 ) -> Result<HandlerOutput<PacketResult>, Error>
 where
-    Ctx: Ics20Context,
+    Ctx: LightClientContext,
 {
     let source_channel_end = ctx
         .channel_end(&(msg.source_port.clone(), msg.source_channel))
