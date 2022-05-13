@@ -149,13 +149,11 @@ mod tests {
 
     use test_log::test;
 
+    use crate::applications::ics20_fungible_token_transfer::msgs::transfer::test_util::get_dummy_msg_transfer;
     use crate::core::ics02_client::client_consensus::AnyConsensusState;
     use crate::core::ics02_client::client_state::AnyClientState;
     use crate::events::IbcEvent;
-    use crate::{
-        applications::ics20_fungible_token_transfer::msgs::transfer::test_util::get_dummy_msg_transfer,
-        core::ics23_commitment::commitment::test_util::get_dummy_merkle_proof,
-    };
+    use crate::test_utils::Crypto;
 
     use crate::core::ics02_client::msgs::{
         create_client::MsgCreateAnyClient, update_client::MsgUpdateAnyClient,
@@ -228,8 +226,8 @@ mod tests {
 
         let create_client_msg = MsgCreateAnyClient::new(
             AnyClientState::from(MockClientState::new(MockHeader::new(start_client_height))),
-            AnyConsensusState::Mock(MockConsensusState::new(MockHeader::new(
-                start_client_height,
+            Some(AnyConsensusState::Mock(MockConsensusState::new(
+                MockHeader::new(start_client_height),
             ))),
             default_signer.clone(),
         )
@@ -294,7 +292,7 @@ mod tests {
         let msg_recv_packet = MsgRecvPacket::try_from(get_dummy_raw_msg_recv_packet(35)).unwrap();
 
         // First, create a client..
-        let res = dispatch(
+        let res = dispatch::<_, Crypto>(
             &mut ctx,
             Ics26Envelope::Ics2Msg(ClientMsg::CreateClient(create_client_msg.clone())),
         );
@@ -468,8 +466,8 @@ mod tests {
                     AnyConsensusState::Mock(MockConsensusState::new(MockHeader::new(
                         upgrade_client_height,
                     ))),
-                    get_dummy_merkle_proof(),
-                    get_dummy_merkle_proof(),
+                    Vec::new(),
+                    Vec::new(),
                     default_signer.clone(),
                 ))),
                 want_pass: true,
@@ -484,8 +482,8 @@ mod tests {
                     AnyConsensusState::Mock(MockConsensusState::new(MockHeader::new(
                         upgrade_client_height_second,
                     ))),
-                    get_dummy_merkle_proof(),
-                    get_dummy_merkle_proof(),
+                    Vec::new(),
+                    Vec::new(),
                     default_signer,
                 ))),
                 want_pass: false,
@@ -495,7 +493,7 @@ mod tests {
         .collect();
 
         for test in tests {
-            let res = dispatch(&mut ctx, test.msg.clone());
+            let res = dispatch::<_, Crypto>(&mut ctx, test.msg.clone());
 
             assert_eq!(
                 test.want_pass,
