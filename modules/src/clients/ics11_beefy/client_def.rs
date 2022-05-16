@@ -69,6 +69,7 @@ impl<Crypto: CryptoOps> ClientDef for BeefyClient<Crypto> {
         };
         let mut light_client = BeefyLightClient::<Crypto>::new();
         // If mmr update exists verify it and return the new light client state
+        // or else return existing light client state
         let light_client_state = if let Some(mmr_update) = header.mmr_update_proof {
             light_client
                 .verify_mmr_root_with_proof(light_client_state, mmr_update)
@@ -77,6 +78,7 @@ impl<Crypto: CryptoOps> ClientDef for BeefyClient<Crypto> {
             light_client_state
         };
 
+        // Extract parachain headers from the beefy header if they exist
         let mut leaf_indices = vec![];
         let parachain_headers = header
             .parachain_headers
@@ -114,6 +116,7 @@ impl<Crypto: CryptoOps> ClientDef for BeefyClient<Crypto> {
             },
         };
 
+        // Perform the parachain header verification
         light_client
             .verify_parachain_headers(light_client_state, parachain_update_proof)
             .map_err(|e| Error::beefy(BeefyError::invalid_mmr_update(format!("{:?}", e))))
@@ -127,6 +130,7 @@ impl<Crypto: CryptoOps> ClientDef for BeefyClient<Crypto> {
         header: Self::Header,
     ) -> Result<(Self::ClientState, ConsensusUpdateResult), Error> {
         let mut parachain_cs_states = vec![];
+        // Extract the new client state from the verified header
         let client_state = client_state
             .from_header(header.clone())
             .map_err(Error::beefy)?;
@@ -173,7 +177,7 @@ impl<Crypto: CryptoOps> ClientDef for BeefyClient<Crypto> {
         _client_state: Self::ClientState,
         _header: Self::Header,
     ) -> Result<bool, Error> {
-        todo!()
+        Ok(false)
     }
 
     fn verify_client_consensus_state(
