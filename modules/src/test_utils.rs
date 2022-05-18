@@ -68,7 +68,7 @@ impl Module for DummyModule {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Crypto;
 
 impl HostFunctions for Crypto {
