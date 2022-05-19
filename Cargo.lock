@@ -251,20 +251,27 @@ dependencies = [
 [[package]]
 name = "beefy-generic-client"
 version = "0.1.0"
-source = "git+https://github.com/ComposableFi/beefy-client?branch=david/refactor-traits#c60a46d3335303b5980eb93280f84ec0e6d99466"
+source = "git+https://github.com/ComposableFi/beefy-client?branch=david/refactor-traits#2228e4277c19c5cf643d3e613a6c1cc41cb0862c"
 dependencies = [
  "beefy-primitives",
  "ckb-merkle-mountain-range",
  "derive_more",
+ "frame-support",
+ "hex-literal",
  "pallet-beefy-mmr",
  "pallet-mmr",
+ "pallet-mmr-rpc",
  "parity-scale-codec",
  "rs_merkle",
+ "serde_json",
  "sp-core 6.0.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.22)",
  "sp-core-hashing 4.0.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.22)",
+ "sp-io 6.0.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.22)",
  "sp-mmr-primitives",
  "sp-runtime 6.0.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.22)",
  "sp-std 4.0.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.22)",
+ "sp-trie 6.0.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.22)",
+ "subxt",
 ]
 
 [[package]]
@@ -1562,18 +1569,13 @@ dependencies = [
  "derive_more",
  "env_logger",
  "flex-error",
- "frame-support",
- "hex-literal",
  "ibc-proto",
  "ics23",
  "modelator",
  "num-traits",
- "pallet-beefy-mmr",
- "pallet-mmr-rpc",
  "parity-scale-codec",
  "prost",
  "prost-types",
- "rs_merkle",
  "safe-regex",
  "serde",
  "serde_derive",
@@ -2442,7 +2444,7 @@ dependencies = [
 [[package]]
 name = "pallet-mmr-rpc"
 version = "3.0.0"
-source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.22#7ad6a90d60e782898b8077bd7ce61ef89a00566c"
+source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.22#616d33ea23bab86cafffaf116fc607b6790fb4eb"
 dependencies = [
  "jsonrpsee 0.13.1",
  "parity-scale-codec",
@@ -3636,7 +3638,7 @@ dependencies = [
 [[package]]
 name = "sp-blockchain"
 version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.22#7ad6a90d60e782898b8077bd7ce61ef89a00566c"
+source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.22#616d33ea23bab86cafffaf116fc607b6790fb4eb"
 dependencies = [
  "futures",
  "log",
@@ -3654,7 +3656,7 @@ dependencies = [
 [[package]]
 name = "sp-consensus"
 version = "0.10.0-dev"
-source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.22#7ad6a90d60e782898b8077bd7ce61ef89a00566c"
+source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.22#616d33ea23bab86cafffaf116fc607b6790fb4eb"
 dependencies = [
  "async-trait",
  "futures",
@@ -3805,7 +3807,7 @@ dependencies = [
 [[package]]
 name = "sp-database"
 version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.22#7ad6a90d60e782898b8077bd7ce61ef89a00566c"
+source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.22#616d33ea23bab86cafffaf116fc607b6790fb4eb"
 dependencies = [
  "kvdb",
  "parking_lot",
