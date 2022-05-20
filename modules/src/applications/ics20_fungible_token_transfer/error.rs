@@ -38,7 +38,8 @@ define_error! {
         InvalidPacketTimeoutTimestamp
             { timestamp: u64 }
             | _ | { "invalid packet timeout timestamp value" },
-
+        InvalidDenom
+            | _ | {"Invalid denom trace"}
         Utf8
             [ DisplayOnly<FromUtf8Error> ]
             | _ | { "utf8 decoding error" },
