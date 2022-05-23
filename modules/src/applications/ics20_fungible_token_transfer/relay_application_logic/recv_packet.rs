@@ -30,32 +30,26 @@ where
     if ctx.is_blocked_account(&receiver) {
         return Err(Error::receive_disabled());
     }
-    match get_source_chain(
+    if let SourceChain::Receiver = get_source_chain(
         &packet.destination_port,
         &packet.destination_channel,
         full_denom_path,
     ) {
-        SourceChain::Receiver => {
-            // Remove prefix added by sender chain
-            let voucher_prefix =
-                Denom::get_denom_prefix(&packet.source_port, &packet.source_channel);
-            let unprefixed_denom = full_denom_path.to_string().split_off(voucher_prefix.len());
+        // Remove prefix added by sender chain
+        let voucher_prefix = Denom::get_denom_prefix(&packet.source_port, &packet.source_channel);
+        let unprefixed_denom = full_denom_path.to_string().split_off(voucher_prefix.len());
 
-            let token = Coin {
-                denom: unprefixed_denom.into(),
-                amount: data.amount,
-            };
+        let token = Coin {
+            denom: unprefixed_denom.into(),
+            amount: data.amount,
+        };
 
-            let escrow_address = ctx.get_channel_escrow_address(
-                &packet.destination_port,
-                &packet.destination_channel,
-            )?;
-            // Send tokens from escrow to receiver
-            ctx.send_coins(&escrow_address, &receiver, &token)?;
+        let escrow_address =
+            ctx.get_channel_escrow_address(&packet.destination_port, &packet.destination_channel)?;
+        // Send tokens from escrow to receiver
+        ctx.send_coins(&escrow_address, &receiver, &token)?;
 
-            return Ok(ICS20Acknowledgement::Success);
-        }
-        _ => {}
+        return Ok(ICS20Acknowledgement::Success);
     }
 
     let mut denom = Denom::get_denom_prefix(&packet.destination_port, &packet.destination_channel);

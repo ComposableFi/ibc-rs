@@ -21,13 +21,8 @@ impl Denom {
 
     pub fn derive_base_denom(&self) -> Result<Self, Error> {
         // Base denom is the string after the first PortId/Channel pair
-        let (.., remainder) = self
-            .0
-            .split_once('/')
-            .ok_or_else(|| Error::invalid_denom())?;
-        let (.., base_denom) = remainder
-            .split_once('/')
-            .ok_or_else(|| Error::invalid_denom())?;
+        let (.., remainder) = self.0.split_once('/').ok_or_else(Error::invalid_denom)?;
+        let (.., base_denom) = remainder.split_once('/').ok_or_else(Error::invalid_denom)?;
         Ok(Self(base_denom.to_string()))
     }
 

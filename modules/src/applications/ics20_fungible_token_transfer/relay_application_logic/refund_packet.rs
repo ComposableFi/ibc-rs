@@ -24,15 +24,14 @@ where
         amount: data.amount,
     };
     let sender = FromStr::from_str(data.sender.as_str())?;
-    match get_source_chain(&packet.source_port, &packet.source_channel, full_denom_path) {
-        SourceChain::Sender => {
-            let escrow_address =
-                ctx.get_channel_escrow_address(&packet.source_port, &packet.source_channel)?;
+    if let SourceChain::Sender =
+        get_source_chain(&packet.source_port, &packet.source_channel, full_denom_path)
+    {
+        let escrow_address =
+            ctx.get_channel_escrow_address(&packet.source_port, &packet.source_channel)?;
 
-            ctx.send_coins(&escrow_address, &sender, &token)?;
-            return Ok(());
-        }
-        _ => {}
+        ctx.send_coins(&escrow_address, &sender, &token)?;
+        return Ok(());
     }
 
     // Mint vouchers back to sender

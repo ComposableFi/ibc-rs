@@ -78,7 +78,7 @@ impl TryFrom<RawMsgTransfer> for MsgTransfer {
             token: raw_msg
                 .token
                 .and_then(|val| val.try_into().ok())
-                .ok_or_else(|| Error::invalid_token())?,
+                .ok_or_else(Error::invalid_token)?,
             sender: raw_msg.sender.into(),
             receiver: raw_msg.receiver.into(),
             timeout_height,
