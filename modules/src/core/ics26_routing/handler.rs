@@ -141,6 +141,7 @@ mod tests {
         conn_open_try::{test_util::get_dummy_raw_msg_conn_open_try, MsgConnectionOpenTry},
         ConnectionMsg,
     };
+    use crate::core::ics04_channel::context::{ChannelKeeper, ChannelReader};
     use crate::core::ics04_channel::msgs::{
         chan_close_confirm::{
             test_util::get_dummy_raw_msg_chan_close_confirm, MsgChannelCloseConfirm,
@@ -256,15 +257,29 @@ mod tests {
             MsgChannelCloseConfirm::try_from(get_dummy_raw_msg_chan_close_confirm(client_height))
                 .unwrap();
 
-        let msg_transfer = get_dummy_msg_transfer(35);
-        let msg_transfer_two = get_dummy_msg_transfer(36);
+        let msg_transfer = get_dummy_msg_transfer(36);
 
         let mut msg_to_on_close =
             MsgTimeoutOnClose::try_from(get_dummy_raw_msg_timeout_on_close(36, 5)).unwrap();
-        msg_to_on_close.packet.sequence = 2.into();
-        msg_to_on_close.packet.timeout_height = msg_transfer_two.timeout_height;
-        msg_to_on_close.packet.timeout_timestamp = msg_transfer_two.timeout_timestamp;
 
+        msg_to_on_close.packet.sequence = 2.into();
+        msg_to_on_close.packet.timeout_height = msg_transfer.timeout_height;
+        msg_to_on_close.packet.timeout_timestamp = msg_transfer.timeout_timestamp;
+
+        let packet_commitment = ctx.packet_commitment(
+            msg_to_on_close.packet.data.clone(),
+            msg_to_on_close.packet.timeout_height,
+            msg_to_on_close.packet.timeout_timestamp,
+        );
+        ctx.store_packet_commitment(
+            (
+                msg_to_on_close.packet.source_port.clone(),
+                msg_to_on_close.packet.source_channel.clone(),
+                msg_to_on_close.packet.sequence,
+            ),
+            packet_commitment.into(),
+        )
+        .unwrap();
         let msg_recv_packet = MsgRecvPacket::try_from(get_dummy_raw_msg_recv_packet(35)).unwrap();
 
         // First, create a client..
