@@ -6,7 +6,11 @@ pub mod error;
 pub mod msgs;
 pub mod relay_application_logic;
 
-mod denom;
+pub mod acknowledgement;
+pub mod denom;
+pub mod primitives;
+pub mod utils;
+
 pub use denom::*;
 
 /// The port identifier that the ICS20 applications

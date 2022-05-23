@@ -39,7 +39,15 @@ define_error! {
             { timestamp: u64 }
             | _ | { "invalid packet timeout timestamp value" },
         InvalidDenom
-            | _ | {"Invalid denom trace"}
+            | _ | {"Invalid denom trace"},
+        InvalidToken
+            | _ | {"Invalid token"},
+        InvalidAmount
+            | _ | {"Invalid token amount"},
+        SendDisabled
+            | _ | {"This module is disabled from sending tokens"},
+        ReceiveDisabled
+            | _ | {"This module is disabled from receiving tokens"},
         Utf8
             [ DisplayOnly<FromUtf8Error> ]
             | _ | { "utf8 decoding error" },
