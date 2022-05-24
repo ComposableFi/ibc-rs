@@ -1,3 +1,4 @@
+use crate::clients::crypto_ops::crypto::CryptoOps;
 use crate::core::ics04_channel::channel::State;
 use crate::core::ics04_channel::channel::{ChannelEnd, Counterparty, Order};
 use crate::core::ics04_channel::events::TimeoutOnClosePacket;
@@ -7,15 +8,14 @@ use crate::core::ics04_channel::handler::verify::{
 };
 use crate::core::ics04_channel::msgs::timeout_on_close::MsgTimeoutOnClose;
 use crate::core::ics04_channel::packet::PacketResult;
-use crate::core::ics04_channel::{
-    context::ChannelReader, error::Error, handler::timeout::TimeoutPacketResult,
-};
+use crate::core::ics04_channel::{error::Error, handler::timeout::TimeoutPacketResult};
+use crate::core::ics26_routing::context::LightClientContext;
 use crate::events::IbcEvent;
 use crate::handler::{HandlerOutput, HandlerResult};
 use crate::prelude::*;
 
-pub fn process(
-    ctx: &dyn ChannelReader,
+pub fn process<Crypto: CryptoOps>(
+    ctx: &dyn LightClientContext,
     msg: &MsgTimeoutOnClose,
 ) -> HandlerResult<PacketResult, Error> {
     let mut output = HandlerOutput::builder();
@@ -37,7 +37,9 @@ pub fn process(
         ));
     }
 
-    let connection_end = ctx.connection_end(&source_channel_end.connection_hops()[0])?;
+    let connection_end = ctx
+        .connection_end(&source_channel_end.connection_hops()[0])
+        .map_err(Error::ics03_connection)?;
 
     //verify the packet was sent, check the store
     let packet_commitment = ctx.get_packet_commitment(&(
@@ -73,7 +75,7 @@ pub fn process(
         source_channel_end.version().clone(),
     );
 
-    verify_channel_proofs(
+    verify_channel_proofs::<Crypto>(
         ctx,
         msg.proofs.height(),
         &source_channel_end,
@@ -89,7 +91,7 @@ pub fn process(
                 msg.next_sequence_recv,
             ));
         }
-        verify_next_sequence_recv(
+        verify_next_sequence_recv::<Crypto>(
             ctx,
             msg.proofs.height(),
             &connection_end,
@@ -105,7 +107,7 @@ pub fn process(
             channel: Some(source_channel_end),
         })
     } else {
-        verify_packet_receipt_absence(
+        verify_packet_receipt_absence::<Crypto>(
             ctx,
             msg.proofs.height(),
             &connection_end,
@@ -135,6 +137,7 @@ pub fn process(
 mod tests {
     use test_log::test;
 
+    use crate::core::ics02_client::context::ClientReader;
     use crate::core::ics02_client::height::Height;
     use crate::core::ics03_connection::connection::ConnectionEnd;
     use crate::core::ics03_connection::connection::Counterparty as ConnectionCounterparty;
@@ -150,6 +153,7 @@ mod tests {
     use crate::events::IbcEvent;
     use crate::mock::context::MockContext;
     use crate::prelude::*;
+    use crate::test_utils::Crypto;
     use crate::timestamp::ZERO_DURATION;
 
     #[test]
@@ -248,7 +252,7 @@ mod tests {
         .collect();
 
         for test in tests {
-            let res = process(&test.ctx, &test.msg);
+            let res = process::<Crypto>(&test.ctx, &test.msg);
             // Additionally check the events and the output objects in the result.
             match res {
                 Ok(proto_output) => {

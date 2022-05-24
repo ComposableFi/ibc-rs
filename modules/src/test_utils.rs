@@ -1,8 +1,14 @@
 #![allow(dead_code)]
 
+use crate::clients::crypto_ops::crypto::CryptoOps;
 use crate::prelude::*;
+use beefy_client::traits::HostFunctions;
+use sp_core::keccak_256;
+use sp_trie::LayoutV0;
 use tendermint::{block, consensus, evidence, public_key::Algorithm};
 
+use crate::clients::ics11_beefy::error::Error as BeefyError;
+use crate::core::ics02_client::error::Error as Ics02Error;
 use crate::core::ics04_channel::channel::{Counterparty, Order};
 use crate::core::ics04_channel::error::Error;
 use crate::core::ics04_channel::Version;
@@ -59,5 +65,50 @@ impl Module for DummyModule {
         counterparty_version: &Version,
     ) -> Result<Version, Error> {
         Ok(counterparty_version.clone())
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct Crypto;
+
+impl HostFunctions for Crypto {
+    fn keccak_256(input: &[u8]) -> [u8; 32] {
+        keccak_256(input)
+    }
+
+    fn secp256k1_ecdsa_recover_compressed(
+        signature: &[u8; 65],
+        value: &[u8; 32],
+    ) -> Option<Vec<u8>> {
+        sp_io::crypto::secp256k1_ecdsa_recover_compressed(signature, value)
+            .ok()
+            .map(|val| val.to_vec())
+    }
+}
+
+impl CryptoOps for Crypto {
+    fn verify_membership_trie_proof(
+        root: &sp_core::H256,
+        proof: &[Vec<u8>],
+        key: &[u8],
+        value: &[u8],
+    ) -> Result<(), Ics02Error> {
+        let item = vec![(key, Some(value))];
+        sp_trie::verify_trie_proof::<LayoutV0<sp_runtime::traits::BlakeTwo256>, _, _, _>(
+            root, proof, &item,
+        )
+        .map_err(|_| Ics02Error::beefy(BeefyError::invalid_trie_proof()))
+    }
+
+    fn verify_non_membership_trie_proof(
+        root: &sp_core::H256,
+        proof: &[Vec<u8>],
+        key: &[u8],
+    ) -> Result<(), Ics02Error> {
+        let item: Vec<(&[u8], Option<&[u8]>)> = vec![(key, None)];
+        sp_trie::verify_trie_proof::<LayoutV0<sp_runtime::traits::BlakeTwo256>, _, _, _>(
+            root, proof, &item,
+        )
+        .map_err(|_| Ics02Error::beefy(BeefyError::invalid_trie_proof()))
     }
 }

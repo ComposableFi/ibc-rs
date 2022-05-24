@@ -3,6 +3,7 @@
 //! "ADR 003: IBC protocol implementation" for more details.
 
 use crate::core::ics02_client::client_consensus::AnyConsensusState;
+use crate::core::ics02_client::client_def::ConsensusUpdateResult;
 use crate::core::ics02_client::client_state::AnyClientState;
 use crate::core::ics02_client::client_type::ClientType;
 use crate::core::ics02_client::error::{Error, ErrorDetail};
@@ -87,11 +88,16 @@ pub trait ClientKeeper {
 
                 self.store_client_type(client_id.clone(), res.client_type)?;
                 self.store_client_state(client_id.clone(), res.client_state.clone())?;
-                self.store_consensus_state(
-                    client_id,
-                    res.client_state.latest_height(),
-                    res.consensus_state,
-                )?;
+                match res.consensus_state {
+                    None => {}
+                    Some(consensus_state) => {
+                        self.store_consensus_state(
+                            client_id,
+                            res.client_state.latest_height(),
+                            consensus_state,
+                        )?;
+                    }
+                }
                 self.increase_client_counter();
                 self.store_update_time(
                     res.client_id.clone(),
@@ -107,11 +113,28 @@ pub trait ClientKeeper {
             }
             Update(res) => {
                 self.store_client_state(res.client_id.clone(), res.client_state.clone())?;
-                self.store_consensus_state(
-                    res.client_id.clone(),
-                    res.client_state.latest_height(),
-                    res.consensus_state,
-                )?;
+                match res.consensus_state {
+                    None => {}
+                    Some(cs_state_update) => match cs_state_update {
+                        ConsensusUpdateResult::Single(cs_state) => {
+                            self.store_consensus_state(
+                                res.client_id.clone(),
+                                res.client_state.latest_height(),
+                                cs_state,
+                            )?;
+                        }
+                        ConsensusUpdateResult::Batch(cs_states) => {
+                            for (height, cs_state) in cs_states {
+                                self.store_consensus_state(
+                                    res.client_id.clone(),
+                                    height,
+                                    cs_state,
+                                )?;
+                            }
+                        }
+                    },
+                }
+
                 self.store_update_time(
                     res.client_id.clone(),
                     res.client_state.latest_height(),
@@ -126,11 +149,27 @@ pub trait ClientKeeper {
             }
             Upgrade(res) => {
                 self.store_client_state(res.client_id.clone(), res.client_state.clone())?;
-                self.store_consensus_state(
-                    res.client_id.clone(),
-                    res.client_state.latest_height(),
-                    res.consensus_state,
-                )?;
+                match res.consensus_state {
+                    None => {}
+                    Some(cs_state_update) => match cs_state_update {
+                        ConsensusUpdateResult::Single(cs_state) => {
+                            self.store_consensus_state(
+                                res.client_id.clone(),
+                                res.client_state.latest_height(),
+                                cs_state,
+                            )?;
+                        }
+                        ConsensusUpdateResult::Batch(cs_states) => {
+                            for (height, cs_state) in cs_states {
+                                self.store_consensus_state(
+                                    res.client_id.clone(),
+                                    height,
+                                    cs_state,
+                                )?;
+                            }
+                        }
+                    },
+                }
                 Ok(())
             }
         }

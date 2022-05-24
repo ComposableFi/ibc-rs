@@ -1,20 +1,21 @@
 //! Protocol logic specific to ICS4 messages of type `MsgChannelOpenTry`.
 
+use crate::clients::crypto_ops::crypto::CryptoOps;
 use crate::core::ics03_connection::connection::State as ConnectionState;
 use crate::core::ics04_channel::channel::{ChannelEnd, Counterparty, State};
-use crate::core::ics04_channel::context::ChannelReader;
 use crate::core::ics04_channel::error::Error;
 use crate::core::ics04_channel::events::Attributes;
 use crate::core::ics04_channel::handler::verify::verify_channel_proofs;
 use crate::core::ics04_channel::handler::{ChannelIdState, ChannelResult};
 use crate::core::ics04_channel::msgs::chan_open_try::MsgChannelOpenTry;
 use crate::core::ics24_host::identifier::ChannelId;
+use crate::core::ics26_routing::context::LightClientContext;
 use crate::events::IbcEvent;
 use crate::handler::{HandlerOutput, HandlerResult};
 use crate::prelude::*;
 
-pub(crate) fn process(
-    ctx: &dyn ChannelReader,
+pub(crate) fn process<Crypto: CryptoOps>(
+    ctx: &dyn LightClientContext,
     msg: &MsgChannelOpenTry,
 ) -> HandlerResult<ChannelResult, Error> {
     let mut output = HandlerOutput::builder();
@@ -69,7 +70,9 @@ pub(crate) fn process(
         ));
     }
 
-    let conn = ctx.connection_end(&msg.channel.connection_hops()[0])?;
+    let conn = ctx
+        .connection_end(&msg.channel.connection_hops()[0])
+        .map_err(Error::ics03_connection)?;
     if !conn.state_matches(&ConnectionState::Open) {
         return Err(Error::connection_not_open(
             msg.channel.connection_hops()[0].clone(),
@@ -108,7 +111,7 @@ pub(crate) fn process(
     );
 
     // 2. Actual proofs are verified now.
-    verify_channel_proofs(
+    verify_channel_proofs::<Crypto>(
         ctx,
         msg.proofs.height(),
         &new_channel_end,
@@ -154,6 +157,7 @@ mod tests {
     use test_log::test;
 
     use crate::core::ics02_client::client_type::ClientType;
+    use crate::core::ics02_client::context::ClientReader;
     use crate::core::ics02_client::error as ics02_error;
     use crate::core::ics03_connection::connection::ConnectionEnd;
     use crate::core::ics03_connection::connection::Counterparty as ConnectionCounterparty;
@@ -162,7 +166,6 @@ mod tests {
     use crate::core::ics03_connection::msgs::test_util::get_dummy_raw_counterparty;
     use crate::core::ics03_connection::version::get_compatible_versions;
     use crate::core::ics04_channel::channel::{ChannelEnd, State};
-    use crate::core::ics04_channel::context::ChannelReader;
     use crate::core::ics04_channel::handler::channel_dispatch;
     use crate::core::ics04_channel::msgs::chan_open_try::test_util::get_dummy_raw_msg_chan_open_try;
     use crate::core::ics04_channel::msgs::chan_open_try::MsgChannelOpenTry;
@@ -171,6 +174,7 @@ mod tests {
     use crate::core::ics24_host::identifier::{ChannelId, ClientId, ConnectionId};
     use crate::events::IbcEvent;
     use crate::mock::context::MockContext;
+    use crate::test_utils::Crypto;
     use crate::timestamp::ZERO_DURATION;
     use crate::Height;
 
@@ -340,16 +344,12 @@ mod tests {
                 msg: ChannelMsg::ChannelOpenTry(msg.clone()),
                 want_pass: false,
                 match_error: Box::new(|e| match e {
-                    error::ErrorDetail::Ics03Connection(e) => {
+                    error::ErrorDetail::Ics02Client(e) => {
                         assert_eq!(
                             e.source,
-                            ics03_error::ErrorDetail::Ics02Client(
-                                ics03_error::Ics02ClientSubdetail {
-                                    source: ics02_error::ErrorDetail::ClientNotFound(
-                                        ics02_error::ClientNotFoundSubdetail {
-                                            client_id: ClientId::new(ClientType::Mock, 45).unwrap()
-                                        }
-                                    )
+                            ics02_error::ErrorDetail::ClientNotFound(
+                                ics02_error::ClientNotFoundSubdetail {
+                                    client_id: ClientId::new(ClientType::Mock, 45).unwrap()
                                 }
                             )
                         );
@@ -385,7 +385,7 @@ mod tests {
         .collect();
 
         for test in tests {
-            let res = channel_dispatch(&test.ctx, &test.msg);
+            let res = channel_dispatch::<_, Crypto>(&test.ctx, &test.msg);
             // Additionally check the events and the output objects in the result.
             match res {
                 Ok((proto_output, res)) => {

@@ -1,16 +1,18 @@
+use crate::clients::crypto_ops::crypto::CryptoOps;
 use crate::core::ics03_connection::connection::State as ConnectionState;
 use crate::core::ics04_channel::channel::{Counterparty, Order, State};
-use crate::core::ics04_channel::context::ChannelReader;
 use crate::core::ics04_channel::error::Error;
 use crate::core::ics04_channel::events::ReceivePacket;
 use crate::core::ics04_channel::handler::verify::verify_packet_recv_proofs;
 use crate::core::ics04_channel::msgs::recv_packet::MsgRecvPacket;
 use crate::core::ics04_channel::packet::{PacketResult, Receipt, Sequence};
 use crate::core::ics24_host::identifier::{ChannelId, PortId};
+use crate::core::ics26_routing::context::LightClientContext;
 use crate::events::IbcEvent;
 use crate::handler::{HandlerOutput, HandlerResult};
 use crate::timestamp::Expiry;
 use crate::Height;
+use core::fmt::Debug;
 
 #[derive(Clone, Debug)]
 pub struct RecvPacketSuccess {
@@ -27,7 +29,10 @@ pub enum RecvPacketResult {
     NoOp,
 }
 
-pub fn process(ctx: &dyn ChannelReader, msg: &MsgRecvPacket) -> HandlerResult<PacketResult, Error> {
+pub fn process<Crypto: CryptoOps>(
+    ctx: &dyn LightClientContext,
+    msg: &MsgRecvPacket,
+) -> HandlerResult<PacketResult, Error> {
     let mut output = HandlerOutput::builder();
 
     let packet = &msg.packet;
@@ -51,7 +56,9 @@ pub fn process(ctx: &dyn ChannelReader, msg: &MsgRecvPacket) -> HandlerResult<Pa
         ));
     }
 
-    let connection_end = ctx.connection_end(&dest_channel_end.connection_hops()[0])?;
+    let connection_end = ctx
+        .connection_end(&dest_channel_end.connection_hops()[0])
+        .map_err(Error::ics03_connection)?;
 
     if !connection_end.state_matches(&ConnectionState::Open) {
         return Err(Error::connection_not_open(
@@ -72,7 +79,7 @@ pub fn process(ctx: &dyn ChannelReader, msg: &MsgRecvPacket) -> HandlerResult<Pa
         return Err(Error::low_packet_timestamp());
     }
 
-    verify_packet_recv_proofs(
+    verify_packet_recv_proofs::<Crypto>(
         ctx,
         msg.proofs.height(),
         packet,
@@ -145,11 +152,11 @@ pub fn process(ctx: &dyn ChannelReader, msg: &MsgRecvPacket) -> HandlerResult<Pa
 
 #[cfg(test)]
 mod tests {
-    use crate::core::ics04_channel::context::ChannelReader;
     use crate::prelude::*;
 
     use test_log::test;
 
+    use crate::core::ics02_client::context::ClientReader;
     use crate::core::ics03_connection::connection::ConnectionEnd;
     use crate::core::ics03_connection::connection::Counterparty as ConnectionCounterparty;
     use crate::core::ics03_connection::connection::State as ConnectionState;
@@ -163,6 +170,7 @@ mod tests {
     use crate::mock::context::MockContext;
     use crate::relayer::ics18_relayer::context::Ics18Context;
     use crate::test_utils::get_dummy_account_id;
+    use crate::test_utils::Crypto;
     use crate::timestamp::Timestamp;
     use crate::timestamp::ZERO_DURATION;
     use crate::{core::ics04_channel::packet::Packet, events::IbcEvent};
@@ -271,7 +279,7 @@ mod tests {
         .collect();
 
         for test in tests {
-            let res = process(&test.ctx, &test.msg);
+            let res = process::<Crypto>(&test.ctx, &test.msg);
             // Additionally check the events and the output objects in the result.
             match res {
                 Ok(proto_output) => {

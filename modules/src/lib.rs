@@ -2,16 +2,16 @@
 // https://github.com/informalsystems/ibc-rs/issues/987
 // #![cfg_attr(not(test), deny(clippy::unwrap_used))]
 
-#![no_std]
+#![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::large_enum_variant)]
 #![deny(
     warnings,
     trivial_casts,
     trivial_numeric_casts,
     unused_import_braces,
-    unused_qualifications,
-    rust_2018_idioms
+    unused_qualifications
 )]
+#![cfg_attr(not(test), deny(rust_2018_idioms))]
 #![forbid(unsafe_code)]
 
 //! This library implements the InterBlockchain Communication (IBC) protocol in Rust. IBC is

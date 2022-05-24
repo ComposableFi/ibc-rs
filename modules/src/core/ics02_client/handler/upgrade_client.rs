@@ -1,17 +1,18 @@
 //! Protocol logic specific to processing ICS2 messages of type `MsgUpgradeAnyClient`.
 //!
-use crate::core::ics02_client::client_consensus::AnyConsensusState;
-use crate::core::ics02_client::client_def::{AnyClient, ClientDef};
+use crate::clients::crypto_ops::crypto::CryptoOps;
+use crate::core::ics02_client::client_def::{AnyClient, ClientDef, ConsensusUpdateResult};
 use crate::core::ics02_client::client_state::{AnyClientState, ClientState};
-use crate::core::ics02_client::context::ClientReader;
 use crate::core::ics02_client::error::Error;
 use crate::core::ics02_client::events::Attributes;
 use crate::core::ics02_client::handler::ClientResult;
 use crate::core::ics02_client::msgs::upgrade_client::MsgUpgradeAnyClient;
 use crate::core::ics24_host::identifier::ClientId;
+use crate::core::ics26_routing::context::LightClientContext;
 use crate::events::IbcEvent;
 use crate::handler::{HandlerOutput, HandlerResult};
 use crate::prelude::*;
+use core::fmt::Debug;
 
 /// The result following the successful processing of a `MsgUpgradeAnyClient` message.
 /// This data type should be used with a qualified name `upgrade_client::Result` to avoid ambiguity.
@@ -19,11 +20,11 @@ use crate::prelude::*;
 pub struct Result {
     pub client_id: ClientId,
     pub client_state: AnyClientState,
-    pub consensus_state: AnyConsensusState,
+    pub consensus_state: Option<ConsensusUpdateResult>,
 }
 
-pub fn process(
-    ctx: &dyn ClientReader,
+pub fn process<Crypto: CryptoOps>(
+    ctx: &dyn LightClientContext,
     msg: MsgUpgradeAnyClient,
 ) -> HandlerResult<ClientResult, Error> {
     let mut output = HandlerOutput::builder();
@@ -47,7 +48,7 @@ pub fn process(
 
     let client_type = ctx.client_type(&client_id)?;
 
-    let client_def = AnyClient::from_client_type(client_type);
+    let client_def = AnyClient::<Crypto>::from_client_type(client_type);
 
     let (new_client_state, new_consensus_state) = client_def.verify_upgrade_and_update_state(
         &upgrade_client_state,
@@ -62,7 +63,7 @@ pub fn process(
     let result = ClientResult::Upgrade(Result {
         client_id: client_id.clone(),
         client_state: new_client_state,
-        consensus_state: new_consensus_state,
+        consensus_state: Some(new_consensus_state),
     });
     let event_attributes = Attributes {
         client_id,
@@ -92,7 +93,7 @@ mod tests {
     use crate::mock::client_state::{MockClientState, MockConsensusState};
     use crate::mock::context::MockContext;
     use crate::mock::header::MockHeader;
-    use crate::test_utils::get_dummy_account_id;
+    use crate::test_utils::{get_dummy_account_id, Crypto};
     use crate::Height;
 
     #[test]
@@ -111,7 +112,7 @@ mod tests {
             signer,
         };
 
-        let output = dispatch(&ctx, ClientMsg::UpgradeClient(msg.clone()));
+        let output = dispatch::<_, Crypto>(&ctx, ClientMsg::UpgradeClient(msg.clone()));
 
         match output {
             Ok(HandlerOutput {
@@ -157,7 +158,7 @@ mod tests {
             signer,
         };
 
-        let output = dispatch(&ctx, ClientMsg::UpgradeClient(msg.clone()));
+        let output = dispatch::<_, Crypto>(&ctx, ClientMsg::UpgradeClient(msg.clone()));
 
         match output {
             Err(Error(ErrorDetail::ClientNotFound(e), _)) => {
@@ -185,7 +186,7 @@ mod tests {
             signer,
         };
 
-        let output = dispatch(&ctx, ClientMsg::UpgradeClient(msg.clone()));
+        let output = dispatch::<_, Crypto>(&ctx, ClientMsg::UpgradeClient(msg.clone()));
 
         match output {
             Err(Error(ErrorDetail::LowUpgradeHeight(e), _)) => {

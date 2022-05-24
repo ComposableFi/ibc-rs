@@ -1,18 +1,19 @@
 //! Protocol logic specific to ICS4 messages of type `MsgChannelOpenAck`.
+use crate::clients::crypto_ops::crypto::CryptoOps;
 use crate::core::ics03_connection::connection::State as ConnectionState;
 use crate::core::ics04_channel::channel::{ChannelEnd, Counterparty, State};
-use crate::core::ics04_channel::context::ChannelReader;
 use crate::core::ics04_channel::error::Error;
 use crate::core::ics04_channel::events::Attributes;
 use crate::core::ics04_channel::handler::verify::verify_channel_proofs;
 use crate::core::ics04_channel::handler::{ChannelIdState, ChannelResult};
 use crate::core::ics04_channel::msgs::chan_open_ack::MsgChannelOpenAck;
+use crate::core::ics26_routing::context::LightClientContext;
 use crate::events::IbcEvent;
 use crate::handler::{HandlerOutput, HandlerResult};
 use crate::prelude::*;
 
-pub(crate) fn process(
-    ctx: &dyn ChannelReader,
+pub(crate) fn process<Crypto: CryptoOps>(
+    ctx: &dyn LightClientContext,
     msg: &MsgChannelOpenAck,
 ) -> HandlerResult<ChannelResult, Error> {
     let mut output = HandlerOutput::builder();
@@ -37,7 +38,9 @@ pub(crate) fn process(
         ));
     }
 
-    let conn = ctx.connection_end(&channel_end.connection_hops()[0])?;
+    let conn = ctx
+        .connection_end(&channel_end.connection_hops()[0])
+        .map_err(Error::ics03_connection)?;
 
     if !conn.state_matches(&ConnectionState::Open) {
         return Err(Error::connection_not_open(
@@ -69,7 +72,7 @@ pub(crate) fn process(
     channel_end.set_counterparty_channel_id(msg.counterparty_channel_id);
 
     //2. Verify proofs
-    verify_channel_proofs(
+    verify_channel_proofs::<Crypto>(
         ctx,
         msg.proofs.height(),
         &channel_end,
@@ -111,6 +114,7 @@ mod tests {
 
     use test_log::test;
 
+    use crate::core::ics02_client::context::ClientReader;
     use crate::core::ics03_connection::connection::ConnectionEnd;
     use crate::core::ics03_connection::connection::Counterparty as ConnectionCounterparty;
     use crate::core::ics03_connection::connection::State as ConnectionState;
@@ -120,7 +124,6 @@ mod tests {
     use crate::core::ics03_connection::msgs::conn_open_try::MsgConnectionOpenTry;
     use crate::core::ics03_connection::version::get_compatible_versions;
     use crate::core::ics04_channel::channel::{ChannelEnd, Counterparty, State};
-    use crate::core::ics04_channel::context::ChannelReader;
     use crate::core::ics04_channel::handler::channel_dispatch;
     use crate::core::ics04_channel::msgs::chan_open_ack::test_util::get_dummy_raw_msg_chan_open_ack;
     use crate::core::ics04_channel::msgs::chan_open_ack::MsgChannelOpenAck;
@@ -131,6 +134,7 @@ mod tests {
     use crate::events::IbcEvent;
     use crate::mock::context::MockContext;
     use crate::prelude::*;
+    use crate::test_utils::Crypto;
     use crate::Height;
 
     // TODO: The tests here are very fragile and complex.
@@ -280,7 +284,7 @@ mod tests {
         .collect();
 
         for test in tests {
-            let res = channel_dispatch(&test.ctx, &test.msg);
+            let res = channel_dispatch::<_, Crypto>(&test.ctx, &test.msg);
             // Additionally check the events and the output objects in the result.
             match res {
                 Ok((proto_output, res)) => {

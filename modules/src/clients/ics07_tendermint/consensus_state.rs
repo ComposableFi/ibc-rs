@@ -1,6 +1,7 @@
 use crate::prelude::*;
 
 use core::convert::Infallible;
+use core::fmt::Debug;
 
 use serde::Serialize;
 use tendermint::{hash::Algorithm, time::Time, Hash};

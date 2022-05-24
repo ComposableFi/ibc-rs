@@ -1,4 +1,4 @@
-use crate::core::ics02_client::header::{AnyHeader, Header};
+use crate::core::ics02_client::header::AnyHeader;
 use crate::core::ics02_client::msgs::update_client::MsgUpdateAnyClient;
 use crate::core::ics02_client::msgs::ClientMsg;
 use crate::core::ics24_host::identifier::ClientId;
@@ -159,6 +159,7 @@ mod tests {
                     hheader.trusted_height = th.decrement().unwrap();
                     hheader.wrap_any()
                 }
+                AnyHeader::Beefy(h) => h.wrap_any(),
                 AnyHeader::Mock(header) => header.wrap_any(),
             };
 

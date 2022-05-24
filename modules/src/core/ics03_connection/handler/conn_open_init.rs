@@ -1,24 +1,25 @@
 //! Protocol logic specific to ICS3 messages of type `MsgConnectionOpenInit`.
 
 use crate::core::ics03_connection::connection::{ConnectionEnd, State};
-use crate::core::ics03_connection::context::ConnectionReader;
 use crate::core::ics03_connection::error::Error;
 use crate::core::ics03_connection::events::Attributes;
 use crate::core::ics03_connection::handler::{ConnectionIdState, ConnectionResult};
 use crate::core::ics03_connection::msgs::conn_open_init::MsgConnectionOpenInit;
 use crate::core::ics24_host::identifier::ConnectionId;
+use crate::core::ics26_routing::context::LightClientContext;
 use crate::events::IbcEvent;
 use crate::handler::{HandlerOutput, HandlerResult};
 use crate::prelude::*;
 
 pub(crate) fn process(
-    ctx: &dyn ConnectionReader,
+    ctx: &dyn LightClientContext,
     msg: MsgConnectionOpenInit,
 ) -> HandlerResult<ConnectionResult, Error> {
     let mut output = HandlerOutput::builder();
 
     // An IBC client running on the local (host) chain should exist.
-    ctx.client_state(&msg.client_id)?;
+    ctx.client_state(&msg.client_id)
+        .map_err(Error::ics02_client)?;
 
     let versions = match msg.version {
         Some(version) => {
@@ -56,7 +57,7 @@ pub(crate) fn process(
 
     let event_attributes = Attributes {
         connection_id: Some(conn_id),
-        height: ctx.host_current_height(),
+        height: ctx.host_height(),
         ..Default::default()
     };
     output.emit(IbcEvent::OpenInitConnection(event_attributes.into()));
@@ -68,6 +69,7 @@ pub(crate) fn process(
 mod tests {
     use test_log::test;
 
+    use crate::core::ics02_client::context::ClientReader;
     use crate::core::ics03_connection::connection::State;
     use crate::core::ics03_connection::context::ConnectionReader;
     use crate::core::ics03_connection::handler::{dispatch, ConnectionResult};
@@ -78,6 +80,7 @@ mod tests {
     use crate::events::IbcEvent;
     use crate::mock::context::MockContext;
     use crate::prelude::*;
+    use crate::test_utils::Crypto;
     use crate::Height;
 
     use ibc_proto::ibc::core::connection::v1::Version as RawVersion;
@@ -146,7 +149,7 @@ mod tests {
         .collect();
 
         for test in tests {
-            let res = dispatch(&test.ctx, test.msg.clone());
+            let res = dispatch::<_, Crypto>(&test.ctx, test.msg.clone());
             // Additionally check the events and the output objects in the result.
             match res {
                 Ok(proto_output) => {
@@ -158,7 +161,7 @@ mod tests {
 
                     for e in proto_output.events.iter() {
                         assert!(matches!(e, &IbcEvent::OpenInitConnection(_)));
-                        assert_eq!(e.height(), test.ctx.host_current_height());
+                        assert_eq!(e.height(), test.ctx.host_height());
                     }
 
                     assert_eq!(res.connection_end.versions(), test.expected_versions);

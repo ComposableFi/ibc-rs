@@ -1,17 +1,20 @@
+use crate::clients::crypto_ops::crypto::CryptoOps;
 use crate::core::ics04_channel::channel::State;
 use crate::core::ics04_channel::channel::{ChannelEnd, Counterparty, Order};
+use crate::core::ics04_channel::error::Error;
 use crate::core::ics04_channel::events::TimeoutPacket;
 use crate::core::ics04_channel::handler::verify::{
     verify_next_sequence_recv, verify_packet_receipt_absence,
 };
 use crate::core::ics04_channel::msgs::timeout::MsgTimeout;
 use crate::core::ics04_channel::packet::{PacketResult, Sequence};
-use crate::core::ics04_channel::{context::ChannelReader, error::Error};
 use crate::core::ics24_host::identifier::{ChannelId, PortId};
+use crate::core::ics26_routing::context::LightClientContext;
 use crate::events::IbcEvent;
 use crate::handler::{HandlerOutput, HandlerResult};
 use crate::prelude::*;
 use crate::timestamp::Expiry;
+use core::fmt::Debug;
 
 #[derive(Clone, Debug)]
 pub struct TimeoutPacketResult {
@@ -21,7 +24,10 @@ pub struct TimeoutPacketResult {
     pub channel: Option<ChannelEnd>,
 }
 
-pub fn process(ctx: &dyn ChannelReader, msg: &MsgTimeout) -> HandlerResult<PacketResult, Error> {
+pub fn process<Crypto: CryptoOps>(
+    ctx: &dyn LightClientContext,
+    msg: &MsgTimeout,
+) -> HandlerResult<PacketResult, Error> {
     let mut output = HandlerOutput::builder();
 
     let packet = &msg.packet;
@@ -45,7 +51,9 @@ pub fn process(ctx: &dyn ChannelReader, msg: &MsgTimeout) -> HandlerResult<Packe
         ));
     }
 
-    let connection_end = ctx.connection_end(&source_channel_end.connection_hops()[0])?;
+    let connection_end = ctx
+        .connection_end(&source_channel_end.connection_hops()[0])
+        .map_err(Error::ics03_connection)?;
 
     let client_id = connection_end.client_id().clone();
 
@@ -60,7 +68,9 @@ pub fn process(ctx: &dyn ChannelReader, msg: &MsgTimeout) -> HandlerResult<Packe
         ));
     }
 
-    let consensus_state = ctx.client_consensus_state(&client_id, proof_height)?;
+    let consensus_state = ctx
+        .consensus_state(&client_id, proof_height)
+        .map_err(|_| Error::error_invalid_consensus_state())?;
 
     let proof_timestamp = consensus_state.timestamp();
 
@@ -95,7 +105,7 @@ pub fn process(ctx: &dyn ChannelReader, msg: &MsgTimeout) -> HandlerResult<Packe
                 msg.next_sequence_recv,
             ));
         }
-        verify_next_sequence_recv(
+        verify_next_sequence_recv::<Crypto>(
             ctx,
             msg.proofs.height(),
             &connection_end,
@@ -112,7 +122,7 @@ pub fn process(ctx: &dyn ChannelReader, msg: &MsgTimeout) -> HandlerResult<Packe
             channel: Some(source_channel_end),
         })
     } else {
-        verify_packet_receipt_absence(
+        verify_packet_receipt_absence::<Crypto>(
             ctx,
             msg.proofs.height(),
             &connection_end,
@@ -142,6 +152,7 @@ pub fn process(ctx: &dyn ChannelReader, msg: &MsgTimeout) -> HandlerResult<Packe
 mod tests {
     use test_log::test;
 
+    use crate::core::ics02_client::context::ClientReader;
     use crate::core::ics02_client::height::Height;
     use crate::core::ics03_connection::connection::ConnectionEnd;
     use crate::core::ics03_connection::connection::Counterparty as ConnectionCounterparty;
@@ -157,6 +168,7 @@ mod tests {
     use crate::events::IbcEvent;
     use crate::mock::context::MockContext;
     use crate::prelude::*;
+    use crate::test_utils::Crypto;
     use crate::timestamp::ZERO_DURATION;
 
     #[test]
@@ -294,7 +306,7 @@ mod tests {
         .collect();
 
         for test in tests {
-            let res = process(&test.ctx, &test.msg);
+            let res = process::<Crypto>(&test.ctx, &test.msg);
             // Additionally check the events and the output objects in the result.
             match res {
                 Ok(proto_output) => {

@@ -8,6 +8,7 @@ use tendermint_proto::Protobuf;
 use ibc_proto::ibc::core::client::v1::IdentifiedClientState;
 
 use crate::clients::ics07_tendermint::client_state;
+use crate::clients::ics11_beefy::client_state as beefy_client_state;
 use crate::core::ics02_client::client_type::ClientType;
 use crate::core::ics02_client::error::Error;
 use crate::core::ics02_client::trust_threshold::TrustThreshold;
@@ -19,6 +20,7 @@ use crate::prelude::*;
 use crate::Height;
 
 pub const TENDERMINT_CLIENT_STATE_TYPE_URL: &str = "/ibc.lightclients.tendermint.v1.ClientState";
+pub const BEEFY_CLIENT_STATE_TYPE_URL: &str = "/ibc.lightclients.beefy.v1.ClientState";
 pub const MOCK_CLIENT_STATE_TYPE_URL: &str = "/ibc.mock.ClientState";
 
 pub trait ClientState: Clone + core::fmt::Debug + Send + Sync {
@@ -61,7 +63,7 @@ pub trait ClientState: Clone + core::fmt::Debug + Send + Sync {
 #[serde(tag = "type")]
 pub enum AnyUpgradeOptions {
     Tendermint(client_state::UpgradeOptions),
-
+    Beefy(beefy_client_state::UpgradeOptions),
     #[cfg(any(test, feature = "mocks"))]
     Mock(()),
 }
@@ -70,7 +72,22 @@ impl AnyUpgradeOptions {
     fn into_tendermint(self) -> client_state::UpgradeOptions {
         match self {
             Self::Tendermint(options) => options,
+            Self::Beefy(_) => {
+                panic!("cannot downcast AnyUpgradeOptions::Beefy to Tendermint::UpgradeOptions")
+            }
+            #[cfg(any(test, feature = "mocks"))]
+            Self::Mock(_) => {
+                panic!("cannot downcast AnyUpgradeOptions::Mock to Tendermint::UpgradeOptions")
+            }
+        }
+    }
 
+    fn into_beefy(self) -> beefy_client_state::UpgradeOptions {
+        match self {
+            Self::Tendermint(_) => {
+                panic!("cannot downcast AnyUpgradeOptions::Tendermint to Beefy::UpgradeOptions")
+            }
+            Self::Beefy(options) => options,
             #[cfg(any(test, feature = "mocks"))]
             Self::Mock(_) => {
                 panic!("cannot downcast AnyUpgradeOptions::Mock to Tendermint::UpgradeOptions")
@@ -83,7 +100,8 @@ impl AnyUpgradeOptions {
 #[serde(tag = "type")]
 pub enum AnyClientState {
     Tendermint(client_state::ClientState),
-
+    #[serde(skip)]
+    Beefy(beefy_client_state::ClientState),
     #[cfg(any(test, feature = "mocks"))]
     Mock(MockClientState),
 }
@@ -92,7 +110,7 @@ impl AnyClientState {
     pub fn latest_height(&self) -> Height {
         match self {
             Self::Tendermint(tm_state) => tm_state.latest_height(),
-
+            Self::Beefy(bf_state) => bf_state.latest_height(),
             #[cfg(any(test, feature = "mocks"))]
             Self::Mock(mock_state) => mock_state.latest_height(),
         }
@@ -101,7 +119,7 @@ impl AnyClientState {
     pub fn frozen_height(&self) -> Option<Height> {
         match self {
             Self::Tendermint(tm_state) => tm_state.frozen_height(),
-
+            Self::Beefy(bf_state) => bf_state.frozen_height(),
             #[cfg(any(test, feature = "mocks"))]
             Self::Mock(mock_state) => mock_state.frozen_height(),
         }
@@ -110,7 +128,7 @@ impl AnyClientState {
     pub fn trust_threshold(&self) -> Option<TrustThreshold> {
         match self {
             AnyClientState::Tendermint(state) => Some(state.trust_level),
-
+            AnyClientState::Beefy(_) => None,
             #[cfg(any(test, feature = "mocks"))]
             AnyClientState::Mock(_) => None,
         }
@@ -119,7 +137,7 @@ impl AnyClientState {
     pub fn max_clock_drift(&self) -> Duration {
         match self {
             AnyClientState::Tendermint(state) => state.max_clock_drift,
-
+            AnyClientState::Beefy(_) => Duration::new(0, 0),
             #[cfg(any(test, feature = "mocks"))]
             AnyClientState::Mock(_) => Duration::new(0, 0),
         }
@@ -128,7 +146,7 @@ impl AnyClientState {
     pub fn client_type(&self) -> ClientType {
         match self {
             Self::Tendermint(state) => state.client_type(),
-
+            Self::Beefy(state) => state.client_type(),
             #[cfg(any(test, feature = "mocks"))]
             Self::Mock(state) => state.client_type(),
         }
@@ -137,7 +155,7 @@ impl AnyClientState {
     pub fn refresh_period(&self) -> Option<Duration> {
         match self {
             AnyClientState::Tendermint(tm_state) => tm_state.refresh_time(),
-
+            AnyClientState::Beefy(_) => None,
             #[cfg(any(test, feature = "mocks"))]
             AnyClientState::Mock(mock_state) => mock_state.refresh_time(),
         }
@@ -146,7 +164,7 @@ impl AnyClientState {
     pub fn expired(&self, elapsed_since_latest: Duration) -> bool {
         match self {
             AnyClientState::Tendermint(tm_state) => tm_state.expired(elapsed_since_latest),
-
+            AnyClientState::Beefy(_) => false,
             #[cfg(any(test, feature = "mocks"))]
             AnyClientState::Mock(mock_state) => mock_state.expired(elapsed_since_latest),
         }
@@ -164,6 +182,11 @@ impl TryFrom<Any> for AnyClientState {
 
             TENDERMINT_CLIENT_STATE_TYPE_URL => Ok(AnyClientState::Tendermint(
                 client_state::ClientState::decode_vec(&raw.value)
+                    .map_err(Error::decode_raw_client_state)?,
+            )),
+
+            BEEFY_CLIENT_STATE_TYPE_URL => Ok(AnyClientState::Beefy(
+                beefy_client_state::ClientState::decode_vec(&raw.value)
                     .map_err(Error::decode_raw_client_state)?,
             )),
 
@@ -186,6 +209,12 @@ impl From<AnyClientState> for Any {
                     .encode_vec()
                     .expect("encoding to `Any` from `AnyClientState::Tendermint`"),
             },
+            AnyClientState::Beefy(value) => Any {
+                type_url: BEEFY_CLIENT_STATE_TYPE_URL.to_string(),
+                value: value
+                    .encode_vec()
+                    .expect("encoding to `Any` from `AnyClientState::Tendermint`"),
+            },
             #[cfg(any(test, feature = "mocks"))]
             AnyClientState::Mock(value) => Any {
                 type_url: MOCK_CLIENT_STATE_TYPE_URL.to_string(),
@@ -203,7 +232,7 @@ impl ClientState for AnyClientState {
     fn chain_id(&self) -> ChainId {
         match self {
             AnyClientState::Tendermint(tm_state) => tm_state.chain_id(),
-
+            AnyClientState::Beefy(bf_state) => bf_state.chain_id(),
             #[cfg(any(test, feature = "mocks"))]
             AnyClientState::Mock(mock_state) => mock_state.chain_id(),
         }
@@ -231,7 +260,9 @@ impl ClientState for AnyClientState {
             AnyClientState::Tendermint(tm_state) => tm_state
                 .upgrade(upgrade_height, upgrade_options.into_tendermint(), chain_id)
                 .wrap_any(),
-
+            AnyClientState::Beefy(bf_state) => bf_state
+                .upgrade(upgrade_height, upgrade_options.into_beefy(), chain_id)
+                .wrap_any(),
             #[cfg(any(test, feature = "mocks"))]
             AnyClientState::Mock(mock_state) => {
                 mock_state.upgrade(upgrade_height, (), chain_id).wrap_any()

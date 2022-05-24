@@ -1,15 +1,18 @@
+use crate::clients::crypto_ops::crypto::CryptoOps;
 use crate::core::ics03_connection::connection::State as ConnectionState;
 use crate::core::ics04_channel::channel::State;
 use crate::core::ics04_channel::channel::{Counterparty, Order};
+use crate::core::ics04_channel::error::Error;
 use crate::core::ics04_channel::events::AcknowledgePacket;
 use crate::core::ics04_channel::handler::verify::verify_packet_acknowledgement_proofs;
 use crate::core::ics04_channel::msgs::acknowledgement::MsgAcknowledgement;
 use crate::core::ics04_channel::packet::{PacketResult, Sequence};
-use crate::core::ics04_channel::{context::ChannelReader, error::Error};
 use crate::core::ics24_host::identifier::{ChannelId, PortId};
+use crate::core::ics26_routing::context::LightClientContext;
 use crate::events::IbcEvent;
 use crate::handler::{HandlerOutput, HandlerResult};
 use crate::prelude::*;
+use core::fmt::Debug;
 
 #[derive(Clone, Debug)]
 pub struct AckPacketResult {
@@ -19,8 +22,8 @@ pub struct AckPacketResult {
     pub seq_number: Option<Sequence>,
 }
 
-pub fn process(
-    ctx: &dyn ChannelReader,
+pub fn process<Crypto: CryptoOps>(
+    ctx: &dyn LightClientContext,
     msg: &MsgAcknowledgement,
 ) -> HandlerResult<PacketResult, Error> {
     let mut output = HandlerOutput::builder();
@@ -46,7 +49,9 @@ pub fn process(
         ));
     }
 
-    let connection_end = ctx.connection_end(&source_channel_end.connection_hops()[0])?;
+    let connection_end = ctx
+        .connection_end(&source_channel_end.connection_hops()[0])
+        .map_err(Error::ics03_connection)?;
 
     if !connection_end.state_matches(&ConnectionState::Open) {
         return Err(Error::connection_not_open(
@@ -72,7 +77,7 @@ pub fn process(
     }
 
     // Verify the acknowledgement proof
-    verify_packet_acknowledgement_proofs(
+    verify_packet_acknowledgement_proofs::<Crypto>(
         ctx,
         msg.proofs.height(),
         packet,
@@ -121,6 +126,7 @@ pub fn process(
 mod tests {
     use test_log::test;
 
+    use crate::core::ics02_client::context::ClientReader;
     use crate::core::ics02_client::height::Height;
     use crate::core::ics03_connection::connection::ConnectionEnd;
     use crate::core::ics03_connection::connection::Counterparty as ConnectionCounterparty;
@@ -136,6 +142,7 @@ mod tests {
     use crate::events::IbcEvent;
     use crate::mock::context::MockContext;
     use crate::prelude::*;
+    use crate::test_utils::Crypto;
     use crate::timestamp::ZERO_DURATION;
 
     #[test]
@@ -222,7 +229,7 @@ mod tests {
         .collect();
 
         for test in tests {
-            let res = process(&test.ctx, &test.msg);
+            let res = process::<Crypto>(&test.ctx, &test.msg);
             // Additionally check the events and the output objects in the result.
             match res {
                 Ok(proto_output) => {

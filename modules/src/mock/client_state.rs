@@ -3,6 +3,7 @@ use crate::prelude::*;
 use alloc::collections::btree_map::BTreeMap as HashMap;
 
 use core::convert::Infallible;
+use core::fmt::Debug;
 use core::time::Duration;
 
 use serde::{Deserialize, Serialize};

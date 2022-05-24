@@ -1,3 +1,4 @@
+use crate::clients::crypto_ops::crypto::CryptoOps;
 use crate::prelude::*;
 
 use ibc_proto::google::protobuf::Any;
@@ -24,15 +25,19 @@ use crate::{events::IbcEvent, handler::HandlerOutput};
 /// Mimics the DeliverTx ABCI interface, but for a single message and at a slightly lower level.
 /// No need for authentication info or signature checks here.
 /// Returns a vector of all events that got generated as a byproduct of processing `message`.
-pub fn deliver<Ctx>(ctx: &mut Ctx, message: Any) -> Result<(Vec<IbcEvent>, Vec<String>), Error>
+pub fn deliver<Ctx, Crypto>(
+    ctx: &mut Ctx,
+    message: Any,
+) -> Result<(Vec<IbcEvent>, Vec<String>), Error>
 where
     Ctx: Ics26Context,
+    Crypto: CryptoOps,
 {
     // Decode the proto message into a domain message, creating an ICS26 envelope.
     let envelope = decode(message)?;
 
     // Process the envelope, and accumulate any events that were generated.
-    let output = dispatch(ctx, envelope)?;
+    let output = dispatch::<_, Crypto>(ctx, envelope)?;
 
     Ok((output.events, output.log))
 }
@@ -47,13 +52,15 @@ pub fn decode(message: Any) -> Result<Ics26Envelope, Error> {
 /// and events produced after processing the input `msg`.
 /// If this method returns an error, the runtime is expected to rollback all state modifications to
 /// the `Ctx` caused by all messages from the transaction that this `msg` is a part of.
-pub fn dispatch<Ctx>(ctx: &mut Ctx, msg: Ics26Envelope) -> Result<HandlerOutput<()>, Error>
+pub fn dispatch<Ctx, Crypto>(ctx: &mut Ctx, msg: Ics26Envelope) -> Result<HandlerOutput<()>, Error>
 where
     Ctx: Ics26Context,
+    Crypto: CryptoOps,
 {
     let output = match msg {
         Ics2Msg(msg) => {
-            let handler_output = ics2_msg_dispatcher(ctx, msg).map_err(Error::ics02_client)?;
+            let handler_output =
+                ics2_msg_dispatcher::<_, Crypto>(ctx, msg).map_err(Error::ics02_client)?;
 
             // Apply the result to the context (host chain store).
             ctx.store_client_result(handler_output.result)
@@ -66,7 +73,8 @@ where
         }
 
         Ics3Msg(msg) => {
-            let handler_output = ics3_msg_dispatcher(ctx, msg).map_err(Error::ics03_connection)?;
+            let handler_output =
+                ics3_msg_dispatcher::<_, Crypto>(ctx, msg).map_err(Error::ics03_connection)?;
 
             // Apply any results to the host chain store.
             ctx.store_connection_result(handler_output.result)
@@ -81,7 +89,7 @@ where
         Ics4ChannelMsg(msg) => {
             let module_id = ics4_validate(ctx, &msg).map_err(Error::ics04_channel)?;
             let (mut handler_builder, channel_result) =
-                ics4_msg_dispatcher(ctx, &msg).map_err(Error::ics04_channel)?;
+                ics4_msg_dispatcher::<_, Crypto>(ctx, &msg).map_err(Error::ics04_channel)?;
 
             let mut module_output = HandlerOutput::builder().with_result(());
             let cb_result =
@@ -97,8 +105,8 @@ where
         }
 
         Ics20Msg(msg) => {
-            let handler_output =
-                ics20_msg_dispatcher(ctx, msg).map_err(Error::ics20_fungible_token_transfer)?;
+            let handler_output = ics20_msg_dispatcher::<_, Crypto>(ctx, msg)
+                .map_err(Error::ics20_fungible_token_transfer)?;
 
             // Apply any results to the host chain store.
             ctx.store_packet_result(handler_output.result)
@@ -113,7 +121,7 @@ where
         Ics4PacketMsg(msg) => {
             let module_id = get_module_for_packet_msg(ctx, &msg).map_err(Error::ics04_channel)?;
             let (mut handler_builder, packet_result) =
-                ics4_packet_msg_dispatcher(ctx, &msg).map_err(Error::ics04_channel)?;
+                ics4_packet_msg_dispatcher::<_, Crypto>(ctx, &msg).map_err(Error::ics04_channel)?;
 
             if matches!(packet_result, PacketResult::Recv(RecvPacketResult::NoOp)) {
                 return Ok(handler_builder.with_result(()));
@@ -141,13 +149,11 @@ mod tests {
 
     use test_log::test;
 
+    use crate::applications::ics20_fungible_token_transfer::msgs::transfer::test_util::get_dummy_msg_transfer;
     use crate::core::ics02_client::client_consensus::AnyConsensusState;
     use crate::core::ics02_client::client_state::AnyClientState;
     use crate::events::IbcEvent;
-    use crate::{
-        applications::ics20_fungible_token_transfer::msgs::transfer::test_util::get_dummy_msg_transfer,
-        core::ics23_commitment::commitment::test_util::get_dummy_merkle_proof,
-    };
+    use crate::test_utils::Crypto;
 
     use crate::core::ics02_client::msgs::{
         create_client::MsgCreateAnyClient, update_client::MsgUpdateAnyClient,
@@ -220,8 +226,8 @@ mod tests {
 
         let create_client_msg = MsgCreateAnyClient::new(
             AnyClientState::from(MockClientState::new(MockHeader::new(start_client_height))),
-            AnyConsensusState::Mock(MockConsensusState::new(MockHeader::new(
-                start_client_height,
+            Some(AnyConsensusState::Mock(MockConsensusState::new(
+                MockHeader::new(start_client_height),
             ))),
             default_signer.clone(),
         )
@@ -286,7 +292,7 @@ mod tests {
         let msg_recv_packet = MsgRecvPacket::try_from(get_dummy_raw_msg_recv_packet(35)).unwrap();
 
         // First, create a client..
-        let res = dispatch(
+        let res = dispatch::<_, Crypto>(
             &mut ctx,
             Ics26Envelope::Ics2Msg(ClientMsg::CreateClient(create_client_msg.clone())),
         );
@@ -460,8 +466,8 @@ mod tests {
                     AnyConsensusState::Mock(MockConsensusState::new(MockHeader::new(
                         upgrade_client_height,
                     ))),
-                    get_dummy_merkle_proof(),
-                    get_dummy_merkle_proof(),
+                    Vec::new(),
+                    Vec::new(),
                     default_signer.clone(),
                 ))),
                 want_pass: true,
@@ -476,8 +482,8 @@ mod tests {
                     AnyConsensusState::Mock(MockConsensusState::new(MockHeader::new(
                         upgrade_client_height_second,
                     ))),
-                    get_dummy_merkle_proof(),
-                    get_dummy_merkle_proof(),
+                    Vec::new(),
+                    Vec::new(),
                     default_signer,
                 ))),
                 want_pass: false,
@@ -487,7 +493,7 @@ mod tests {
         .collect();
 
         for test in tests {
-            let res = dispatch(&mut ctx, test.msg.clone());
+            let res = dispatch::<_, Crypto>(&mut ctx, test.msg.clone());
 
             assert_eq!(
                 test.want_pass,

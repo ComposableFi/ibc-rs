@@ -3,6 +3,7 @@ use crate::prelude::*;
 use flex_error::{define_error, TraceError};
 
 use crate::clients::ics07_tendermint::error::Error as Ics07Error;
+use crate::clients::ics11_beefy::error::Error as Ics11Error;
 use crate::core::ics02_client::client_type::ClientType;
 use crate::core::ics02_client::height::HeightError;
 use crate::core::ics23_commitment::error::Error as Ics23Error;
@@ -180,6 +181,10 @@ define_error! {
             [ Ics07Error ]
             | _ | { "tendermint error" },
 
+        Beefy
+            [ Ics11Error ]
+            | _ | { "Beefy error" },
+
         InvalidPacketTimestamp
             [ crate::timestamp::ParseTimestampError ]
             | _ | { "invalid packet timeout timestamp value" },
@@ -274,5 +279,11 @@ define_error! {
 impl From<Ics07Error> for Error {
     fn from(e: Ics07Error) -> Error {
         Error::tendermint_handler_error(e)
+    }
+}
+
+impl From<Ics11Error> for Error {
+    fn from(e: Ics11Error) -> Error {
+        Error::beefy(e)
     }
 }

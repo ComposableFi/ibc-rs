@@ -1,18 +1,19 @@
 //! Protocol logic specific to processing ICS3 messages of type `MsgConnectionOpenConfirm`.
 
+use crate::clients::crypto_ops::crypto::CryptoOps;
 use crate::core::ics03_connection::connection::{ConnectionEnd, Counterparty, State};
-use crate::core::ics03_connection::context::ConnectionReader;
 use crate::core::ics03_connection::error::Error;
 use crate::core::ics03_connection::events::Attributes;
 use crate::core::ics03_connection::handler::verify::verify_proofs;
 use crate::core::ics03_connection::handler::{ConnectionIdState, ConnectionResult};
 use crate::core::ics03_connection::msgs::conn_open_confirm::MsgConnectionOpenConfirm;
+use crate::core::ics26_routing::context::LightClientContext;
 use crate::events::IbcEvent;
 use crate::handler::{HandlerOutput, HandlerResult};
 use crate::prelude::*;
 
-pub(crate) fn process(
-    ctx: &dyn ConnectionReader,
+pub(crate) fn process<Crypto: CryptoOps>(
+    ctx: &dyn LightClientContext,
     msg: MsgConnectionOpenConfirm,
 ) -> HandlerResult<ConnectionResult, Error> {
     let mut output = HandlerOutput::builder();
@@ -40,7 +41,7 @@ pub(crate) fn process(
     );
 
     // 2. Pass the details to the verification function.
-    verify_proofs(
+    verify_proofs::<Crypto>(
         ctx,
         None,
         msg.proofs.height(),
@@ -62,7 +63,7 @@ pub(crate) fn process(
 
     let event_attributes = Attributes {
         connection_id: Some(result.connection_id.clone()),
-        height: ctx.host_current_height(),
+        height: ctx.host_height(),
         ..Default::default()
     };
     output.emit(IbcEvent::OpenConfirmConnection(event_attributes.into()));
@@ -77,6 +78,7 @@ mod tests {
     use core::str::FromStr;
     use test_log::test;
 
+    use crate::core::ics02_client::context::ClientReader;
     use crate::core::ics03_connection::connection::{ConnectionEnd, Counterparty, State};
     use crate::core::ics03_connection::context::ConnectionReader;
     use crate::core::ics03_connection::handler::{dispatch, ConnectionResult};
@@ -87,6 +89,7 @@ mod tests {
     use crate::core::ics24_host::identifier::ClientId;
     use crate::events::IbcEvent;
     use crate::mock::context::MockContext;
+    use crate::test_utils::Crypto;
     use crate::timestamp::ZERO_DURATION;
     use crate::Height;
 
@@ -150,7 +153,7 @@ mod tests {
         .collect();
 
         for test in tests {
-            let res = dispatch(&test.ctx, test.msg.clone());
+            let res = dispatch::<_, Crypto>(&test.ctx, test.msg.clone());
             // Additionally check the events and the output objects in the result.
             match res {
                 Ok(proto_output) => {
@@ -170,7 +173,7 @@ mod tests {
 
                     for e in proto_output.events.iter() {
                         assert!(matches!(e, &IbcEvent::OpenConfirmConnection(_)));
-                        assert_eq!(e.height(), test.ctx.host_current_height());
+                        assert_eq!(e.height(), test.ctx.host_height());
                     }
                 }
                 Err(e) => {

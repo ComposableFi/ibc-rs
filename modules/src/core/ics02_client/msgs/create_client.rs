@@ -18,22 +18,28 @@ pub const TYPE_URL: &str = "/ibc.core.client.v1.MsgCreateClient";
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct MsgCreateAnyClient {
     pub client_state: AnyClientState,
-    pub consensus_state: AnyConsensusState,
+    pub consensus_state: Option<AnyConsensusState>,
     pub signer: Signer,
 }
 
 impl MsgCreateAnyClient {
     pub fn new(
         client_state: AnyClientState,
-        consensus_state: AnyConsensusState,
+        consensus_state: Option<AnyConsensusState>,
         signer: Signer,
     ) -> Result<Self, Error> {
-        if client_state.client_type() != consensus_state.client_type() {
-            return Err(Error::raw_client_and_consensus_state_types_mismatch(
-                client_state.client_type(),
-                consensus_state.client_type(),
-            ));
+        match consensus_state.as_ref() {
+            Some(consensus_state)
+                if client_state.client_type() != consensus_state.client_type() =>
+            {
+                return Err(Error::raw_client_and_consensus_state_types_mismatch(
+                    client_state.client_type(),
+                    consensus_state.client_type(),
+                ))
+            }
+            _ => {}
         }
+
         Ok(MsgCreateAnyClient {
             client_state,
             consensus_state,
@@ -65,13 +71,13 @@ impl TryFrom<RawMsgCreateClient> for MsgCreateAnyClient {
             .client_state
             .ok_or_else(Error::missing_raw_client_state)?;
 
-        let raw_consensus_state = raw
+        let consensus_state = raw
             .consensus_state
-            .ok_or_else(Error::missing_raw_client_state)?;
+            .and_then(|cs| AnyConsensusState::try_from(cs).ok());
 
         MsgCreateAnyClient::new(
             AnyClientState::try_from(raw_client_state)?,
-            AnyConsensusState::try_from(raw_consensus_state)?,
+            consensus_state,
             raw.signer.into(),
         )
     }
@@ -81,7 +87,7 @@ impl From<MsgCreateAnyClient> for RawMsgCreateClient {
     fn from(ics_msg: MsgCreateAnyClient) -> Self {
         RawMsgCreateClient {
             client_state: Some(ics_msg.client_state.into()),
-            consensus_state: Some(ics_msg.consensus_state.into()),
+            consensus_state: ics_msg.consensus_state.map(|cs| cs.into()),
             signer: ics_msg.signer.to_string(),
         }
     }
@@ -109,7 +115,7 @@ mod tests {
 
         let msg = MsgCreateAnyClient::new(
             tm_client_state,
-            AnyConsensusState::Tendermint(tm_header.try_into().unwrap()),
+            Some(AnyConsensusState::Tendermint(tm_header.try_into().unwrap())),
             signer,
         )
         .unwrap();

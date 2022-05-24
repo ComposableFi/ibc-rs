@@ -1,14 +1,10 @@
-use ibc_proto::ibc::core::commitment::v1::MerkleProof;
-
 use crate::core::ics02_client::client_consensus::AnyConsensusState;
-use crate::core::ics02_client::client_def::ClientDef;
+use crate::core::ics02_client::client_def::{ClientDef, ConsensusUpdateResult};
 use crate::core::ics02_client::client_state::AnyClientState;
-use crate::core::ics02_client::context::ClientReader;
 use crate::core::ics02_client::error::Error;
 use crate::core::ics03_connection::connection::ConnectionEnd;
 use crate::core::ics04_channel::channel::ChannelEnd;
 use crate::core::ics04_channel::commitment::{AcknowledgementCommitment, PacketCommitment};
-use crate::core::ics04_channel::context::ChannelReader;
 use crate::core::ics04_channel::packet::Sequence;
 use crate::core::ics23_commitment::commitment::{
     CommitmentPrefix, CommitmentProofBytes, CommitmentRoot,
@@ -17,12 +13,14 @@ use crate::core::ics23_commitment::merkle::apply_prefix;
 use crate::core::ics24_host::identifier::{ChannelId, ClientId, ConnectionId, PortId};
 use crate::core::ics24_host::path::ClientConsensusStatePath;
 use crate::core::ics24_host::Path;
+use crate::core::ics26_routing::context::LightClientContext;
 use crate::mock::client_state::{MockClientState, MockConsensusState};
 use crate::mock::header::MockHeader;
 use crate::prelude::*;
 use crate::Height;
+use core::fmt::Debug;
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct MockClient;
 
 impl ClientDef for MockClient {
@@ -30,27 +28,29 @@ impl ClientDef for MockClient {
     type ClientState = MockClientState;
     type ConsensusState = MockConsensusState;
 
-    fn check_header_and_update_state(
+    fn update_state(
         &self,
-        _ctx: &dyn ClientReader,
+        _ctx: &dyn LightClientContext,
         _client_id: ClientId,
         client_state: Self::ClientState,
         header: Self::Header,
-    ) -> Result<(Self::ClientState, Self::ConsensusState), Error> {
+    ) -> Result<(Self::ClientState, ConsensusUpdateResult), Error> {
         if client_state.latest_height() >= header.height() {
             return Err(Error::low_header_height(
                 header.height(),
                 client_state.latest_height(),
             ));
         }
+
         Ok((
             MockClientState::new(header),
-            MockConsensusState::new(header),
+            ConsensusUpdateResult::Single(AnyConsensusState::Mock(MockConsensusState::new(header))),
         ))
     }
 
     fn verify_client_consensus_state(
         &self,
+        _ctx: &dyn LightClientContext,
         _client_state: &Self::ClientState,
         _height: Height,
         prefix: &CommitmentPrefix,
@@ -74,6 +74,8 @@ impl ClientDef for MockClient {
 
     fn verify_connection_state(
         &self,
+        _ctx: &dyn LightClientContext,
+        _client_id: &ClientId,
         _client_state: &Self::ClientState,
         _height: Height,
         _prefix: &CommitmentPrefix,
@@ -87,6 +89,8 @@ impl ClientDef for MockClient {
 
     fn verify_channel_state(
         &self,
+        _ctx: &dyn LightClientContext,
+        _client_id: &ClientId,
         _client_state: &Self::ClientState,
         _height: Height,
         _prefix: &CommitmentPrefix,
@@ -101,6 +105,7 @@ impl ClientDef for MockClient {
 
     fn verify_client_full_state(
         &self,
+        _ctx: &dyn LightClientContext,
         _client_state: &Self::ClientState,
         _height: Height,
         _prefix: &CommitmentPrefix,
@@ -114,7 +119,8 @@ impl ClientDef for MockClient {
 
     fn verify_packet_data(
         &self,
-        _ctx: &dyn ChannelReader,
+        _ctx: &dyn LightClientContext,
+        _client_id: &ClientId,
         _client_state: &Self::ClientState,
         _height: Height,
         _connection_end: &ConnectionEnd,
@@ -130,7 +136,8 @@ impl ClientDef for MockClient {
 
     fn verify_packet_acknowledgement(
         &self,
-        _ctx: &dyn ChannelReader,
+        _ctx: &dyn LightClientContext,
+        _client_id: &ClientId,
         _client_state: &Self::ClientState,
         _height: Height,
         _connection_end: &ConnectionEnd,
@@ -146,7 +153,8 @@ impl ClientDef for MockClient {
 
     fn verify_next_sequence_recv(
         &self,
-        _ctx: &dyn ChannelReader,
+        _ctx: &dyn LightClientContext,
+        _client_id: &ClientId,
         _client_state: &Self::ClientState,
         _height: Height,
         _connection_end: &ConnectionEnd,
@@ -161,7 +169,8 @@ impl ClientDef for MockClient {
 
     fn verify_packet_receipt_absence(
         &self,
-        _ctx: &dyn ChannelReader,
+        _ctx: &dyn LightClientContext,
+        _client_id: &ClientId,
         _client_state: &Self::ClientState,
         _height: Height,
         _connection_end: &ConnectionEnd,
@@ -178,9 +187,40 @@ impl ClientDef for MockClient {
         &self,
         client_state: &Self::ClientState,
         consensus_state: &Self::ConsensusState,
-        _proof_upgrade_client: MerkleProof,
-        _proof_upgrade_consensus_state: MerkleProof,
-    ) -> Result<(Self::ClientState, Self::ConsensusState), Error> {
-        Ok((*client_state, consensus_state.clone()))
+        _proof_upgrade_client: Vec<u8>,
+        _proof_upgrade_consensus_state: Vec<u8>,
+    ) -> Result<(Self::ClientState, ConsensusUpdateResult), Error> {
+        Ok((
+            *client_state,
+            ConsensusUpdateResult::Single(AnyConsensusState::Mock(consensus_state.clone())),
+        ))
+    }
+
+    fn verify_header(
+        &self,
+        _ctx: &dyn LightClientContext,
+        _client_id: ClientId,
+        _client_state: Self::ClientState,
+        _header: Self::Header,
+    ) -> Result<(), Error> {
+        Ok(())
+    }
+
+    fn update_state_on_misbehaviour(
+        &self,
+        client_state: Self::ClientState,
+        _header: Self::Header,
+    ) -> Result<Self::ClientState, Error> {
+        Ok(client_state)
+    }
+
+    fn check_for_misbehaviour(
+        &self,
+        _ctx: &dyn LightClientContext,
+        _client_id: ClientId,
+        _client_state: Self::ClientState,
+        _header: Self::Header,
+    ) -> Result<bool, Error> {
+        Ok(false)
     }
 }

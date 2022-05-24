@@ -1,4 +1,5 @@
 use core::convert::TryInto;
+use core::fmt::Debug;
 
 use ibc_proto::ibc::core::commitment::v1::MerkleProof as RawMerkleProof;
 use prost::Message;
@@ -11,15 +12,13 @@ use crate::clients::ics07_tendermint::consensus_state::ConsensusState;
 use crate::clients::ics07_tendermint::error::Error;
 use crate::clients::ics07_tendermint::header::Header;
 use crate::core::ics02_client::client_consensus::AnyConsensusState;
-use crate::core::ics02_client::client_def::ClientDef;
+use crate::core::ics02_client::client_def::{ClientDef, ConsensusUpdateResult};
 use crate::core::ics02_client::client_state::AnyClientState;
 use crate::core::ics02_client::client_type::ClientType;
-use crate::core::ics02_client::context::ClientReader;
 use crate::core::ics02_client::error::Error as Ics02Error;
 use crate::core::ics03_connection::connection::ConnectionEnd;
 use crate::core::ics04_channel::channel::ChannelEnd;
 use crate::core::ics04_channel::commitment::{AcknowledgementCommitment, PacketCommitment};
-use crate::core::ics04_channel::context::ChannelReader;
 use crate::core::ics04_channel::packet::Sequence;
 use crate::core::ics23_commitment::commitment::{
     CommitmentPrefix, CommitmentProofBytes, CommitmentRoot,
@@ -32,6 +31,7 @@ use crate::core::ics24_host::path::{
     ConnectionsPath, ReceiptsPath, SeqRecvsPath,
 };
 use crate::core::ics24_host::Path;
+use crate::core::ics26_routing::context::LightClientContext;
 use crate::downcast;
 use crate::prelude::*;
 use crate::Height;
@@ -46,13 +46,13 @@ impl ClientDef for TendermintClient {
     type ClientState = ClientState;
     type ConsensusState = ConsensusState;
 
-    fn check_header_and_update_state(
+    fn verify_header(
         &self,
-        ctx: &dyn ClientReader,
+        ctx: &dyn LightClientContext,
         client_id: ClientId,
         client_state: Self::ClientState,
         header: Self::Header,
-    ) -> Result<(Self::ClientState, Self::ConsensusState), Ics02Error> {
+    ) -> Result<(), Ics02Error> {
         if header.height().revision_number != client_state.chain_id.version() {
             return Err(Ics02Error::tendermint_handler_error(
                 Error::mismatched_revisions(
@@ -62,24 +62,23 @@ impl ClientDef for TendermintClient {
             ));
         }
 
-        // Check if a consensus state is already installed; if so it should
-        // match the untrusted header.
+        // Check if a consensus state is already installed; if so skip
         let header_consensus_state = ConsensusState::from(header.clone());
-        let existing_consensus_state =
-            match ctx.maybe_consensus_state(&client_id, header.height())? {
-                Some(cs) => {
-                    let cs = downcast_consensus_state(cs)?;
-                    // If this consensus state matches, skip verification
-                    // (optimization)
-                    if cs == header_consensus_state {
-                        // Header is already installed and matches the incoming
-                        // header (already verified)
-                        return Ok((client_state, cs));
-                    }
-                    Some(cs)
+
+        let _ = match ctx.maybe_consensus_state(&client_id, header.height())? {
+            Some(cs) => {
+                let cs = downcast_consensus_state(cs)?;
+                // If this consensus state matches, skip verification
+                // (optimization)
+                if cs == header_consensus_state {
+                    // Header is already installed and matches the incoming
+                    // header (already verified)
+                    return Ok(());
                 }
-                None => None,
-            };
+                Some(cs)
+            }
+            None => None,
+        };
 
         let trusted_consensus_state =
             downcast_consensus_state(ctx.consensus_state(&client_id, header.trusted_height)?)?;
@@ -133,12 +132,66 @@ impl ClientDef for TendermintClient {
             }
         }
 
+        Ok(())
+    }
+
+    fn update_state(
+        &self,
+        _ctx: &dyn LightClientContext,
+        _client_id: ClientId,
+        client_state: Self::ClientState,
+        header: Self::Header,
+    ) -> Result<(Self::ClientState, ConsensusUpdateResult), Ics02Error> {
+        let header_consensus_state = ConsensusState::from(header.clone());
+        Ok((
+            client_state.with_header(header),
+            ConsensusUpdateResult::Single(AnyConsensusState::Tendermint(header_consensus_state)),
+        ))
+    }
+
+    fn update_state_on_misbehaviour(
+        &self,
+        client_state: Self::ClientState,
+        header: Self::Header,
+    ) -> Result<Self::ClientState, Ics02Error> {
+        client_state
+            .with_frozen_height(header.height())
+            .map_err(|e| e.into())
+    }
+
+    fn check_for_misbehaviour(
+        &self,
+        ctx: &dyn LightClientContext,
+        client_id: ClientId,
+        client_state: Self::ClientState,
+        header: Self::Header,
+    ) -> Result<bool, Ics02Error> {
+        // Check if a consensus state is already installed; if so it should
+        // match the untrusted header.
+        let header_consensus_state = ConsensusState::from(header.clone());
+
+        let existing_consensus_state =
+            match ctx.maybe_consensus_state(&client_id, header.height())? {
+                Some(cs) => {
+                    let cs = downcast_consensus_state(cs)?;
+                    // If this consensus state matches, skip verification
+                    // (optimization)
+                    if cs == header_consensus_state {
+                        // Header is already installed and matches the incoming
+                        // header (already verified)
+                        return Ok(false);
+                    }
+                    Some(cs)
+                }
+                None => None,
+            };
+
         // If the header has verified, but its corresponding consensus state
         // differs from the existing consensus state for that height, freeze the
         // client and return the installed consensus state.
         if let Some(cs) = existing_consensus_state {
             if cs != header_consensus_state {
-                return Ok((client_state.with_frozen_height(header.height())?, cs));
+                return Ok(true);
             }
         }
 
@@ -184,14 +237,12 @@ impl ClientDef for TendermintClient {
             }
         }
 
-        Ok((
-            client_state.with_header(header.clone()),
-            ConsensusState::from(header),
-        ))
+        Ok(false)
     }
 
     fn verify_client_consensus_state(
         &self,
+        _ctx: &dyn LightClientContext,
         client_state: &Self::ClientState,
         height: Height,
         prefix: &CommitmentPrefix,
@@ -216,6 +267,8 @@ impl ClientDef for TendermintClient {
 
     fn verify_connection_state(
         &self,
+        _ctx: &dyn LightClientContext,
+        _client_id: &ClientId,
         client_state: &Self::ClientState,
         height: Height,
         prefix: &CommitmentPrefix,
@@ -235,6 +288,8 @@ impl ClientDef for TendermintClient {
 
     fn verify_channel_state(
         &self,
+        _ctx: &dyn LightClientContext,
+        _client_id: &ClientId,
         client_state: &Self::ClientState,
         height: Height,
         prefix: &CommitmentPrefix,
@@ -255,6 +310,7 @@ impl ClientDef for TendermintClient {
 
     fn verify_client_full_state(
         &self,
+        _ctx: &dyn LightClientContext,
         client_state: &Self::ClientState,
         height: Height,
         prefix: &CommitmentPrefix,
@@ -274,7 +330,8 @@ impl ClientDef for TendermintClient {
 
     fn verify_packet_data(
         &self,
-        ctx: &dyn ChannelReader,
+        ctx: &dyn LightClientContext,
+        _client_id: &ClientId,
         client_state: &Self::ClientState,
         height: Height,
         connection_end: &ConnectionEnd,
@@ -306,7 +363,8 @@ impl ClientDef for TendermintClient {
 
     fn verify_packet_acknowledgement(
         &self,
-        ctx: &dyn ChannelReader,
+        ctx: &dyn LightClientContext,
+        _client_id: &ClientId,
         client_state: &Self::ClientState,
         height: Height,
         connection_end: &ConnectionEnd,
@@ -317,6 +375,7 @@ impl ClientDef for TendermintClient {
         sequence: Sequence,
         ack_commitment: AcknowledgementCommitment,
     ) -> Result<(), Ics02Error> {
+        // client state height = consensus state height
         client_state.verify_height(height)?;
         verify_delay_passed(ctx, height, connection_end)?;
 
@@ -337,7 +396,8 @@ impl ClientDef for TendermintClient {
 
     fn verify_next_sequence_recv(
         &self,
-        ctx: &dyn ChannelReader,
+        ctx: &dyn LightClientContext,
+        _client_id: &ClientId,
         client_state: &Self::ClientState,
         height: Height,
         connection_end: &ConnectionEnd,
@@ -368,7 +428,8 @@ impl ClientDef for TendermintClient {
 
     fn verify_packet_receipt_absence(
         &self,
-        ctx: &dyn ChannelReader,
+        ctx: &dyn LightClientContext,
+        _client_id: &ClientId,
         client_state: &Self::ClientState,
         height: Height,
         connection_end: &ConnectionEnd,
@@ -399,9 +460,9 @@ impl ClientDef for TendermintClient {
         &self,
         _client_state: &Self::ClientState,
         _consensus_state: &Self::ConsensusState,
-        _proof_upgrade_client: RawMerkleProof,
-        _proof_upgrade_consensus_state: RawMerkleProof,
-    ) -> Result<(Self::ClientState, Self::ConsensusState), Ics02Error> {
+        _proof_upgrade_client: Vec<u8>,
+        _proof_upgrade_consensus_state: Vec<u8>,
+    ) -> Result<(Self::ClientState, ConsensusUpdateResult), Ics02Error> {
         todo!()
     }
 }
@@ -448,7 +509,7 @@ fn verify_non_membership(
 }
 
 fn verify_delay_passed(
-    ctx: &dyn ChannelReader,
+    ctx: &dyn LightClientContext,
     height: Height,
     connection_end: &ConnectionEnd,
 ) -> Result<(), Ics02Error> {
