@@ -496,7 +496,7 @@ impl MockContext {
     /// A datagram passes from the relayer to the IBC module (on host chain).
     /// Alternative method to `Ics18Context::send` that does not exercise any serialization.
     /// Used in testing the Ics18 algorithms, hence this may return a Ics18Error.
-    pub fn deliver(&mut self, msg: Ics26Envelope<Crypto>) -> Result<(), Ics18Error> {
+    pub fn deliver(&mut self, msg: Ics26Envelope) -> Result<(), Ics18Error> {
         dispatch::<_, Crypto>(self, msg).map_err(Ics18Error::transaction_failed)?;
         // Create a new block.
         self.advance_host_chain_height();
@@ -540,10 +540,7 @@ impl MockContext {
         self.port_to_module.insert(port_id, module_id);
     }
 
-    pub fn consensus_states(
-        &self,
-        client_id: &ClientId,
-    ) -> Vec<AnyConsensusStateWithHeight<Crypto>> {
+    pub fn consensus_states(&self, client_id: &ClientId) -> Vec<AnyConsensusStateWithHeight> {
         self.clients[client_id]
             .consensus_states
             .iter()
@@ -562,7 +559,7 @@ impl MockContext {
         &self,
         client_id: &ClientId,
         height: &Height,
-    ) -> &AnyConsensusState<Crypto> {
+    ) -> &AnyConsensusState {
         self.clients[client_id]
             .consensus_states
             .get(height)
@@ -905,7 +902,6 @@ impl ConnectionKeeper for MockContext {
 }
 
 impl ClientReader for MockContext {
-    type Crypto = Crypto;
     fn client_type(&self, client_id: &ClientId) -> Result<ClientType, Ics02Error> {
         match self.clients.get(client_id) {
             Some(client_record) => Ok(client_record.client_type),
@@ -927,7 +923,7 @@ impl ClientReader for MockContext {
         &self,
         client_id: &ClientId,
         height: Height,
-    ) -> Result<AnyConsensusState<Self::Crypto>, Ics02Error> {
+    ) -> Result<AnyConsensusState, Ics02Error> {
         match self.clients.get(client_id) {
             Some(client_record) => match client_record.consensus_states.get(&height) {
                 Some(consensus_state) => Ok(consensus_state.clone()),
@@ -948,7 +944,7 @@ impl ClientReader for MockContext {
         &self,
         client_id: &ClientId,
         height: Height,
-    ) -> Result<Option<AnyConsensusState<Self::Crypto>>, Ics02Error> {
+    ) -> Result<Option<AnyConsensusState>, Ics02Error> {
         let client_record = self
             .clients
             .get(client_id)
@@ -975,7 +971,7 @@ impl ClientReader for MockContext {
         &self,
         client_id: &ClientId,
         height: Height,
-    ) -> Result<Option<AnyConsensusState<Self::Crypto>>, Ics02Error> {
+    ) -> Result<Option<AnyConsensusState>, Ics02Error> {
         let client_record = self
             .clients
             .get(client_id)
@@ -1010,17 +1006,14 @@ impl ClientReader for MockContext {
             .unwrap()
     }
 
-    fn host_consensus_state(
-        &self,
-        height: Height,
-    ) -> Result<AnyConsensusState<Self::Crypto>, Ics02Error> {
+    fn host_consensus_state(&self, height: Height) -> Result<AnyConsensusState, Ics02Error> {
         match self.host_block(height) {
             Some(block_ref) => Ok(block_ref.clone().into()),
             None => Err(Ics02Error::missing_local_consensus_state(height)),
         }
     }
 
-    fn pending_host_consensus_state(&self) -> Result<AnyConsensusState<Self::Crypto>, Ics02Error> {
+    fn pending_host_consensus_state(&self) -> Result<AnyConsensusState, Ics02Error> {
         Err(Ics02Error::missing_local_consensus_state(Height::zero()))
     }
 
@@ -1030,7 +1023,6 @@ impl ClientReader for MockContext {
 }
 
 impl ClientKeeper for MockContext {
-    type Crypto = Crypto;
     fn store_client_type(
         &mut self,
         client_id: ClientId,
@@ -1065,7 +1057,7 @@ impl ClientKeeper for MockContext {
         &mut self,
         client_id: ClientId,
         height: Height,
-        consensus_state: AnyConsensusState<Self::Crypto>,
+        consensus_state: AnyConsensusState,
     ) -> Result<(), Ics02Error> {
         let client_record = self.clients.entry(client_id).or_insert(MockClientRecord {
             client_type: ClientType::Mock,
