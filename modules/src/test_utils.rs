@@ -71,7 +71,7 @@ impl Module for DummyModule {
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Crypto;
 
-impl HostFunctions for Crypto {
+impl HostFunctionsProvider for Crypto {
     fn keccak_256(input: &[u8]) -> [u8; 32] {
         keccak_256(input)
     }
@@ -84,9 +84,7 @@ impl HostFunctions for Crypto {
             .ok()
             .map(|val| val.to_vec())
     }
-}
 
-impl HostFunctions for Crypto {
     fn verify_membership_trie_proof(
         root: &sp_core::H256,
         proof: &[Vec<u8>],
