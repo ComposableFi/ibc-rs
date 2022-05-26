@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use crate::clients::crypto_ops::crypto::CryptoOps;
+use crate::clients::host_functions::HostFunctionsProvider;
 use crate::prelude::*;
 use beefy_client::traits::HostFunctions;
 use sp_core::keccak_256;
@@ -71,7 +71,7 @@ impl Module for DummyModule {
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Crypto;
 
-impl HostFunctions for Crypto {
+impl HostFunctionsProvider for Crypto {
     fn keccak_256(input: &[u8]) -> [u8; 32] {
         keccak_256(input)
     }
@@ -84,9 +84,11 @@ impl HostFunctions for Crypto {
             .ok()
             .map(|val| val.to_vec())
     }
-}
 
-impl CryptoOps for Crypto {
+    fn ed25519_recover(signature: &[u8; 64], value: &[u8; 32]) -> Option<Vec<u8>> {
+        todo!()
+    }
+
     fn verify_membership_trie_proof(
         root: &sp_core::H256,
         proof: &[Vec<u8>],
@@ -110,5 +112,9 @@ impl CryptoOps for Crypto {
             root, proof, &item,
         )
         .map_err(|_| Ics02Error::beefy(BeefyError::invalid_trie_proof()))
+    }
+
+    fn sha256_digest(data: &[u8]) -> [u8; 32] {
+        todo!()
     }
 }

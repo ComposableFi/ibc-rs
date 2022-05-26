@@ -1,4 +1,4 @@
-use crate::clients::crypto_ops::crypto::CryptoOps;
+use crate::clients::host_functions::HostFunctionsProvider;
 use crate::clients::ics07_tendermint::client_def::TendermintClient;
 use crate::clients::ics11_beefy::client_def::BeefyClient;
 use crate::core::ics02_client::client_consensus::{AnyConsensusState, ConsensusState};
@@ -207,18 +207,20 @@ pub trait ClientDef: Clone {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub enum AnyClient<Crypto> {
+pub enum AnyClient<HostFunctions> {
     Tendermint(TendermintClient),
-    Beefy(BeefyClient<Crypto>),
+    Beefy(BeefyClient<HostFunctions>),
+    Near(BeefyClient<HostFunctions>),
     #[cfg(any(test, feature = "mocks"))]
     Mock(MockClient),
 }
 
-impl<Crypto> AnyClient<Crypto> {
+impl<HostFunctions> AnyClient<HostFunctions> {
     pub fn from_client_type(client_type: ClientType) -> Self {
         match client_type {
             ClientType::Tendermint => Self::Tendermint(TendermintClient::default()),
-            ClientType::Beefy => Self::Beefy(BeefyClient::<Crypto>::default()),
+            ClientType::Beefy => Self::Beefy(BeefyClient::<HostFunctions>::default()),
+            ClientType::Near => Self::Near(BeefyClient::<HostFunctions>::default()),
             #[cfg(any(test, feature = "mocks"))]
             ClientType::Mock => Self::Mock(MockClient::default()),
         }
@@ -226,7 +228,7 @@ impl<Crypto> AnyClient<Crypto> {
 }
 
 // ⚠️  Beware of the awful boilerplate below ⚠️
-impl<Crypto: CryptoOps> ClientDef for AnyClient<Crypto> {
+impl<HostFunctions: HostFunctionsProvider> ClientDef for AnyClient<HostFunctions> {
     type Header = AnyHeader;
     type ClientState = AnyClientState;
     type ConsensusState = AnyConsensusState;
@@ -258,6 +260,17 @@ impl<Crypto: CryptoOps> ClientDef for AnyClient<Crypto> {
                 .ok_or_else(|| Error::client_args_type_mismatch(ClientType::Beefy))?;
 
                 client.verify_header(ctx, client_id, client_state, header)
+            }
+
+            Self::Near(_) => {
+                // let (client_state, header) = downcast!(
+                //     client_state => AnyClientState::Beefy,
+                //     header => AnyHeader::Beefy,
+                // )
+                // .ok_or_else(|| Error::client_args_type_mismatch(ClientType::Beefy))?;
+
+                // client.verify_header(ctx, client_id, client_state, header)
+                todo!()
             }
 
             #[cfg(any(test, feature = "mocks"))]
@@ -307,6 +320,9 @@ impl<Crypto: CryptoOps> ClientDef for AnyClient<Crypto> {
 
                 Ok((AnyClientState::Beefy(new_state), new_consensus))
             }
+            Self::Near(_) => {
+                todo!()
+            }
 
             #[cfg(any(test, feature = "mocks"))]
             Self::Mock(client) => {
@@ -349,6 +365,9 @@ impl<Crypto: CryptoOps> ClientDef for AnyClient<Crypto> {
                 let client_state = client.update_state_on_misbehaviour(client_state, header)?;
                 Ok(Self::ClientState::Beefy(client_state))
             }
+            AnyClient::Near(_) => {
+                todo!()
+            }
             #[cfg(any(test, feature = "mocks"))]
             AnyClient::Mock(client) => {
                 let (client_state, header) = downcast!(
@@ -388,6 +407,9 @@ impl<Crypto: CryptoOps> ClientDef for AnyClient<Crypto> {
                 .ok_or_else(|| Error::client_args_type_mismatch(ClientType::Beefy))?;
 
                 client.check_for_misbehaviour(ctx, client_id, client_state, header)
+            }
+            AnyClient::Near(_) => {
+                todo!()
             }
             #[cfg(any(test, feature = "mocks"))]
             AnyClient::Mock(client) => {
@@ -442,6 +464,10 @@ impl<Crypto: CryptoOps> ClientDef for AnyClient<Crypto> {
                 )?;
 
                 Ok((AnyClientState::Beefy(new_state), new_consensus))
+            }
+
+            Self::Near(_) => {
+                todo!()
             }
 
             #[cfg(any(test, feature = "mocks"))]
@@ -514,6 +540,9 @@ impl<Crypto: CryptoOps> ClientDef for AnyClient<Crypto> {
                     expected_consensus_state,
                 )
             }
+            Self::Near(_) => {
+                todo!()
+            }
             #[cfg(any(test, feature = "mocks"))]
             Self::Mock(client) => {
                 let client_state = downcast!(
@@ -580,6 +609,9 @@ impl<Crypto: CryptoOps> ClientDef for AnyClient<Crypto> {
                     connection_id,
                     expected_connection_end,
                 )
+            }
+            Self::Near(_) => {
+                todo!()
             }
             #[cfg(any(test, feature = "mocks"))]
             Self::Mock(client) => {
@@ -650,6 +682,9 @@ impl<Crypto: CryptoOps> ClientDef for AnyClient<Crypto> {
                     expected_channel_end,
                 )
             }
+            Self::Near(_) => {
+                todo!()
+            }
 
             #[cfg(any(test, feature = "mocks"))]
             Self::Mock(client) => {
@@ -716,6 +751,9 @@ impl<Crypto: CryptoOps> ClientDef for AnyClient<Crypto> {
                     client_id,
                     client_state_on_counterparty,
                 )
+            }
+            Self::Near(_) => {
+                todo!()
             }
             #[cfg(any(test, feature = "mocks"))]
             Self::Mock(client) => {
@@ -794,7 +832,9 @@ impl<Crypto: CryptoOps> ClientDef for AnyClient<Crypto> {
                     commitment,
                 )
             }
-
+            Self::Near(_) => {
+                todo!()
+            }
             #[cfg(any(test, feature = "mocks"))]
             Self::Mock(client) => {
                 let client_state = downcast!(
@@ -875,6 +915,9 @@ impl<Crypto: CryptoOps> ClientDef for AnyClient<Crypto> {
                     ack_commitment,
                 )
             }
+            Self::Near(_) => {
+                todo!()
+            }
             #[cfg(any(test, feature = "mocks"))]
             Self::Mock(client) => {
                 let client_state = downcast!(
@@ -951,7 +994,9 @@ impl<Crypto: CryptoOps> ClientDef for AnyClient<Crypto> {
                     sequence,
                 )
             }
-
+            Self::Near(_) => {
+                todo!()
+            }
             #[cfg(any(test, feature = "mocks"))]
             Self::Mock(client) => {
                 let client_state = downcast!(
@@ -1028,7 +1073,9 @@ impl<Crypto: CryptoOps> ClientDef for AnyClient<Crypto> {
                     sequence,
                 )
             }
-
+            Self::Near(_) => {
+                todo!()
+            }
             #[cfg(any(test, feature = "mocks"))]
             Self::Mock(client) => {
                 let client_state = downcast!(
