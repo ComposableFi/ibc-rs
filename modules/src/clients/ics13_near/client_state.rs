@@ -4,6 +4,7 @@ use crate::core::{
 };
 
 use super::types::{CryptoHash, LightClientBlockView, ValidatorStakeView};
+use crate::prelude::*;
 
 #[derive(Debug, Clone)]
 pub struct NearClientState {

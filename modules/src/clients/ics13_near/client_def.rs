@@ -12,7 +12,7 @@ use crate::core::ics23_commitment::commitment::{
 use crate::core::ics24_host::identifier::{ChannelId, ClientId, ConnectionId, PortId};
 use crate::core::ics26_routing::context::LightClientContext;
 use crate::Height;
-use std::marker::PhantomData;
+use core::marker::PhantomData;
 
 use super::client_state::NearClientState;
 use super::consensus_state::NearConsensusState;
@@ -21,6 +21,7 @@ use crate::core::ics02_client::error::Error;
 use super::error::Error as NearError;
 use super::header::NearHeader;
 use super::types::{ApprovalInner, CryptoHash, LightClientBlockView};
+use crate::prelude::*;
 
 use borsh::BorshSerialize;
 

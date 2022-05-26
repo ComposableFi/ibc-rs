@@ -121,9 +121,7 @@ pub struct LightClientBlockLiteView {
     pub inner_lite: BlockHeaderInnerLiteView,
 }
 
-#[derive(
-    Debug, Clone, PartialEq, Eq, BorshSerialize, BorshDeserialize, codec::Encode, codec::Decode,
-)]
+#[derive(Debug, Clone, PartialEq, Eq, BorshSerialize, BorshDeserialize)]
 pub struct LightClientBlockView {
     pub prev_block_hash: CryptoHash,
     pub next_block_inner_hash: CryptoHash,
@@ -133,9 +131,7 @@ pub struct LightClientBlockView {
     pub approvals_after_next: Vec<Option<Signature>>,
 }
 
-#[derive(
-    Debug, Clone, PartialEq, Eq, BorshSerialize, BorshDeserialize, codec::Encode, codec::Decode,
-)]
+#[derive(Debug, Clone, PartialEq, Eq, BorshSerialize, BorshDeserialize)]
 pub struct BlockHeaderInnerLiteView {
     pub height: BlockHeight,
     pub epoch_id: CryptoHash,
@@ -169,16 +165,12 @@ pub enum ApprovalInner {
     Skip(BlockHeight),
 }
 
-#[derive(
-    Debug, Clone, PartialEq, Eq, BorshSerialize, BorshDeserialize, codec::Encode, codec::Decode,
-)]
+#[derive(Debug, Clone, PartialEq, Eq, BorshSerialize, BorshDeserialize)]
 pub enum ValidatorStakeView {
     V1(ValidatorStakeViewV1),
 }
 
-#[derive(
-    Debug, Clone, PartialEq, Eq, BorshSerialize, BorshDeserialize, codec::Encode, codec::Decode,
-)]
+#[derive(Debug, Clone, PartialEq, Eq, BorshSerialize, BorshDeserialize)]
 pub struct ValidatorStakeViewV1 {
     pub account_id: AccountId,
     pub public_key: PublicKey,
