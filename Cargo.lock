@@ -251,7 +251,7 @@ dependencies = [
 [[package]]
 name = "beefy-generic-client"
 version = "0.1.0"
-source = "git+https://github.com/ComposableFi/beefy-client?branch=david/refactor-traits#84f0afc9a692015a7a08618afd26474e4a92c557"
+source = "git+https://github.com/ComposableFi/beefy-client?branch=master#c8ef22e646f9eb33d66ac83e6fdad808b76aa4ed"
 dependencies = [
  "beefy-primitives",
  "ckb-merkle-mountain-range",

@@ -56,14 +56,14 @@ impl Signature {
     ) -> bool {
         match self {
             Self::Ed25519(signature) => T::ed25519_recover(signature.as_ref(), data.as_ref())
-                .map(|key| &key == public_key.0.as_ref())
+                .map(|key| key == public_key.0.as_ref())
                 .unwrap_or(false),
         }
     }
 }
 
 impl PublicKey {
-    const LEN: usize = 32;
+    const _LEN: usize = 32;
 
     pub fn from_raw(raw: &[u8]) -> Self {
         Self(raw.try_into().unwrap())
