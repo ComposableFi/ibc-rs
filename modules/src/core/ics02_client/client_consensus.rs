@@ -11,6 +11,7 @@ use tendermint_proto::Protobuf;
 
 use crate::clients::ics07_tendermint::consensus_state;
 use crate::clients::ics11_beefy::consensus_state as beefy_consensus_state;
+use crate::clients::ics13_near::consensus_state as near_consensus_state;
 use crate::core::ics02_client::client_type::ClientType;
 use crate::core::ics02_client::error::Error;
 use crate::core::ics02_client::height::Height;
@@ -26,6 +27,8 @@ pub const TENDERMINT_CONSENSUS_STATE_TYPE_URL: &str =
     "/ibc.lightclients.tendermint.v1.ConsensusState";
 
 pub const BEEFY_CONSENSUS_STATE_TYPE_URL: &str = "/ibc.lightclients.beefy.v1.ConsensusState";
+
+pub const NEAR_CONSENSUS_STATE_TYPE_URL: &str = "/ibc.lightclients.near.v1.ConsensusState";
 
 pub const MOCK_CONSENSUS_STATE_TYPE_URL: &str = "/ibc.mock.ConsensusState";
 
@@ -47,6 +50,7 @@ pub trait ConsensusState: Clone + Debug + Send + Sync {
 pub enum AnyConsensusState {
     Tendermint(consensus_state::ConsensusState),
     Beefy(beefy_consensus_state::ConsensusState),
+    Near(near_consensus_state::NearConsensusState),
     #[cfg(any(test, feature = "mocks"))]
     Mock(MockConsensusState),
 }
@@ -56,6 +60,7 @@ impl AnyConsensusState {
         match self {
             Self::Tendermint(cs_state) => cs_state.timestamp.into(),
             Self::Beefy(cs_state) => cs_state.timestamp.into(),
+            Self::Near(cs_state) => cs_state.timestamp.into(),
             #[cfg(any(test, feature = "mocks"))]
             Self::Mock(mock_state) => mock_state.timestamp(),
         }
@@ -65,6 +70,7 @@ impl AnyConsensusState {
         match self {
             AnyConsensusState::Tendermint(_cs) => ClientType::Tendermint,
             AnyConsensusState::Beefy(_) => ClientType::Beefy,
+            AnyConsensusState::Near(_) => ClientType::Near,
             #[cfg(any(test, feature = "mocks"))]
             AnyConsensusState::Mock(_cs) => ClientType::Mock,
         }
@@ -87,6 +93,11 @@ impl TryFrom<Any> for AnyConsensusState {
 
             BEEFY_CONSENSUS_STATE_TYPE_URL => Ok(AnyConsensusState::Beefy(
                 beefy_consensus_state::ConsensusState::decode_vec(&value.value)
+                    .map_err(Error::decode_raw_client_state)?,
+            )),
+
+            NEAR_CONSENSUS_STATE_TYPE_URL => Ok(AnyConsensusState::Near(
+                near_consensus_state::NearConsensusState::decode_vec(&value.value)
                     .map_err(Error::decode_raw_client_state)?,
             )),
 
@@ -116,6 +127,13 @@ impl From<AnyConsensusState> for Any {
                 value: value
                     .encode_vec()
                     .expect("encoding to `Any` from `AnyConsensusState::Beefy`"),
+            },
+
+            AnyConsensusState::Near(value) => Any {
+                type_url: NEAR_CONSENSUS_STATE_TYPE_URL.to_string(),
+                value: value
+                    .encode_vec()
+                    .expect("encoding to `Any` from `AnyConsensusState::Near`"),
             },
             #[cfg(any(test, feature = "mocks"))]
             AnyConsensusState::Mock(value) => Any {
@@ -173,6 +191,7 @@ impl ConsensusState for AnyConsensusState {
         match self {
             Self::Tendermint(cs_state) => cs_state.root(),
             Self::Beefy(cs_state) => cs_state.root(),
+            Self::Near(cs_state) => cs_state.root(),
             #[cfg(any(test, feature = "mocks"))]
             Self::Mock(mock_state) => mock_state.root(),
         }

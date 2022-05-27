@@ -67,8 +67,8 @@ impl<T: HostFunctionsProvider> ClientDef for NearClient<T> {
         &self,
         _ctx: &dyn LightClientContext,
         _client_id: ClientId,
-        _client_state: Self::ClientState,
-        _header: Self::Header,
+        client_state: Self::ClientState,
+        header: Self::Header,
     ) -> Result<(Self::ClientState, ConsensusUpdateResult), Error> {
         // 1. create new client state from this header, return that.
         // 2. as well as all the neccessary consensus states.
@@ -80,7 +80,13 @@ impl<T: HostFunctionsProvider> ClientDef for NearClient<T> {
         // |    <-------consensus states----->  |
         // current state                       new state
 
-        todo!()
+        let new_client_state =
+            client_state.update_client_state(header.get_light_client_block_view().clone());
+        // TODO: investigate what's the commitment root in this context
+        let consensus_update_result = ConsensusUpdateResult::Single(AnyConsensusState::Near(
+            NearConsensusState::new(commitment_root, timestamp),
+        ));
+        Ok((new_client_state, consensus_update_result))
     }
 
     fn update_state_on_misbehaviour(

@@ -19,6 +19,34 @@ pub struct NearClientState {
 pub struct NearUpgradeOptions {}
 
 impl NearClientState {
+    pub fn update_client_state(self, light_client_block_view: LightClientBlockView) -> Self {
+        // check if the new header corresponds to the next epoch
+        let (current_validators, next_validators) =
+            if self.current_epoch == light_client_block_view.inner_lite.epoch_id {
+                (self.current_validators, self.next_validators)
+            } else {
+                assert_eq!(
+                    self.next_epoch, light_client_block_view.inner_lite.epoch_id,
+                    "validation failed!"
+                );
+                (
+                    self.next_validators,
+                    light_client_block_view
+                        .next_bps
+                        .expect("next bps should be available"),
+                )
+            };
+        Self {
+            // NOTE: epochs in NEAR aren't u64 - what to do?
+            chain_id: ChainId::new("near".to_string(), 0),
+            head: light_client_block_view,
+            current_epoch: light_client_block_view.inner_lite.epoch_id,
+            next_epoch: light_client_block_view.inner_lite.next_epoch_id,
+            current_validators,
+            next_validators,
+        }
+    }
+
     pub fn get_validators_by_epoch(
         &self,
         epoch_id: &CryptoHash,
