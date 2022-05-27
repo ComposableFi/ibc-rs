@@ -47,16 +47,14 @@ impl Signature {
         }
     }
 
-    // TODO: we might want to create a trait for signature verification
-    // or integrate this into HostFunctions
     pub fn verify<T: HostFunctionsProvider>(
         &self,
-        data: impl AsRef<[u8; 32]>,
-        public_key: PublicKey,
+        data: &[u8; 32],
+        public_key: &PublicKey,
     ) -> bool {
         match self {
-            Self::Ed25519(signature) => T::ed25519_recover(signature.as_ref(), data.as_ref())
-                .map(|key| key == public_key.0.as_ref())
+            Self::Ed25519(signature) => T::ed25519_recover(signature.as_ref(), data)
+                .map(|key| key == public_key.0)
                 .unwrap_or(false),
         }
     }
