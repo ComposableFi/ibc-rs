@@ -340,7 +340,8 @@ define_error! {
             | _ | { "route not found" },
 
         ImplementationSpecific
-            | _ | { "implementation specific error" },
+            { reason: String }
+            | e | { format_args!("implementation specific error: {}", e.reason) },
     }
 }
 

@@ -197,7 +197,10 @@ impl<HostFunctions: HostFunctionsProvider> ClientDef for BeefyClient<HostFunctio
         _proof_upgrade_client: Vec<u8>,
         _proof_upgrade_consensus_state: Vec<u8>,
     ) -> Result<(Self::ClientState, ConsensusUpdateResult), Error> {
-        todo!()
+        // TODO:
+        Err(Error::beefy(BeefyError::implementation_specific(
+            "Not implemented".to_string(),
+        )))
     }
 
     fn verify_client_consensus_state(
