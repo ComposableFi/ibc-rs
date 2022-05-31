@@ -1,6 +1,6 @@
 use crate::core::ics24_host::identifier::PortId;
-use flex_error::define_error;
 use crate::prelude::*;
+use flex_error::define_error;
 
 define_error! {
     #[derive(Debug, PartialEq, Eq, derive_more::From)]

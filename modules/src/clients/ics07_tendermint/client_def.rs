@@ -464,7 +464,9 @@ impl ClientDef for TendermintClient {
         _proof_upgrade_consensus_state: Vec<u8>,
     ) -> Result<(Self::ClientState, ConsensusUpdateResult), Ics02Error> {
         // TODO:
-        Err(Ics02Error::implementation_specific("Not implemented".to_string()))
+        Err(Ics02Error::implementation_specific(
+            "Not implemented".to_string(),
+        ))
     }
 }
 
