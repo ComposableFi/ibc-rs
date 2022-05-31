@@ -1,5 +1,6 @@
 use crate::core::ics24_host::identifier::PortId;
 use flex_error::define_error;
+use crate::prelude::*;
 
 define_error! {
     #[derive(Debug, PartialEq, Eq, derive_more::From)]
@@ -17,6 +18,7 @@ define_error! {
             | e | { format_args!("could not retrieve module from port '{0}'", e.port_id) },
 
         ImplementationSpecific
-            | _ | { "implementation specific error" },
+            { reason: String }
+            | e | { format_args!("implementation specific error: {}", e.reason) },
     }
 }

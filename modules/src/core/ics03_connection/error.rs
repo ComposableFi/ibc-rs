@@ -5,6 +5,7 @@ use crate::core::ics24_host::identifier::{ClientId, ConnectionId};
 use crate::proofs::ProofError;
 use crate::Height;
 use flex_error::define_error;
+use crate::prelude::*;
 
 define_error! {
     #[derive(Debug, PartialEq, Eq)]
@@ -153,6 +154,7 @@ define_error! {
             },
 
         ImplementationSpecific
-            | _ | { "implementation specific error" },
+            { reason: String }
+            | e | { format_args!("implementation specific error: {}", e.reason) },
     }
 }

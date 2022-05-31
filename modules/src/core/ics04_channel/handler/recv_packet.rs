@@ -13,6 +13,7 @@ use crate::handler::{HandlerOutput, HandlerResult};
 use crate::timestamp::Expiry;
 use crate::Height;
 use core::fmt::Debug;
+use crate::prelude::*;
 
 #[derive(Clone, Debug)]
 pub struct RecvPacketSuccess {
@@ -136,7 +137,7 @@ pub fn process<HostFunctions: HostFunctionsProvider>(
                     receipt: Some(Receipt::Ok),
                 }))
             }
-            Err(_) => return Err(Error::implementation_specific()),
+            Err(e) => return Err(Error::implementation_specific(e.to_string())),
         }
     };
 
