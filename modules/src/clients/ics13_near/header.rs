@@ -14,6 +14,10 @@ impl NearHeader {
     pub fn get_light_client_block_view(&self) -> &LightClientBlockView {
         &self.inner
     }
+
+    pub fn get_timestamp(&self) -> tendermint::Time {
+        let light_client_block_view = self.get_light_client_block_view();
+    }
 }
 
 impl Header for NearHeader {
