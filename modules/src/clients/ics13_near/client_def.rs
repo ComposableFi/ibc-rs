@@ -310,11 +310,12 @@ pub fn validate_light_block<H: HostFunctionsProvider>(
 
         let validator_public_key = &bp_stake_view.public_key;
         let data = H::sha256_digest(&approval_message);
-        if !maybe_signature
-            .as_ref()
-            .unwrap()
-            .verify::<H>(&data, validator_public_key)
-        {
+        let signature = maybe_signature.as_ref().unwrap();
+        if H::ed25519_verify(
+            signature.get_inner(),
+            &data,
+            validator_public_key.get_inner(),
+        ) {
             return Err(NearError::invalid_signature().into());
         }
     }

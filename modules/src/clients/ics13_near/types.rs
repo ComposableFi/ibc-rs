@@ -41,30 +41,22 @@ impl Signature {
         Self::Ed25519(Ed25519Signature::from_raw(raw.try_into().unwrap()))
     }
 
-    pub fn as_bytes(&self) -> &[u8] {
+    pub fn get_inner(&self) -> &[u8; Self::LEN] {
         match self {
             Self::Ed25519(inner) => &inner.0,
-        }
-    }
-
-    pub fn verify<T: HostFunctionsProvider>(
-        &self,
-        data: &[u8; 32],
-        public_key: &PublicKey,
-    ) -> bool {
-        match self {
-            Self::Ed25519(signature) => {
-                T::ed25519_verify(signature.as_ref(), data, public_key.0.as_ref())
-            }
         }
     }
 }
 
 impl PublicKey {
-    const _LEN: usize = 32;
+    const LEN: usize = 32;
 
     pub fn from_raw(raw: &[u8]) -> Self {
         Self(raw.try_into().unwrap())
+    }
+
+    pub fn get_inner(&self) -> &[u8; Self::LEN] {
+        &self.0
     }
 }
 
