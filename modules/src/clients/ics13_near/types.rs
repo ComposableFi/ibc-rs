@@ -53,9 +53,9 @@ impl Signature {
         public_key: &PublicKey,
     ) -> bool {
         match self {
-            Self::Ed25519(signature) => T::ed25519_recover(signature.as_ref(), data)
-                .map(|key| key == public_key.0)
-                .unwrap_or(false),
+            Self::Ed25519(signature) => {
+                T::ed25519_verify(signature.as_ref(), data, public_key.0.as_ref())
+            }
         }
     }
 }
