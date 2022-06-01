@@ -27,7 +27,9 @@ use crate::core::ics04_channel::Version;
 use crate::core::ics05_port::context::PortReader;
 use crate::core::ics05_port::error::Error as PortError;
 use crate::core::ics24_host::identifier::{ChannelId, ClientId, ConnectionId, PortId};
-use crate::core::ics26_routing::context::{Module, ModuleId, ModuleOutputBuilder, LightClientContext};
+use crate::core::ics26_routing::context::{
+    LightClientContext, Module, ModuleId, ModuleOutputBuilder,
+};
 use crate::mock::context::MockIbcStore;
 use crate::signer::Signer;
 use crate::timestamp::Timestamp;
@@ -354,7 +356,10 @@ impl ClientReader for DummyTransferModule {
         }
     }
 
-    fn client_type(&self, _client_id: &ClientId) -> Result<crate::core::ics02_client::client_type::ClientType, Ics02Error> {
+    fn client_type(
+        &self,
+        _client_id: &ClientId,
+    ) -> Result<crate::core::ics02_client::client_type::ClientType, Ics02Error> {
         todo!()
     }
 
@@ -479,4 +484,3 @@ impl Ics20Context for DummyTransferModule {
 }
 
 impl LightClientContext for DummyTransferModule {}
-

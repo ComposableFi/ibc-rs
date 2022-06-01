@@ -1244,7 +1244,7 @@ impl Ics18Context for MockContext {
         // Forward call to Ics26 delivery method.
         let mut all_events = vec![];
         for msg in msgs {
-let MsgReceipt { mut events, .. } =
+            let MsgReceipt { mut events, .. } =
                 deliver::<_, Crypto>(self, msg).map_err(Ics18Error::transaction_failed)?;
             all_events.append(&mut events);
         }

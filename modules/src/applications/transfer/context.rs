@@ -16,7 +16,9 @@ use crate::core::ics04_channel::packet::Packet;
 use crate::core::ics04_channel::Version;
 use crate::core::ics05_port::context::PortReader;
 use crate::core::ics24_host::identifier::{ChannelId, ConnectionId, PortId};
-use crate::core::ics26_routing::context::{ModuleOutputBuilder, OnRecvPacketAck, LightClientContext};
+use crate::core::ics26_routing::context::{
+    LightClientContext, ModuleOutputBuilder, OnRecvPacketAck,
+};
 use crate::prelude::*;
 use crate::signer::Signer;
 

@@ -31,10 +31,7 @@ pub struct MsgReceipt {
 /// Mimics the DeliverTx ABCI interface, but for a single message and at a slightly lower level.
 /// No need for authentication info or signature checks here.
 /// Returns a vector of all events that got generated as a byproduct of processing `message`.
-pub fn deliver<Ctx, HostFunctions>(
-    ctx: &mut Ctx,
-    message: Any,
-) -> Result<MsgReceipt, Error>
+pub fn deliver<Ctx, HostFunctions>(ctx: &mut Ctx, message: Any) -> Result<MsgReceipt, Error>
 where
     Ctx: Ics26Context,
     HostFunctions: HostFunctionsProvider,
@@ -149,7 +146,6 @@ mod tests {
     use crate::applications::transfer::PrefixedCoin;
     use crate::core::ics02_client::client_consensus::AnyConsensusState;
     use crate::core::ics02_client::client_state::AnyClientState;
-    use crate::test_utils::Crypto;
     use crate::core::ics02_client::msgs::{
         create_client::MsgCreateAnyClient, update_client::MsgUpdateAnyClient,
         upgrade_client::MsgUpgradeAnyClient, ClientMsg,
@@ -173,6 +169,7 @@ mod tests {
         ChannelMsg, PacketMsg,
     };
     use crate::events::IbcEvent;
+    use crate::test_utils::Crypto;
     use crate::{
         applications::transfer::msgs::transfer::test_util::get_dummy_msg_transfer,
         applications::transfer::msgs::transfer::MsgTransfer,
