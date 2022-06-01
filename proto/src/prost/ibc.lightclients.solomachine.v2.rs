@@ -50,6 +50,8 @@ pub struct Header {
 /// of a sequence and two signatures over different messages at that sequence.
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Misbehaviour {
+    /// ClientID is deprecated
+    #[deprecated]
     #[prost(string, tag="1")]
     pub client_id: ::prost::alloc::string::String,
     #[prost(uint64, tag="2")]

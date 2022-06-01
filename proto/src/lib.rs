@@ -213,6 +213,11 @@ pub mod ibc {
                 include_proto!("ibc.lightclients.beefy.v1.rs");
             }
         }
+        pub mod near {
+            pub mod v1 {
+                include_proto!("ibc.lightclients.near.v1.rs");
+            }
+        }
     }
     pub mod mock {
         include_proto!("ibc.mock.rs");

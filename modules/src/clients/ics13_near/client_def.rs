@@ -84,10 +84,9 @@ impl<T: HostFunctionsProvider> ClientDef for NearClient<T> {
         let new_client_state =
             client_state.update_client_state(header.get_light_client_block_view().clone());
 
-        let timestamp = Time::from_unix_timestamp(header);
         // TODO: investigate what's the commitment root in this context
         let consensus_update_result = ConsensusUpdateResult::Single(AnyConsensusState::Near(
-            NearConsensusState::new(commitment_root, timestamp),
+            NearConsensusState::new(commitment_root, header.get_timestamp()),
         ));
         Ok((new_client_state, consensus_update_result))
     }

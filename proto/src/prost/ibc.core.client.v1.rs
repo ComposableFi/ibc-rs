@@ -223,16 +223,20 @@ pub struct MsgUpgradeClientResponse {
 }
 /// MsgSubmitMisbehaviour defines an sdk.Msg type that submits Evidence for
 /// light client misbehaviour.
+/// Warning: DEPRECATED
 #[derive(::serde::Serialize, ::serde::Deserialize)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct MsgSubmitMisbehaviour {
     /// client unique identifier
+    #[deprecated]
     #[prost(string, tag="1")]
     pub client_id: ::prost::alloc::string::String,
     /// misbehaviour used for freezing the light client
+    #[deprecated]
     #[prost(message, optional, tag="2")]
     pub misbehaviour: ::core::option::Option<super::super::super::super::google::protobuf::Any>,
     /// signer address
+    #[deprecated]
     #[prost(string, tag="3")]
     pub signer: ::prost::alloc::string::String,
 }

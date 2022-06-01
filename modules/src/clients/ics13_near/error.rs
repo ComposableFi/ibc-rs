@@ -7,6 +7,9 @@ define_error! {
         InvalidEpoch
         { epoch_id: CryptoHash }
         | _ | { "invalid epoch id" },
+        InvalidRawConsensusState
+            { reason: String }
+            | e | { format_args!("invalid raw client consensus state: {}", e.reason) },
         HeightTooOld
         | _ | { format_args!(
             "height too old")
