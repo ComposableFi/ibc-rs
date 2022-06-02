@@ -1,6 +1,6 @@
 [package]
 name         = "ibc-relayer"
-version      = "0.14.1"
+version      = "0.15.0"
 edition      = "2021"
 license      = "Apache-2.0"
 readme       = "README.md"
@@ -21,9 +21,9 @@ profiling = []
 telemetry = ["ibc-telemetry"]
 
 [dependencies]
-ibc           = { version = "0.14.1", path = "../modules" }
-ibc-proto     = { version = "0.17.1", path = "../proto" }
-ibc-telemetry = { version = "0.14.1", path = "../telemetry", optional = true }
+ibc           = { version = "0.15.0", path = "../modules" }
+ibc-proto     = { version = "0.18.0", path = "../proto" }
+ibc-telemetry = { version = "0.15.0", path = "../telemetry", optional = true }
 
 subtle-encoding = "0.5"
 humantime-serde = "1.1.1"
@@ -37,7 +37,7 @@ serde_json = { version = "1" }
 bytes = "1.1.0"
 prost = { version = "0.10" }
 prost-types = { version = "0.10" }
-tonic = { version = "0.7", features = ["tls", "tls-roots"] }
+tonic = { version = "0.7.2", features = ["tls", "tls-roots"] }
 futures = "0.3.21"
 crossbeam-channel = "0.5.4"
 k256 = { version = "0.10.4", features = ["ecdsa-core", "ecdsa", "sha256"]}
@@ -58,12 +58,11 @@ flex-error = { version = "0.4.4", default-features = false }
 signature = "1.4.0"
 anyhow = "1.0"
 semver = "1.0"
-uint = "0.9"
 humantime = "2.1.0"
 nanoid = "0.4.0"
 regex = "1.5.5"
-moka = "0.8.3"
-uuid = { version = "1.0.0", features = ["v4"] }
+moka = "0.8.5"
+uuid = { version = "1.1.0", features = ["v4"] }
 
 [dependencies.num-bigint]
 version = "0.4"
@@ -94,7 +93,7 @@ default-features = false
 version = "=0.23.7"
 
 [dev-dependencies]
-ibc = { version = "0.14.1", path = "../modules", features = ["mocks"] }
+ibc = { version = "0.15.0", path = "../modules", features = ["mocks"] }
 serial_test = "0.6.0"
 env_logger = "0.9.0"
 tracing-subscriber = { version = "0.3.11", features = ["fmt", "env-filter", "json"] }

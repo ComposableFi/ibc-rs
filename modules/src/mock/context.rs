@@ -8,12 +8,12 @@ use core::cmp::min;
 use core::fmt::Debug;
 use core::ops::{Add, Sub};
 use core::time::Duration;
+use std::sync::Mutex;
 
 use ibc_proto::google::protobuf::Any;
 use sha2::Digest;
 use tracing::debug;
 
-use crate::applications::ics20_fungible_token_transfer::context::Ics20Context;
 use crate::clients::ics07_tendermint::client_state::test_util::get_dummy_tendermint_client_state;
 use crate::clients::ics11_beefy::client_state::test_util::get_dummy_beefy_state;
 use crate::clients::ics11_beefy::consensus_state::test_util::get_dummy_beefy_consensus_state;
@@ -37,9 +37,9 @@ use crate::core::ics05_port::error::Error;
 use crate::core::ics23_commitment::commitment::CommitmentPrefix;
 use crate::core::ics24_host::identifier::{ChainId, ChannelId, ClientId, ConnectionId, PortId};
 use crate::core::ics26_routing::context::{
-    Ics26Context, LightClientContext, Module, ModuleId, Router, RouterBuilder,
+    Ics26Context, Module, ModuleId, ReaderContext, Router, RouterBuilder,
 };
-use crate::core::ics26_routing::handler::{deliver, dispatch};
+use crate::core::ics26_routing::handler::{deliver, dispatch, MsgReceipt};
 use crate::core::ics26_routing::msgs::Ics26Envelope;
 use crate::events::IbcEvent;
 use crate::mock::client_state::{MockClientRecord, MockClientState, MockConsensusState};
@@ -55,7 +55,7 @@ use crate::Height;
 pub const DEFAULT_BLOCK_TIME_SECS: u64 = 3;
 
 /// A context implementing the dependencies necessary for testing any IBC module.
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct MockContext {
     /// The type of host chain underlying this mock context.
     host_chain_type: HostType,
@@ -70,59 +70,11 @@ pub struct MockContext {
     /// blocks, ascending order by their height (latest block is on the last position).
     history: Vec<HostBlock>,
 
-    /// The set of all clients, indexed by their id.
-    clients: BTreeMap<ClientId, MockClientRecord>,
-
-    /// Tracks the processed time for clients header updates
-    client_processed_times: BTreeMap<(ClientId, Height), Timestamp>,
-
-    /// Tracks the processed height for the clients
-    client_processed_heights: BTreeMap<(ClientId, Height), Height>,
-
-    /// Counter for the client identifiers, necessary for `increase_client_counter` and the
-    /// `client_counter` methods.
-    client_ids_counter: u64,
-
-    /// Association between client ids and connection ids.
-    client_connections: BTreeMap<ClientId, ConnectionId>,
-
-    /// All the connections in the store.
-    connections: BTreeMap<ConnectionId, ConnectionEnd>,
-
-    /// Counter for connection identifiers (see `increase_connection_counter`).
-    connection_ids_counter: u64,
-
-    /// Association between connection ids and channel ids.
-    connection_channels: BTreeMap<ConnectionId, Vec<(PortId, ChannelId)>>,
-
-    /// Counter for channel identifiers (see `increase_channel_counter`).
-    channel_ids_counter: u64,
-
-    /// All the channels in the store. TODO Make new key PortId X ChanneId
-    channels: BTreeMap<(PortId, ChannelId), ChannelEnd>,
-
-    /// Tracks the sequence number for the next packet to be sent.
-    next_sequence_send: BTreeMap<(PortId, ChannelId), Sequence>,
-
-    /// Tracks the sequence number for the next packet to be received.
-    next_sequence_recv: BTreeMap<(PortId, ChannelId), Sequence>,
-
-    /// Tracks the sequence number for the next packet to be acknowledged.
-    next_sequence_ack: BTreeMap<(PortId, ChannelId), Sequence>,
-
-    packet_acknowledgement: BTreeMap<(PortId, ChannelId, Sequence), AcknowledgementCommitment>,
-
-    /// Maps ports to the the module that owns it
-    port_to_module: BTreeMap<PortId, ModuleId>,
-
-    /// Constant-size commitments to packets data fields
-    packet_commitment: BTreeMap<(PortId, ChannelId, Sequence), PacketCommitment>,
-
-    // Used by unordered channel
-    packet_receipt: BTreeMap<(PortId, ChannelId, Sequence), Receipt>,
-
     /// Average time duration between blocks
     block_time: Duration,
+
+    /// An object that stores all IBC related data.
+    pub ibc_store: Arc<Mutex<MockIbcStore>>,
 
     /// ICS26 router impl
     router: MockRouter,
@@ -139,6 +91,26 @@ impl Default for MockContext {
             5,
             Height::new(0, 5),
         )
+    }
+}
+
+/// A manual clone impl is provided because the tests are oblivious to the fact that the `ibc_store`
+/// is a shared ptr.
+impl Clone for MockContext {
+    fn clone(&self) -> Self {
+        let ibc_store = {
+            let ibc_store = self.ibc_store.lock().unwrap().clone();
+            Arc::new(Mutex::new(ibc_store))
+        };
+        Self {
+            host_chain_type: self.host_chain_type,
+            host_chain_id: self.host_chain_id.clone(),
+            max_history_size: self.max_history_size,
+            history: self.history.clone(),
+            block_time: self.block_time,
+            ibc_store,
+            router: self.router.clone(),
+        }
     }
 }
 
@@ -195,24 +167,8 @@ impl MockContext {
                     )
                 })
                 .collect(),
-            connections: Default::default(),
-            client_ids_counter: 0,
-            clients: Default::default(),
-            client_processed_times: Default::default(),
-            client_processed_heights: Default::default(),
-            client_connections: Default::default(),
-            channels: Default::default(),
-            connection_channels: Default::default(),
-            next_sequence_send: Default::default(),
-            next_sequence_recv: Default::default(),
-            next_sequence_ack: Default::default(),
-            port_to_module: Default::default(),
-            packet_commitment: Default::default(),
-            packet_receipt: Default::default(),
-            packet_acknowledgement: Default::default(),
-            connection_ids_counter: 0,
-            channel_ids_counter: 0,
             block_time,
+            ibc_store: Arc::new(Mutex::new(MockIbcStore::default())),
             router: Default::default(),
         }
     }
@@ -231,7 +187,7 @@ impl MockContext {
     /// `consensus_state_height` is None, then the client will be initialized with a consensus
     /// state matching the same height as the client state (`client_state_height`).
     pub fn with_client_parametrized(
-        mut self,
+        self,
         client_id: &ClientId,
         client_state_height: Height,
         client_type: Option<ClientType>,
@@ -276,12 +232,16 @@ impl MockContext {
             client_state,
             consensus_states,
         };
-        self.clients.insert(client_id.clone(), client_record);
+        self.ibc_store
+            .lock()
+            .unwrap()
+            .clients
+            .insert(client_id.clone(), client_record);
         self
     }
 
     pub fn with_client_parametrized_history(
-        mut self,
+        self,
         client_id: &ClientId,
         client_state_height: Height,
         client_type: Option<ClientType>,
@@ -353,17 +313,25 @@ impl MockContext {
             consensus_states,
         };
 
-        self.clients.insert(client_id.clone(), client_record);
+        self.ibc_store
+            .lock()
+            .unwrap()
+            .clients
+            .insert(client_id.clone(), client_record);
         self
     }
 
     /// Associates a connection to this context.
     pub fn with_connection(
-        mut self,
+        self,
         connection_id: ConnectionId,
         connection_end: ConnectionEnd,
     ) -> Self {
-        self.connections.insert(connection_id, connection_end);
+        self.ibc_store
+            .lock()
+            .unwrap()
+            .connections
+            .insert(connection_id, connection_end);
         self
     }
 
@@ -374,9 +342,10 @@ impl MockContext {
         chan_id: ChannelId,
         channel_end: ChannelEnd,
     ) -> Self {
-        let mut channels = self.channels.clone();
+        let mut channels = self.ibc_store.lock().unwrap().channels.clone();
         channels.insert((port_id, chan_id), channel_end);
-        Self { channels, ..self }
+        self.ibc_store.lock().unwrap().channels = channels;
+        self
     }
 
     pub fn with_send_sequence(
@@ -385,12 +354,10 @@ impl MockContext {
         chan_id: ChannelId,
         seq_number: Sequence,
     ) -> Self {
-        let mut next_sequence_send = self.next_sequence_send.clone();
+        let mut next_sequence_send = self.ibc_store.lock().unwrap().next_sequence_send.clone();
         next_sequence_send.insert((port_id, chan_id), seq_number);
-        Self {
-            next_sequence_send,
-            ..self
-        }
+        self.ibc_store.lock().unwrap().next_sequence_send = next_sequence_send;
+        self
     }
 
     pub fn with_recv_sequence(
@@ -399,12 +366,10 @@ impl MockContext {
         chan_id: ChannelId,
         seq_number: Sequence,
     ) -> Self {
-        let mut next_sequence_recv = self.next_sequence_recv.clone();
+        let mut next_sequence_recv = self.ibc_store.lock().unwrap().next_sequence_recv.clone();
         next_sequence_recv.insert((port_id, chan_id), seq_number);
-        Self {
-            next_sequence_recv,
-            ..self
-        }
+        self.ibc_store.lock().unwrap().next_sequence_recv = next_sequence_recv;
+        self
     }
 
     pub fn with_ack_sequence(
@@ -413,12 +378,10 @@ impl MockContext {
         chan_id: ChannelId,
         seq_number: Sequence,
     ) -> Self {
-        let mut next_sequence_ack = self.next_sequence_send.clone();
+        let mut next_sequence_ack = self.ibc_store.lock().unwrap().next_sequence_send.clone();
         next_sequence_ack.insert((port_id, chan_id), seq_number);
-        Self {
-            next_sequence_ack,
-            ..self
-        }
+        self.ibc_store.lock().unwrap().next_sequence_ack = next_sequence_ack;
+        self
     }
 
     pub fn with_height(self, target_height: Height) -> Self {
@@ -449,12 +412,10 @@ impl MockContext {
         seq: Sequence,
         data: PacketCommitment,
     ) -> Self {
-        let mut packet_commitment = self.packet_commitment.clone();
+        let mut packet_commitment = self.ibc_store.lock().unwrap().packet_commitment.clone();
         packet_commitment.insert((port_id, chan_id, seq), data);
-        Self {
-            packet_commitment,
-            ..self
-        }
+        self.ibc_store.lock().unwrap().packet_commitment = packet_commitment;
+        self
     }
 
     pub fn with_router(self, router: MockRouter) -> Self {
@@ -536,15 +497,23 @@ impl MockContext {
 
     pub fn add_port(&mut self, port_id: PortId) {
         let module_id = ModuleId::new(format!("module{}", port_id).into()).unwrap();
-        self.port_to_module.insert(port_id, module_id);
+        self.ibc_store
+            .lock()
+            .unwrap()
+            .port_to_module
+            .insert(port_id, module_id);
     }
 
     pub fn scope_port_to_module(&mut self, port_id: PortId, module_id: ModuleId) {
-        self.port_to_module.insert(port_id, module_id);
+        self.ibc_store
+            .lock()
+            .unwrap()
+            .port_to_module
+            .insert(port_id, module_id);
     }
 
     pub fn consensus_states(&self, client_id: &ClientId) -> Vec<AnyConsensusStateWithHeight> {
-        self.clients[client_id]
+        self.ibc_store.lock().unwrap().clients[client_id]
             .consensus_states
             .iter()
             .map(|(k, v)| AnyConsensusStateWithHeight {
@@ -554,19 +523,24 @@ impl MockContext {
             .collect()
     }
 
-    pub fn latest_client_states(&self, client_id: &ClientId) -> &AnyClientState {
-        self.clients[client_id].client_state.as_ref().unwrap()
+    pub fn latest_client_states(&self, client_id: &ClientId) -> AnyClientState {
+        self.ibc_store.lock().unwrap().clients[client_id]
+            .client_state
+            .as_ref()
+            .unwrap()
+            .clone()
     }
 
     pub fn latest_consensus_states(
         &self,
         client_id: &ClientId,
         height: &Height,
-    ) -> &AnyConsensusState {
-        self.clients[client_id]
+    ) -> AnyConsensusState {
+        self.ibc_store.lock().unwrap().clients[client_id]
             .consensus_states
             .get(height)
             .unwrap()
+            .clone()
     }
 
     #[inline]
@@ -576,6 +550,65 @@ impl MockContext {
             .expect("history cannot be empty")
             .height()
     }
+
+    pub fn ibc_store_share(&self) -> Arc<Mutex<MockIbcStore>> {
+        self.ibc_store.clone()
+    }
+}
+
+/// An object that stores all IBC related data.
+#[derive(Clone, Debug, Default)]
+pub struct MockIbcStore {
+    /// The set of all clients, indexed by their id.
+    pub clients: BTreeMap<ClientId, MockClientRecord>,
+
+    /// Tracks the processed time for clients header updates
+    pub client_processed_times: BTreeMap<(ClientId, Height), Timestamp>,
+
+    /// Tracks the processed height for the clients
+    pub client_processed_heights: BTreeMap<(ClientId, Height), Height>,
+
+    /// Counter for the client identifiers, necessary for `increase_client_counter` and the
+    /// `client_counter` methods.
+    pub client_ids_counter: u64,
+
+    /// Association between client ids and connection ids.
+    pub client_connections: BTreeMap<ClientId, ConnectionId>,
+
+    /// All the connections in the store.
+    pub connections: BTreeMap<ConnectionId, ConnectionEnd>,
+
+    /// Counter for connection identifiers (see `increase_connection_counter`).
+    pub connection_ids_counter: u64,
+
+    /// Association between connection ids and channel ids.
+    pub connection_channels: BTreeMap<ConnectionId, Vec<(PortId, ChannelId)>>,
+
+    /// Counter for channel identifiers (see `increase_channel_counter`).
+    pub channel_ids_counter: u64,
+
+    /// All the channels in the store. TODO Make new key PortId X ChanneId
+    pub channels: BTreeMap<(PortId, ChannelId), ChannelEnd>,
+
+    /// Tracks the sequence number for the next packet to be sent.
+    pub next_sequence_send: BTreeMap<(PortId, ChannelId), Sequence>,
+
+    /// Tracks the sequence number for the next packet to be received.
+    pub next_sequence_recv: BTreeMap<(PortId, ChannelId), Sequence>,
+
+    /// Tracks the sequence number for the next packet to be acknowledged.
+    pub next_sequence_ack: BTreeMap<(PortId, ChannelId), Sequence>,
+
+    pub packet_acknowledgement: BTreeMap<(PortId, ChannelId, Sequence), AcknowledgementCommitment>,
+
+    /// Maps ports to the the module that owns it
+    pub port_to_module: BTreeMap<PortId, ModuleId>,
+
+    /// Constant-size commitments to packets data fields
+    pub packet_commitment: BTreeMap<(PortId, ChannelId, Sequence), PacketCommitment>,
+
+    // Used by unordered channel
+    pub packet_receipt: BTreeMap<(PortId, ChannelId, Sequence), Receipt>,
 }
 
 #[derive(Default)]
@@ -609,7 +642,7 @@ impl Router for MockRouter {
     }
 }
 
-impl LightClientContext for MockContext {}
+impl ReaderContext for MockContext {}
 
 impl Ics26Context for MockContext {
     type Router = MockRouter;
@@ -623,11 +656,9 @@ impl Ics26Context for MockContext {
     }
 }
 
-impl Ics20Context for MockContext {}
-
 impl PortReader for MockContext {
     fn lookup_module_by_port(&self, port_id: &PortId) -> Result<ModuleId, Error> {
-        match self.port_to_module.get(port_id) {
+        match self.ibc_store.lock().unwrap().port_to_module.get(port_id) {
             Some(mod_id) => Ok(mod_id.clone()),
             None => Err(Ics05Error::unknown_port(port_id.clone())),
         }
@@ -636,7 +667,7 @@ impl PortReader for MockContext {
 
 impl ChannelReader for MockContext {
     fn channel_end(&self, pcid: &(PortId, ChannelId)) -> Result<ChannelEnd, Ics04Error> {
-        match self.channels.get(pcid) {
+        match self.ibc_store.lock().unwrap().channels.get(pcid) {
             Some(channel_end) => Ok(channel_end.clone()),
             None => Err(Ics04Error::channel_not_found(pcid.0.clone(), pcid.1)),
         }
@@ -646,7 +677,7 @@ impl ChannelReader for MockContext {
         &self,
         cid: &ConnectionId,
     ) -> Result<Vec<(PortId, ChannelId)>, Ics04Error> {
-        match self.connection_channels.get(cid) {
+        match self.ibc_store.lock().unwrap().connection_channels.get(cid) {
             Some(pcid) => Ok(pcid.clone()),
             None => Err(Ics04Error::missing_channel()),
         }
@@ -656,7 +687,13 @@ impl ChannelReader for MockContext {
         &self,
         port_channel_id: &(PortId, ChannelId),
     ) -> Result<Sequence, Ics04Error> {
-        match self.next_sequence_send.get(port_channel_id) {
+        match self
+            .ibc_store
+            .lock()
+            .unwrap()
+            .next_sequence_send
+            .get(port_channel_id)
+        {
             Some(sequence) => Ok(*sequence),
             None => Err(Ics04Error::missing_next_send_seq(port_channel_id.clone())),
         }
@@ -666,7 +703,13 @@ impl ChannelReader for MockContext {
         &self,
         port_channel_id: &(PortId, ChannelId),
     ) -> Result<Sequence, Ics04Error> {
-        match self.next_sequence_recv.get(port_channel_id) {
+        match self
+            .ibc_store
+            .lock()
+            .unwrap()
+            .next_sequence_recv
+            .get(port_channel_id)
+        {
             Some(sequence) => Ok(*sequence),
             None => Err(Ics04Error::missing_next_recv_seq(port_channel_id.clone())),
         }
@@ -676,7 +719,13 @@ impl ChannelReader for MockContext {
         &self,
         port_channel_id: &(PortId, ChannelId),
     ) -> Result<Sequence, Ics04Error> {
-        match self.next_sequence_ack.get(port_channel_id) {
+        match self
+            .ibc_store
+            .lock()
+            .unwrap()
+            .next_sequence_ack
+            .get(port_channel_id)
+        {
             Some(sequence) => Ok(*sequence),
             None => Err(Ics04Error::missing_next_ack_seq(port_channel_id.clone())),
         }
@@ -686,7 +735,7 @@ impl ChannelReader for MockContext {
         &self,
         key: &(PortId, ChannelId, Sequence),
     ) -> Result<PacketCommitment, Ics04Error> {
-        match self.packet_commitment.get(key) {
+        match self.ibc_store.lock().unwrap().packet_commitment.get(key) {
             Some(commitment) => Ok(commitment.clone()),
             None => Err(Ics04Error::packet_commitment_not_found(key.2)),
         }
@@ -696,7 +745,7 @@ impl ChannelReader for MockContext {
         &self,
         key: &(PortId, ChannelId, Sequence),
     ) -> Result<Receipt, Ics04Error> {
-        match self.packet_receipt.get(key) {
+        match self.ibc_store.lock().unwrap().packet_receipt.get(key) {
             Some(receipt) => Ok(receipt.clone()),
             None => Err(Ics04Error::packet_receipt_not_found(key.2)),
         }
@@ -706,7 +755,13 @@ impl ChannelReader for MockContext {
         &self,
         key: &(PortId, ChannelId, Sequence),
     ) -> Result<AcknowledgementCommitment, Ics04Error> {
-        match self.packet_acknowledgement.get(key) {
+        match self
+            .ibc_store
+            .lock()
+            .unwrap()
+            .packet_acknowledgement
+            .get(key)
+        {
             Some(ack) => Ok(ack.clone()),
             None => Err(Ics04Error::packet_acknowledgement_not_found(key.2)),
         }
@@ -722,6 +777,9 @@ impl ChannelReader for MockContext {
         height: Height,
     ) -> Result<Timestamp, Ics04Error> {
         match self
+            .ibc_store
+            .lock()
+            .unwrap()
             .client_processed_times
             .get(&(client_id.clone(), height))
         {
@@ -739,6 +797,9 @@ impl ChannelReader for MockContext {
         height: Height,
     ) -> Result<Height, Ics04Error> {
         match self
+            .ibc_store
+            .lock()
+            .unwrap()
             .client_processed_heights
             .get(&(client_id.clone(), height))
         {
@@ -751,7 +812,7 @@ impl ChannelReader for MockContext {
     }
 
     fn channel_counter(&self) -> Result<u64, Ics04Error> {
-        Ok(self.channel_ids_counter)
+        Ok(self.ibc_store.lock().unwrap().channel_ids_counter)
     }
 
     fn max_expected_time_per_block(&self) -> Duration {
@@ -765,7 +826,11 @@ impl ChannelKeeper for MockContext {
         key: (PortId, ChannelId, Sequence),
         commitment: PacketCommitment,
     ) -> Result<(), Ics04Error> {
-        self.packet_commitment.insert(key, commitment);
+        self.ibc_store
+            .lock()
+            .unwrap()
+            .packet_commitment
+            .insert(key, commitment);
         Ok(())
     }
 
@@ -774,7 +839,11 @@ impl ChannelKeeper for MockContext {
         key: (PortId, ChannelId, Sequence),
         ack_commitment: AcknowledgementCommitment,
     ) -> Result<(), Ics04Error> {
-        self.packet_acknowledgement.insert(key, ack_commitment);
+        self.ibc_store
+            .lock()
+            .unwrap()
+            .packet_acknowledgement
+            .insert(key, ack_commitment);
         Ok(())
     }
 
@@ -782,7 +851,11 @@ impl ChannelKeeper for MockContext {
         &mut self,
         key: (PortId, ChannelId, Sequence),
     ) -> Result<(), Ics04Error> {
-        self.packet_acknowledgement.remove(&key);
+        self.ibc_store
+            .lock()
+            .unwrap()
+            .packet_acknowledgement
+            .remove(&key);
         Ok(())
     }
 
@@ -791,7 +864,10 @@ impl ChannelKeeper for MockContext {
         cid: ConnectionId,
         port_channel_id: &(PortId, ChannelId),
     ) -> Result<(), Ics04Error> {
-        self.connection_channels
+        self.ibc_store
+            .lock()
+            .unwrap()
+            .connection_channels
             .entry(cid)
             .or_insert_with(Vec::new)
             .push(port_channel_id.clone());
@@ -803,7 +879,11 @@ impl ChannelKeeper for MockContext {
         port_channel_id: (PortId, ChannelId),
         channel_end: &ChannelEnd,
     ) -> Result<(), Ics04Error> {
-        self.channels.insert(port_channel_id, channel_end.clone());
+        self.ibc_store
+            .lock()
+            .unwrap()
+            .channels
+            .insert(port_channel_id, channel_end.clone());
         Ok(())
     }
 
@@ -812,7 +892,11 @@ impl ChannelKeeper for MockContext {
         port_channel_id: (PortId, ChannelId),
         seq: Sequence,
     ) -> Result<(), Ics04Error> {
-        self.next_sequence_send.insert(port_channel_id, seq);
+        self.ibc_store
+            .lock()
+            .unwrap()
+            .next_sequence_send
+            .insert(port_channel_id, seq);
         Ok(())
     }
 
@@ -821,7 +905,11 @@ impl ChannelKeeper for MockContext {
         port_channel_id: (PortId, ChannelId),
         seq: Sequence,
     ) -> Result<(), Ics04Error> {
-        self.next_sequence_recv.insert(port_channel_id, seq);
+        self.ibc_store
+            .lock()
+            .unwrap()
+            .next_sequence_recv
+            .insert(port_channel_id, seq);
         Ok(())
     }
 
@@ -830,19 +918,27 @@ impl ChannelKeeper for MockContext {
         port_channel_id: (PortId, ChannelId),
         seq: Sequence,
     ) -> Result<(), Ics04Error> {
-        self.next_sequence_ack.insert(port_channel_id, seq);
+        self.ibc_store
+            .lock()
+            .unwrap()
+            .next_sequence_ack
+            .insert(port_channel_id, seq);
         Ok(())
     }
 
     fn increase_channel_counter(&mut self) {
-        self.channel_ids_counter += 1;
+        self.ibc_store.lock().unwrap().channel_ids_counter += 1;
     }
 
     fn delete_packet_commitment(
         &mut self,
         key: (PortId, ChannelId, Sequence),
     ) -> Result<(), Ics04Error> {
-        self.packet_commitment.remove(&key);
+        self.ibc_store
+            .lock()
+            .unwrap()
+            .packet_commitment
+            .remove(&key);
         Ok(())
     }
 
@@ -851,14 +947,26 @@ impl ChannelKeeper for MockContext {
         key: (PortId, ChannelId, Sequence),
         receipt: Receipt,
     ) -> Result<(), Ics04Error> {
-        self.packet_receipt.insert(key, receipt);
+        self.ibc_store
+            .lock()
+            .unwrap()
+            .packet_receipt
+            .insert(key, receipt);
+        Ok(())
+    }
+
+    fn store_packet(
+        &mut self,
+        _key: (PortId, ChannelId, Sequence),
+        _packet: crate::core::ics04_channel::packet::Packet,
+    ) -> Result<(), Ics04Error> {
         Ok(())
     }
 }
 
 impl ConnectionReader for MockContext {
     fn connection_end(&self, cid: &ConnectionId) -> Result<ConnectionEnd, Ics03Error> {
-        match self.connections.get(cid) {
+        match self.ibc_store.lock().unwrap().connections.get(cid) {
             Some(connection_end) => Ok(connection_end.clone()),
             None => Err(Ics03Error::connection_not_found(cid.clone())),
         }
@@ -874,7 +982,7 @@ impl ConnectionReader for MockContext {
     }
 
     fn connection_counter(&self) -> Result<u64, Ics03Error> {
-        Ok(self.connection_ids_counter)
+        Ok(self.ibc_store.lock().unwrap().connection_ids_counter)
     }
 }
 
@@ -884,7 +992,10 @@ impl ConnectionKeeper for MockContext {
         connection_id: ConnectionId,
         connection_end: &ConnectionEnd,
     ) -> Result<(), Ics03Error> {
-        self.connections
+        self.ibc_store
+            .lock()
+            .unwrap()
+            .connections
             .insert(connection_id, connection_end.clone());
         Ok(())
     }
@@ -894,26 +1005,29 @@ impl ConnectionKeeper for MockContext {
         connection_id: ConnectionId,
         client_id: &ClientId,
     ) -> Result<(), Ics03Error> {
-        self.client_connections
+        self.ibc_store
+            .lock()
+            .unwrap()
+            .client_connections
             .insert(client_id.clone(), connection_id);
         Ok(())
     }
 
     fn increase_connection_counter(&mut self) {
-        self.connection_ids_counter += 1;
+        self.ibc_store.lock().unwrap().connection_ids_counter += 1;
     }
 }
 
 impl ClientReader for MockContext {
     fn client_type(&self, client_id: &ClientId) -> Result<ClientType, Ics02Error> {
-        match self.clients.get(client_id) {
+        match self.ibc_store.lock().unwrap().clients.get(client_id) {
             Some(client_record) => Ok(client_record.client_type),
             None => Err(Ics02Error::client_not_found(client_id.clone())),
         }
     }
 
     fn client_state(&self, client_id: &ClientId) -> Result<AnyClientState, Ics02Error> {
-        match self.clients.get(client_id) {
+        match self.ibc_store.lock().unwrap().clients.get(client_id) {
             Some(client_record) => client_record
                 .client_state
                 .clone()
@@ -927,7 +1041,7 @@ impl ClientReader for MockContext {
         client_id: &ClientId,
         height: Height,
     ) -> Result<AnyConsensusState, Ics02Error> {
-        match self.clients.get(client_id) {
+        match self.ibc_store.lock().unwrap().clients.get(client_id) {
             Some(client_record) => match client_record.consensus_states.get(&height) {
                 Some(consensus_state) => Ok(consensus_state.clone()),
                 None => Err(Ics02Error::consensus_state_not_found(
@@ -948,7 +1062,8 @@ impl ClientReader for MockContext {
         client_id: &ClientId,
         height: Height,
     ) -> Result<Option<AnyConsensusState>, Ics02Error> {
-        let client_record = self
+        let ibc_store = self.ibc_store.lock().unwrap();
+        let client_record = ibc_store
             .clients
             .get(client_id)
             .ok_or_else(|| Ics02Error::client_not_found(client_id.clone()))?;
@@ -975,7 +1090,8 @@ impl ClientReader for MockContext {
         client_id: &ClientId,
         height: Height,
     ) -> Result<Option<AnyConsensusState>, Ics02Error> {
-        let client_record = self
+        let ibc_store = self.ibc_store.lock().unwrap();
+        let client_record = ibc_store
             .clients
             .get(client_id)
             .ok_or_else(|| Ics02Error::client_not_found(client_id.clone()))?;
@@ -1017,7 +1133,7 @@ impl ClientReader for MockContext {
     }
 
     fn client_counter(&self) -> Result<u64, Ics02Error> {
-        Ok(self.client_ids_counter)
+        Ok(self.ibc_store.lock().unwrap().client_ids_counter)
     }
 }
 
@@ -1027,11 +1143,15 @@ impl ClientKeeper for MockContext {
         client_id: ClientId,
         client_type: ClientType,
     ) -> Result<(), Ics02Error> {
-        let mut client_record = self.clients.entry(client_id).or_insert(MockClientRecord {
-            client_type,
-            consensus_states: Default::default(),
-            client_state: Default::default(),
-        });
+        let mut ibc_store = self.ibc_store.lock().unwrap();
+        let client_record = ibc_store
+            .clients
+            .entry(client_id)
+            .or_insert(MockClientRecord {
+                client_type,
+                consensus_states: Default::default(),
+                client_state: Default::default(),
+            });
 
         client_record.client_type = client_type;
         Ok(())
@@ -1042,11 +1162,15 @@ impl ClientKeeper for MockContext {
         client_id: ClientId,
         client_state: AnyClientState,
     ) -> Result<(), Ics02Error> {
-        let mut client_record = self.clients.entry(client_id).or_insert(MockClientRecord {
-            client_type: client_state.client_type(),
-            consensus_states: Default::default(),
-            client_state: Default::default(),
-        });
+        let mut ibc_store = self.ibc_store.lock().unwrap();
+        let client_record = ibc_store
+            .clients
+            .entry(client_id)
+            .or_insert(MockClientRecord {
+                client_type: client_state.client_type(),
+                consensus_states: Default::default(),
+                client_state: Default::default(),
+            });
 
         client_record.client_state = Some(client_state);
         Ok(())
@@ -1058,11 +1182,15 @@ impl ClientKeeper for MockContext {
         height: Height,
         consensus_state: AnyConsensusState,
     ) -> Result<(), Ics02Error> {
-        let client_record = self.clients.entry(client_id).or_insert(MockClientRecord {
-            client_type: ClientType::Mock,
-            consensus_states: Default::default(),
-            client_state: Default::default(),
-        });
+        let mut ibc_store = self.ibc_store.lock().unwrap();
+        let client_record = ibc_store
+            .clients
+            .entry(client_id)
+            .or_insert(MockClientRecord {
+                client_type: ClientType::Mock,
+                consensus_states: Default::default(),
+                client_state: Default::default(),
+            });
 
         client_record
             .consensus_states
@@ -1071,7 +1199,7 @@ impl ClientKeeper for MockContext {
     }
 
     fn increase_client_counter(&mut self) {
-        self.client_ids_counter += 1
+        self.ibc_store.lock().unwrap().client_ids_counter += 1
     }
 
     fn store_update_time(
@@ -1081,6 +1209,9 @@ impl ClientKeeper for MockContext {
         timestamp: Timestamp,
     ) -> Result<(), Ics02Error> {
         let _ = self
+            .ibc_store
+            .lock()
+            .unwrap()
             .client_processed_times
             .insert((client_id, height), timestamp);
         Ok(())
@@ -1093,6 +1224,9 @@ impl ClientKeeper for MockContext {
         host_height: Height,
     ) -> Result<(), Ics02Error> {
         let _ = self
+            .ibc_store
+            .lock()
+            .unwrap()
             .client_processed_heights
             .insert((client_id, height), host_height);
         Ok(())
@@ -1118,7 +1252,7 @@ impl Ics18Context for MockContext {
         // Forward call to Ics26 delivery method.
         let mut all_events = vec![];
         for msg in msgs {
-            let (mut events, _) =
+            let MsgReceipt { mut events, .. } =
                 deliver::<_, Crypto>(self, msg).map_err(Ics18Error::transaction_failed)?;
             all_events.append(&mut events);
         }
@@ -1144,13 +1278,15 @@ mod tests {
     use crate::core::ics24_host::identifier::ChainId;
     use crate::core::ics24_host::identifier::{ChannelId, ConnectionId, PortId};
     use crate::core::ics26_routing::context::{
-        Acknowledgement, Module, ModuleId, ModuleOutput, OnRecvPacketAck, Router, RouterBuilder,
+        Acknowledgement, Module, ModuleId, ModuleOutputBuilder, OnRecvPacketAck, Router,
+        RouterBuilder,
     };
     use crate::mock::context::MockContext;
     use crate::mock::context::MockRouterBuilder;
     use crate::mock::host::HostType;
     use crate::prelude::*;
     use crate::signer::Signer;
+    use crate::test_utils::get_dummy_bech32_account;
     use crate::Height;
 
     #[test]
@@ -1314,12 +1450,13 @@ mod tests {
         impl Module for FooModule {
             fn on_chan_open_try(
                 &mut self,
-                _output: &mut ModuleOutput,
+                _output: &mut ModuleOutputBuilder,
                 _order: Order,
                 _connection_hops: &[ConnectionId],
                 _port_id: &PortId,
                 _channel_id: &ChannelId,
                 _counterparty: &Counterparty,
+                _version: &Version,
                 counterparty_version: &Version,
             ) -> Result<Version, Error> {
                 Ok(counterparty_version.clone())
@@ -1327,7 +1464,7 @@ mod tests {
 
             fn on_recv_packet(
                 &self,
-                _output: &mut ModuleOutput,
+                _output: &mut ModuleOutputBuilder,
                 _packet: &Packet,
                 _relayer: &Signer,
             ) -> OnRecvPacketAck {
@@ -1336,6 +1473,7 @@ mod tests {
                     Box::new(|module| {
                         let module = module.downcast_mut::<FooModule>().unwrap();
                         module.counter += 1;
+                        Ok(())
                     }),
                 )
             }
@@ -1347,12 +1485,13 @@ mod tests {
         impl Module for BarModule {
             fn on_chan_open_try(
                 &mut self,
-                _output: &mut ModuleOutput,
+                _output: &mut ModuleOutputBuilder,
                 _order: Order,
                 _connection_hops: &[ConnectionId],
                 _port_id: &PortId,
                 _channel_id: &ChannelId,
                 _counterparty: &Counterparty,
+                _version: &Version,
                 counterparty_version: &Version,
             ) -> Result<Version, Error> {
                 Ok(counterparty_version.clone())
@@ -1378,9 +1517,9 @@ mod tests {
             let module_id = ModuleId::from_str(module_id).unwrap();
             let m = ctx.router.get_route_mut(&module_id).unwrap();
             let result = m.on_recv_packet(
-                &mut ModuleOutput::builder().with_result(()),
+                &mut ModuleOutputBuilder::new(),
                 &Packet::default(),
-                &Signer::new(""),
+                &get_dummy_bech32_account().parse().unwrap(),
             );
             (module_id, result)
         };
@@ -1398,7 +1537,7 @@ mod tests {
                 _ => None,
             })
             .for_each(|(mid, write_fn)| {
-                write_fn(ctx.router.get_route_mut(&mid).unwrap().as_any_mut())
+                write_fn(ctx.router.get_route_mut(&mid).unwrap().as_any_mut()).unwrap()
             });
     }
 }

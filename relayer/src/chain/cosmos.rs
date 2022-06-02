@@ -603,7 +603,9 @@ impl ChainEndpoint for CosmosSdkChain {
             .map_err(|e| Error::key_not_found(self.config.key_name.clone(), e))?;
 
         let bech32 = encode_to_bech32(&key.address.to_hex(), &self.config.account_prefix)?;
-        Ok(Signer::new(bech32))
+        bech32
+            .parse()
+            .map_err(|e| Error::ics02(ClientError::signer(e)))
     }
 
     /// Get the chain configuration
@@ -637,12 +639,23 @@ impl ChainEndpoint for CosmosSdkChain {
         Ok(version_specs.ibc_go_version)
     }
 
-    fn query_balance(&self) -> Result<Balance, Error> {
-        let key = self.key()?;
+    fn query_balance(&self, key_name: Option<String>) -> Result<Balance, Error> {
+        // If a key_name is given, extract the account hash.
+        // Else retrieve the account from the configuration file.
+        let account = match key_name {
+            Some(account) => {
+                let key = self.keybase().get_key(&account).map_err(Error::key_base)?;
+                key.account
+            }
+            _ => {
+                let key = self.key()?;
+                key.account
+            }
+        };
 
         let balance = self.block_on(query_balance(
             &self.grpc_addr,
-            &key.account,
+            &account,
             &self.config.gas_price.denom,
         ))?;
 
