@@ -207,15 +207,15 @@ pub trait ClientDef: Clone {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub enum AnyClient<HostFunctions> {
-    Tendermint(TendermintClient),
+pub enum AnyClient<HostFunctions: HostFunctionsProvider> {
+    Tendermint(TendermintClient<HostFunctions>),
     Beefy(BeefyClient<HostFunctions>),
     Near(BeefyClient<HostFunctions>),
     #[cfg(any(test, feature = "mocks"))]
     Mock(MockClient),
 }
 
-impl<HostFunctions> AnyClient<HostFunctions> {
+impl<HostFunctions: HostFunctionsProvider> AnyClient<HostFunctions> {
     pub fn from_client_type(client_type: ClientType) -> Self {
         match client_type {
             ClientType::Tendermint => Self::Tendermint(TendermintClient::default()),

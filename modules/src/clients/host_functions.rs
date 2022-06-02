@@ -5,7 +5,7 @@ use sp_core::H256;
 
 /// This trait captures all the functions that the host chain should provide for
 /// crypto operations.
-pub trait HostFunctionsProvider: Clone {
+pub trait HostFunctionsProvider: Clone + Send + Sync {
     /// Keccak 256 hash function
     fn keccak_256(input: &[u8]) -> [u8; 32];
 
@@ -59,5 +59,22 @@ where
         value: &[u8; 32],
     ) -> Option<Vec<u8>> {
         T::secp256k1_ecdsa_recover_compressed(signature, value)
+    }
+}
+
+impl<T> tendermint_light_client_verifier::host_functions::HostFunctionsProvider for HostFunctionsManager<T>
+    where
+        T: HostFunctionsProvider,
+{
+    fn sha2_256(preimage: &[u8]) -> [u8; 32] {
+        todo!()
+    }
+
+    fn ed25519_verify(sig: &[u8], msg: &[u8], pub_key: &[u8]) -> bool {
+        todo!()
+    }
+
+    fn secp256k1_verify(sig: &[u8], message: &[u8], public: &[u8]) -> bool {
+        todo!()
     }
 }
