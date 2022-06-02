@@ -15,8 +15,8 @@ pub trait HostFunctionsProvider: Clone + Send + Sync + Default {
         value: &[u8; 32],
     ) -> Option<Vec<u8>>;
 
-    /// Recover the ED25519 pubkey that produced this signature
-    fn ed25519_verify(signature: &[u8; 64], value: &[u8; 32], pubkey: &[u8]) -> bool;
+    /// Recover the ED25519 pubkey that produced this signature, given a arbitrarily sized message
+    fn ed25519_verify(signature: &[u8; 64], msg: &[u8], pubkey: &[u8]) -> bool;
 
     /// This function should verify membership in a trie proof using parity's sp-trie package
     /// with a BlakeTwo256 Hasher
@@ -70,8 +70,10 @@ impl<T> tendermint_light_client_verifier::host_functions::HostFunctionsProvider 
         T::sha256_digest(preimage)
     }
 
-    fn ed25519_verify(_sig: &[u8], _msg: &[u8], _pub_key: &[u8]) -> bool {
-        unimplemented!()
+    fn ed25519_verify(sig: &[u8], msg: &[u8], pub_key: &[u8]) -> bool {
+        let mut signature = [0u8; 64];
+        signature.copy_from_slice(sig);
+        T::ed25519_verify(&signature, msg, pub_key)
     }
 
     fn secp256k1_verify(_sig: &[u8], _message: &[u8], _public: &[u8]) -> bool {
