@@ -6,7 +6,7 @@ use crate::core::ics04_channel::events::SendPacket;
 use crate::core::ics04_channel::packet::{PacketResult, Sequence};
 use crate::core::ics04_channel::{error::Error, packet::Packet};
 use crate::core::ics24_host::identifier::{ChannelId, PortId};
-use crate::core::ics26_routing::context::LightClientContext;
+use crate::core::ics26_routing::context::ReaderContext;
 use crate::events::IbcEvent;
 use crate::handler::{HandlerOutput, HandlerResult};
 use crate::prelude::*;
@@ -21,10 +21,7 @@ pub struct SendPacketResult {
     pub commitment: PacketCommitment,
 }
 
-pub fn send_packet(
-    ctx: &dyn LightClientContext,
-    packet: Packet,
-) -> HandlerResult<PacketResult, Error> {
+pub fn send_packet(ctx: &dyn ReaderContext, packet: Packet) -> HandlerResult<PacketResult, Error> {
     let mut output = HandlerOutput::builder();
 
     let source_channel_end =
