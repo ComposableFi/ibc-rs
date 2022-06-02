@@ -954,6 +954,14 @@ impl ChannelKeeper for MockContext {
             .insert(key, receipt);
         Ok(())
     }
+
+    fn store_packet(
+        &mut self,
+        _key: (PortId, ChannelId, Sequence),
+        _packet: crate::core::ics04_channel::packet::Packet,
+    ) -> Result<(), Ics04Error> {
+        Ok(())
+    }
 }
 
 impl ConnectionReader for MockContext {

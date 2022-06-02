@@ -1,4 +1,3 @@
-use sha2::{Digest, Sha256};
 use subtle_encoding::hex;
 
 use super::error::Error as Ics20Error;
@@ -26,7 +25,10 @@ pub trait Ics20Keeper:
     type AccountId;
 }
 
-pub trait Ics20Reader: ChannelReader + PortReader {
+pub trait Ics20Reader: ChannelReader + PortReader
+where
+    Self: Sized,
+{
     type AccountId: TryFrom<Signer>;
 
     /// get_port returns the portID for the transfer module.
@@ -38,7 +40,8 @@ pub trait Ics20Reader: ChannelReader + PortReader {
         port_id: &PortId,
         channel_id: ChannelId,
     ) -> Result<<Self as Ics20Reader>::AccountId, Ics20Error> {
-        let hash = cosmos_adr028_escrow_address(port_id, channel_id);
+        let hash = cosmos_adr028_escrow_address(self, port_id, channel_id);
+
         String::from_utf8(hex::encode_upper(hash))
             .expect("hex encoded bytes are not valid UTF8")
             .parse::<Signer>()
@@ -61,15 +64,17 @@ pub trait Ics20Reader: ChannelReader + PortReader {
 }
 
 // https://github.com/cosmos/cosmos-sdk/blob/master/docs/architecture/adr-028-public-key-addresses.md
-fn cosmos_adr028_escrow_address(port_id: &PortId, channel_id: ChannelId) -> Vec<u8> {
+fn cosmos_adr028_escrow_address(
+    ctx: &impl ChannelReader,
+    port_id: &PortId,
+    channel_id: ChannelId,
+) -> Vec<u8> {
     let contents = format!("{}/{}", port_id, channel_id);
+    let mut data = VERSION.as_bytes().to_vec();
+    data.extend_from_slice(&[0]);
+    data.extend_from_slice(contents.as_bytes());
 
-    let mut hasher = Sha256::new();
-    hasher.update(VERSION.as_bytes());
-    hasher.update([0]);
-    hasher.update(contents.as_bytes());
-
-    let mut hash = hasher.finalize().to_vec();
+    let mut hash = ctx.hash(data);
     hash.truncate(20);
     hash
 }
@@ -297,6 +302,9 @@ pub fn on_timeout_packet(
 
 #[cfg(test)]
 pub(crate) mod test {
+    use std::sync::Mutex;
+
+    use std::sync::Arc;
     use subtle_encoding::bech32;
 
     use crate::applications::transfer::context::cosmos_adr028_escrow_address;
@@ -306,6 +314,7 @@ pub(crate) mod test {
     use crate::applications::transfer::PrefixedCoin;
     use crate::core::ics04_channel::error::Error;
     use crate::handler::HandlerOutputBuilder;
+    use crate::mock::context::MockIbcStore;
     use crate::prelude::*;
     use crate::test_utils::DummyTransferModule;
 
@@ -323,7 +332,9 @@ pub(crate) mod test {
             let port_id = port_id.parse().unwrap();
             let channel_id = channel_id.parse().unwrap();
             let gen_address = {
-                let addr = cosmos_adr028_escrow_address(&port_id, channel_id);
+                let ibc_store = MockIbcStore::default();
+                let ctx = DummyTransferModule::new(Arc::new(Mutex::new(ibc_store)));
+                let addr = cosmos_adr028_escrow_address(&ctx, &port_id, channel_id);
                 bech32::encode("cosmos", addr)
             };
             assert_eq!(gen_address, address.to_owned())

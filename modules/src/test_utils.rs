@@ -241,6 +241,14 @@ impl ChannelKeeper for DummyTransferModule {
     fn increase_channel_counter(&mut self) {
         unimplemented!()
     }
+
+    fn store_packet(
+        &mut self,
+        _key: (PortId, ChannelId, Sequence),
+        _packet: crate::core::ics04_channel::packet::Packet,
+    ) -> Result<(), Error> {
+        Ok(())
+    }
 }
 
 impl PortReader for DummyTransferModule {
