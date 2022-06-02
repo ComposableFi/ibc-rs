@@ -21,6 +21,7 @@ std = [
     "flex-error/std",
     "flex-error/eyre_tracer",
     "ibc-proto/std",
+    "ics23/std",
     "clock",
     "beefy-client/std",
     "sp-runtime/std",
