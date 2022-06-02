@@ -65,7 +65,7 @@ where
 
 // https://github.com/cosmos/cosmos-sdk/blob/master/docs/architecture/adr-028-public-key-addresses.md
 fn cosmos_adr028_escrow_address(
-    ctx: &impl ChannelReader,
+    ctx: &dyn ChannelReader,
     port_id: &PortId,
     channel_id: ChannelId,
 ) -> Vec<u8> {
