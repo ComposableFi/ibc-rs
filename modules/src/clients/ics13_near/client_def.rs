@@ -311,7 +311,7 @@ pub fn validate_light_block<H: HostFunctionsProvider>(
         let validator_public_key = &bp_stake_view.public_key;
         let data = H::sha256_digest(&approval_message);
         let signature = maybe_signature.as_ref().unwrap();
-        if H::ed25519_verify(
+        if H::ed25519_verify_prehashed(
             signature.get_inner(),
             &data,
             validator_public_key.get_inner(),
