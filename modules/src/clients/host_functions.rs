@@ -5,7 +5,7 @@ use sp_core::H256;
 
 /// This trait captures all the functions that the host chain should provide for
 /// crypto operations.
-pub trait HostFunctionsProvider: Clone + Send + Sync {
+pub trait HostFunctionsProvider: Clone + Send + Sync + Default {
     /// Keccak 256 hash function
     fn keccak_256(input: &[u8]) -> [u8; 32];
 
@@ -42,7 +42,7 @@ pub trait HostFunctionsProvider: Clone + Send + Sync {
 /// This is a work around that allows us to have one super trait [`HostFunctionsProvider`]
 /// that encapsulates all the needed host functions by different subsytems, and then
 /// implement the needed traits through this wrapper.
-#[derive(Clone)]
+#[derive(Clone, Debug, Default)]
 pub struct HostFunctionsManager<T: HostFunctionsProvider>(PhantomData<T>);
 
 // implementation for beefy host functions
@@ -67,14 +67,14 @@ impl<T> tendermint_light_client_verifier::host_functions::HostFunctionsProvider 
         T: HostFunctionsProvider,
 {
     fn sha2_256(preimage: &[u8]) -> [u8; 32] {
-        todo!()
+        T::sha256_digest(preimage)
     }
 
-    fn ed25519_verify(sig: &[u8], msg: &[u8], pub_key: &[u8]) -> bool {
-        todo!()
+    fn ed25519_verify(_sig: &[u8], _msg: &[u8], _pub_key: &[u8]) -> bool {
+        unimplemented!()
     }
 
-    fn secp256k1_verify(sig: &[u8], message: &[u8], public: &[u8]) -> bool {
-        todo!()
+    fn secp256k1_verify(_sig: &[u8], _message: &[u8], _public: &[u8]) -> bool {
+        unimplemented!()
     }
 }

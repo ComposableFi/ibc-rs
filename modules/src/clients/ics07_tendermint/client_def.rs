@@ -37,7 +37,7 @@ use crate::downcast;
 use crate::prelude::*;
 use crate::Height;
 
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default)]
 pub struct TendermintClient<H: HostFunctionsProvider> {
     verifier: ProdVerifier<HostFunctionsManager<H>>,
 }
