@@ -1615,11 +1615,13 @@ dependencies = [
  "parity-scale-codec",
  "prost",
  "prost-types",
+ "ripemd",
  "safe-regex",
  "serde",
  "serde_derive",
  "serde_json",
  "sha2 0.10.2",
+ "sha3",
  "sp-core 6.0.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.22)",
  "sp-io 6.0.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.22)",
  "sp-mmr-primitives",
@@ -1628,9 +1630,9 @@ dependencies = [
  "sp-trie 6.0.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.22)",
  "subtle-encoding",
  "subxt",
- "tendermint 0.23.7 (git+https://github.com/composableFi/tendermint-rs?branch=seun-0.23.7)",
+ "tendermint",
  "tendermint-light-client-verifier",
- "tendermint-proto 0.23.7 (git+https://github.com/composableFi/tendermint-rs?branch=seun-0.23.7)",
+ "tendermint-proto",
  "tendermint-rpc",
  "tendermint-testgen",
  "test-log",
@@ -1651,7 +1653,7 @@ dependencies = [
  "prost-types",
  "schemars",
  "serde",
- "tendermint-proto 0.23.7 (git+https://github.com/composableFi/tendermint-rs?branch=seun-0.23.7)",
+ "tendermint-proto",
  "tonic",
 ]
 
@@ -3040,6 +3042,15 @@ dependencies = [
  "untrusted",
  "web-sys",
  "winapi",
+]
+
+[[package]]
+name = "ripemd"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1facec54cb5e0dc08553501fa740091086d0259ad0067e0d4103448e4cb22ed3"
+dependencies = [
+ "digest 0.10.3",
 ]
 
 [[package]]
@@ -4547,35 +4558,6 @@ dependencies = [
 [[package]]
 name = "tendermint"
 version = "0.23.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3ca881fa4dedd2b46334f13be7fbc8cc1549ba4be5a833fe4e73d1a1baaf7949"
-dependencies = [
- "async-trait",
- "bytes",
- "ed25519",
- "ed25519-dalek",
- "flex-error",
- "futures",
- "num-traits",
- "once_cell",
- "prost",
- "prost-types",
- "serde",
- "serde_bytes",
- "serde_json",
- "serde_repr",
- "sha2 0.9.9",
- "signature",
- "subtle",
- "subtle-encoding",
- "tendermint-proto 0.23.7 (registry+https://github.com/rust-lang/crates.io-index)",
- "time",
- "zeroize",
-]
-
-[[package]]
-name = "tendermint"
-version = "0.23.7"
 source = "git+https://github.com/composableFi/tendermint-rs?branch=seun-0.23.7#cb79c164e84c3d9176b374f2b227393fe000e691"
 dependencies = [
  "async-trait",
@@ -4596,7 +4578,7 @@ dependencies = [
  "signature",
  "subtle",
  "subtle-encoding",
- "tendermint-proto 0.23.7 (git+https://github.com/composableFi/tendermint-rs?branch=seun-0.23.7)",
+ "tendermint-proto",
  "time",
  "zeroize",
 ]
@@ -4604,13 +4586,12 @@ dependencies = [
 [[package]]
 name = "tendermint-config"
 version = "0.23.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f6c56ee93f4e9b7e7daba86d171f44572e91b741084384d0ae00df7991873dfd"
+source = "git+https://github.com/composableFi/tendermint-rs?branch=seun-0.23.7#cb79c164e84c3d9176b374f2b227393fe000e691"
 dependencies = [
  "flex-error",
  "serde",
  "serde_json",
- "tendermint 0.23.7 (registry+https://github.com/rust-lang/crates.io-index)",
+ "tendermint",
  "toml",
  "url",
 ]
@@ -4623,25 +4604,7 @@ dependencies = [
  "derive_more",
  "flex-error",
  "serde",
- "tendermint 0.23.7 (git+https://github.com/composableFi/tendermint-rs?branch=seun-0.23.7)",
- "time",
-]
-
-[[package]]
-name = "tendermint-proto"
-version = "0.23.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b71f925d74903f4abbdc4af0110635a307b3cb05b175fdff4a7247c14a4d0874"
-dependencies = [
- "bytes",
- "flex-error",
- "num-derive",
- "num-traits",
- "prost",
- "prost-types",
- "serde",
- "serde_bytes",
- "subtle-encoding",
+ "tendermint",
  "time",
 ]
 
@@ -4665,8 +4628,7 @@ dependencies = [
 [[package]]
 name = "tendermint-rpc"
 version = "0.23.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a13e63f57ee05a1e927887191c76d1b139de9fa40c180b9f8727ee44377242a6"
+source = "git+https://github.com/composableFi/tendermint-rs?branch=seun-0.23.7#cb79c164e84c3d9176b374f2b227393fe000e691"
 dependencies = [
  "async-trait",
  "async-tungstenite",
@@ -4684,9 +4646,9 @@ dependencies = [
  "serde_bytes",
  "serde_json",
  "subtle-encoding",
- "tendermint 0.23.7 (registry+https://github.com/rust-lang/crates.io-index)",
+ "tendermint",
  "tendermint-config",
- "tendermint-proto 0.23.7 (registry+https://github.com/rust-lang/crates.io-index)",
+ "tendermint-proto",
  "thiserror",
  "time",
  "tokio",
@@ -4699,8 +4661,7 @@ dependencies = [
 [[package]]
 name = "tendermint-testgen"
 version = "0.23.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "442ede2d01e61466e515fd7f1d0aac7c3c86b3066535479caa86a43afb5e2e17"
+source = "git+https://github.com/composableFi/tendermint-rs?branch=seun-0.23.7#cb79c164e84c3d9176b374f2b227393fe000e691"
 dependencies = [
  "ed25519-dalek",
  "gumdrop",
@@ -4708,7 +4669,7 @@ dependencies = [
  "serde_json",
  "simple-error",
  "tempfile",
- "tendermint 0.23.7 (registry+https://github.com/rust-lang/crates.io-index)",
+ "tendermint",
  "time",
 ]
 
