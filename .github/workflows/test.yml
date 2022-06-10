@@ -28,7 +28,7 @@ jobs:
         cd scripts/polkadot-launch
         mkdir -p polkadot/target/release
         cd polkadot
-        curl https://github.com/ComposableFi/polkadot/releases/download/v0.1.4/polkadot -Lo ./target/release/polkadot
+        curl https://github.com/ComposableFi/polkadot/releases/download/v0.9.22/polkadot -Lo ./target/release/polkadot
         chmod +x target/release/polkadot
         ./target/release/polkadot --version
 
