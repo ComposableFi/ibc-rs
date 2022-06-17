@@ -1,10 +1,10 @@
 //! Protocol logic specific to processing ICS2 messages of type `MsgUpdateAnyClient`.
 use core::fmt::Debug;
-use tracing::debug;
 
 use crate::clients::host_functions::HostFunctionsProvider;
 use crate::core::ics02_client::client_def::{AnyClient, ClientDef, ConsensusUpdateResult};
 use crate::core::ics02_client::client_state::{AnyClientState, ClientState};
+#[cfg(any(test, feature = "ics11_beefy"))]
 use crate::core::ics02_client::client_type::ClientType;
 use crate::core::ics02_client::error::Error;
 use crate::core::ics02_client::events::Attributes;

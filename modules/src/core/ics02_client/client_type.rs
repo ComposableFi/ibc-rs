@@ -18,7 +18,9 @@ pub enum ClientType {
 
 impl ClientType {
     const TENDERMINT_STR: &'static str = "07-tendermint";
+    #[cfg(any(test, feature = "ics11_beefy"))]
     const BEEFY_STR: &'static str = "11-beefy";
+    #[cfg(any(test, feature = "ics11_beefy"))]
     const NEAR_STR: &'static str = "11-beefy";
 
     #[cfg_attr(not(test), allow(dead_code))]
