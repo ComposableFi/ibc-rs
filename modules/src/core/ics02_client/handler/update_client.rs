@@ -53,6 +53,7 @@ pub fn process<HostFunctions: HostFunctionsProvider>(
         return Err(Error::client_frozen(client_id));
     }
 
+    #[cfg(any(test, feature = "ics11_beefy"))]
     if client_type != ClientType::Beefy {
         // Read consensus state from the host chain store.
         let latest_consensus_state = ctx
