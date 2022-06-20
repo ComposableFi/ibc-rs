@@ -59,26 +59,26 @@ console = "0.15.0"
 
 [dependencies.tendermint-proto]
 git = "https://github.com/composableFi/tendermint-rs"
-branch = "seun-0.23.7"
+branch = "master"
 
 [dependencies.tendermint]
 git = "https://github.com/composableFi/tendermint-rs"
-branch = "seun-0.23.7"
+branch = "master"
 features = ["secp256k1"]
 
 [dependencies.tendermint-rpc]
 git = "https://github.com/composableFi/tendermint-rs"
-branch = "seun-0.23.7"
+branch = "master"
 features = ["http-client", "websocket-client"]
 
 [dependencies.tendermint-light-client]
 git = "https://github.com/composableFi/tendermint-rs"
-branch = "seun-0.23.7"
+branch = "master"
 features = ["unstable"]
 
 [dependencies.tendermint-light-client-verifier]
 git = "https://github.com/composableFi/tendermint-rs"
-branch = "seun-0.23.7"
+branch = "master"
 
 [dependencies.abscissa_core]
 version = "=0.6.0"
