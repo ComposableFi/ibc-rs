@@ -18,8 +18,8 @@ ibc             = { version = "=0.15.0", path = "../../modules" }
 ibc-relayer     = { version = "=0.15.0", path = "../../relayer" }
 ibc-relayer-cli = { version = "=0.15.0", path = "../../relayer-cli" }
 ibc-proto       = { version = "=0.18.0", path = "../../proto" }
-tendermint      = { git = "https://github.com/composableFi/tendermint-rs", branch = "master" }
-tendermint-rpc  = { git = "https://github.com/composableFi/tendermint-rs", branch = "master", features = ["http-client", "websocket-client"] }
+tendermint      = { git = "https://github.com/composableFi/tendermint-rs", rev = "5a74e0f8da4d3dab83cc04b5f1363b018cf3d9e8" }
+tendermint-rpc  = { git = "https://github.com/composableFi/tendermint-rs", rev = "5a74e0f8da4d3dab83cc04b5f1363b018cf3d9e8", features = ["http-client", "websocket-client"] }
 
 async-trait = "0.1.56"
 http = "0.2.8"

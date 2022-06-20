@@ -74,28 +74,28 @@ features = ["num-bigint", "serde"]
 
 [dependencies.tendermint]
 git = "https://github.com/composableFi/tendermint-rs"
-branch = "master"
+rev = "5a74e0f8da4d3dab83cc04b5f1363b018cf3d9e8"
 features = ["secp256k1"]
 
 [dependencies.tendermint-rpc]
 git = "https://github.com/composableFi/tendermint-rs"
-branch = "master"
+rev = "5a74e0f8da4d3dab83cc04b5f1363b018cf3d9e8"
 features = ["http-client", "websocket-client"]
 
 [dependencies.tendermint-light-client]
 git = "https://github.com/composableFi/tendermint-rs"
-branch = "master"
+rev = "5a74e0f8da4d3dab83cc04b5f1363b018cf3d9e8"
 default-features = false
 features = ["rpc-client", "secp256k1", "unstable"]
 
 [dependencies.tendermint-light-client-verifier]
 git = "https://github.com/composableFi/tendermint-rs"
-branch = "master"
+rev = "5a74e0f8da4d3dab83cc04b5f1363b018cf3d9e8"
 default-features = false
 
 [dependencies.tendermint-proto]
 git = "https://github.com/composableFi/tendermint-rs"
-branch = "master"
+rev = "5a74e0f8da4d3dab83cc04b5f1363b018cf3d9e8"
 
 [dev-dependencies]
 ibc = { version = "0.15.0", path = "../modules", features = ["mocks"] }
@@ -105,4 +105,4 @@ tracing-subscriber = { version = "0.3.11", features = ["fmt", "env-filter", "jso
 test-log = { version = "0.2.10", features = ["trace"] }
 
 # Needed for generating (synthetic) light blocks.
-tendermint-testgen = { git = "https://github.com/composableFi/tendermint-rs", branch = "master" }
+tendermint-testgen = { git = "https://github.com/composableFi/tendermint-rs", rev = "5a74e0f8da4d3dab83cc04b5f1363b018cf3d9e8"}

@@ -29,20 +29,21 @@ std = [
     "codec/std",
     "pallet-mmr-primitives/std",
     "beefy-primitives/std",
-    "sp-trie/std"
+    "sp-trie/std",
+    "tendermint-rpc"
 ]
 clock = ["tendermint/clock", "time/std"]
 
 # This feature grants access to development-time mocking libraries, such as `MockContext` or `MockHeader`.
 # Depends on the `testgen` suite for generating Tendermint light blocks.
-mocks = ["tendermint-testgen", "clock", "std", "sp-io", "sp-io/std", "sha3", "ripemd"]
+mocks = ["tendermint-testgen", "clock", "std", "sp-io/std", "sha3", "ripemd", "ics11-beefy"]
 ics11-beefy = ["sp-io", "sp-core", "sp-std"]
 
 [dependencies]
 # Proto definitions for all IBC-related interfaces, e.g., connections or channels.
 borsh = { version = "0.9.3", default-features = false }
 ibc-proto = { version = "0.18.0", path = "../proto", default-features = false }
-ics23 = { git = "https://github.com/composablefi/ics23", branch = "master", default-features = false }
+ics23 = { git = "https://github.com/composablefi/ics23", rev = "86e970a4f22973946a0faf472b56951691d40874", default-features = false }
 time = { version = "0.3", default-features = false }
 serde_derive = { version = "1.0.104", default-features = false }
 serde = { version = "1.0", default-features = false }
@@ -74,22 +75,27 @@ primitive-types = { version = "0.11.1", default-features = false, features = ["s
 
 [dependencies.tendermint]
 git = "https://github.com/composableFi/tendermint-rs"
-branch = "master"
+rev = "5a74e0f8da4d3dab83cc04b5f1363b018cf3d9e8"
 default-features = false
 
 [dependencies.tendermint-proto]
 git = "https://github.com/composableFi/tendermint-rs"
-branch = "master"
+rev = "5a74e0f8da4d3dab83cc04b5f1363b018cf3d9e8"
 default-features = false
 
 [dependencies.tendermint-light-client-verifier]
 git = "https://github.com/composableFi/tendermint-rs"
-branch = "master"
+rev = "5a74e0f8da4d3dab83cc04b5f1363b018cf3d9e8"
 default-features = false
+
+[dependencies.tendermint-rpc]
+git = "https://github.com/composableFi/tendermint-rs"
+rev = "5a74e0f8da4d3dab83cc04b5f1363b018cf3d9e8"
+optional = true
 
 [dependencies.tendermint-testgen]
 git = "https://github.com/composableFi/tendermint-rs"
-branch = "master"
+rev = "5a74e0f8da4d3dab83cc04b5f1363b018cf3d9e8"
 optional = true
 default-features = false
 
@@ -99,8 +105,8 @@ tracing-subscriber = { version = "0.3.11", features = ["fmt", "env-filter", "jso
 test-log = { version = "0.2.10", features = ["trace"] }
 modelator = "0.4.2"
 sha2 = { version = "0.10.2" }
-tendermint-rpc = { git = "https://github.com/composableFi/tendermint-rs", branch = "master", features = ["http-client", "websocket-client"] }
-tendermint-testgen = { git = "https://github.com/composableFi/tendermint-rs", branch = "master" } # Needed for generating (synthetic) light blocks.
+tendermint-rpc = { git = "https://github.com/composableFi/tendermint-rs", rev = "5a74e0f8da4d3dab83cc04b5f1363b018cf3d9e8", features = ["http-client", "websocket-client"] }
+tendermint-testgen = { git = "https://github.com/composableFi/tendermint-rs", rev = "5a74e0f8da4d3dab83cc04b5f1363b018cf3d9e8" } # Needed for generating (synthetic) light blocks.
 # Beefy Light Client testing dependencies
 sp-io = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.22"}
 subxt = "0.21.0"

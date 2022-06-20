@@ -171,6 +171,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bbf56136a5198c7b01a49e3afcbef6cf84597273d298f54432926024107b0109"
 
 [[package]]
+name = "async-recursion"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d7d78656ba01f1b93024b7c3a0467f1608e4be67d725749fdcd7d2c7678fd7a2"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "async-stream"
 version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -447,7 +458,7 @@ version = "0.7.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c0940dc441f31689269e10ac70eb1002a3a1d3ad1390e030043662eb7fe4688b"
 dependencies = [
- "block-padding",
+ "block-padding 0.1.5",
  "byte-tools",
  "byteorder",
  "generic-array 0.12.4",
@@ -459,6 +470,7 @@ version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4152116fd6e9dadb291ae18fc1ec3575ed6d84c29642d97890f4b4a3417297e4"
 dependencies = [
+ "block-padding 0.2.1",
  "generic-array 0.14.5",
 ]
 
@@ -479,6 +491,12 @@ checksum = "fa79dedbb091f449f1f39e53edf88d5dbe95f895dae6135a8d7b881fb5af73f5"
 dependencies = [
  "byte-tools",
 ]
+
+[[package]]
+name = "block-padding"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8d696c370c750c948ada61c69a0ee2cbbb9c50b1019ddb86d9317157a99c2cae"
 
 [[package]]
 name = "borsh"
@@ -600,6 +618,9 @@ name = "bytes"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c4872d67bab6358e59559027aa3b9157c53d9358c51423c17554809a8858e0f8"
+dependencies = [
+ "serde",
+]
 
 [[package]]
 name = "camino"
@@ -832,16 +853,6 @@ dependencies = [
 
 [[package]]
 name = "crossbeam-channel"
-version = "0.4.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b153fe7cbef478c567df0f972e02e6d736db11affe43dfc9c56a9374d1adfb87"
-dependencies = [
- "crossbeam-utils 0.7.2",
- "maybe-uninit",
-]
-
-[[package]]
-name = "crossbeam-channel"
 version = "0.5.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4c02a4d71819009c192cf4872265391563fd6a84c81ff2c0f2a7026ca4c1d85c"
@@ -991,6 +1002,19 @@ dependencies = [
  "digest 0.9.0",
  "rand_core 0.5.1",
  "subtle",
+ "zeroize",
+]
+
+[[package]]
+name = "curve25519-dalek-ng"
+version = "4.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1c359b7249347e46fb28804470d071c921156ad62b3eef5d34e2ba867533dec8"
+dependencies = [
+ "byteorder",
+ "digest 0.9.0",
+ "rand_core 0.6.3",
+ "subtle-ng",
  "zeroize",
 ]
 
@@ -1216,6 +1240,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "ed25519-consensus"
+version = "1.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "758e2a0cd8a6cdf483e1d369e7d081647e00b88d8953e34d8f2cbba05ae28368"
+dependencies = [
+ "curve25519-dalek-ng",
+ "hex",
+ "rand_core 0.6.3",
+ "sha2 0.9.9",
+ "zeroize",
+]
+
+[[package]]
 name = "ed25519-dalek"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1365,6 +1402,18 @@ dependencies = [
  "anyhow",
  "eyre",
  "paste",
+]
+
+[[package]]
+name = "flume"
+version = "0.10.13"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1ceeb589a3157cac0ab8cc585feb749bd2cea5cb55a6ee802ad72d9fd38303da"
+dependencies = [
+ "futures-core",
+ "futures-sink",
+ "pin-project",
+ "spin 0.9.3",
 ]
 
 [[package]]
@@ -1736,12 +1785,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "half"
-version = "1.8.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "eabb4a44450da02c90444cf74558da904edde8fb4e9035a9a6a4e15445af0bd7"
-
-[[package]]
 name = "hash-db"
 version = "0.15.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2020,7 +2063,7 @@ dependencies = [
  "serde_derive",
  "serde_json",
  "sha2 0.10.2",
- "sha3",
+ "sha3 0.10.1",
  "sp-core 6.0.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.22)",
  "sp-io 6.0.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.22)",
  "sp-mmr-primitives",
@@ -2031,7 +2074,7 @@ dependencies = [
  "subxt",
  "tendermint",
  "tendermint-light-client-verifier",
- "tendermint-proto 0.23.7 (git+https://github.com/composableFi/tendermint-rs?branch=seun-0.23.7)",
+ "tendermint-proto",
  "tendermint-rpc",
  "tendermint-testgen",
  "test-log",
@@ -2051,6 +2094,7 @@ dependencies = [
  "ibc-relayer",
  "ibc-relayer-cli",
  "ibc-test-framework",
+ "modelator",
  "serde",
  "serde_json",
  "tempfile",
@@ -2069,7 +2113,7 @@ dependencies = [
  "prost-types",
  "schemars",
  "serde",
- "tendermint-proto 0.23.7 (git+https://github.com/composableFi/tendermint-rs?branch=seun-0.23.7)",
+ "tendermint-proto",
  "tonic",
 ]
 
@@ -2082,7 +2126,7 @@ dependencies = [
  "bech32 0.9.0",
  "bitcoin",
  "bytes",
- "crossbeam-channel 0.5.5",
+ "crossbeam-channel",
  "dirs-next",
  "env_logger",
  "flex-error",
@@ -2117,7 +2161,7 @@ dependencies = [
  "tendermint",
  "tendermint-light-client",
  "tendermint-light-client-verifier",
- "tendermint-proto 0.23.7 (registry+https://github.com/rust-lang/crates.io-index)",
+ "tendermint-proto",
  "tendermint-rpc",
  "tendermint-testgen",
  "test-log",
@@ -2142,7 +2186,7 @@ dependencies = [
  "clap_complete",
  "color-eyre",
  "console",
- "crossbeam-channel 0.5.5",
+ "crossbeam-channel",
  "dialoguer",
  "dirs-next",
  "eyre",
@@ -2167,7 +2211,7 @@ dependencies = [
  "tendermint",
  "tendermint-light-client",
  "tendermint-light-client-verifier",
- "tendermint-proto 0.23.7 (git+https://github.com/composableFi/tendermint-rs?branch=seun-0.23.7)",
+ "tendermint-proto",
  "tendermint-rpc",
  "tokio",
  "toml",
@@ -2179,7 +2223,7 @@ dependencies = [
 name = "ibc-relayer-rest"
 version = "0.15.0"
 dependencies = [
- "crossbeam-channel 0.5.5",
+ "crossbeam-channel",
  "ibc",
  "ibc-relayer",
  "rouille",
@@ -2194,7 +2238,7 @@ dependencies = [
 name = "ibc-telemetry"
 version = "0.15.0"
 dependencies = [
- "crossbeam-channel 0.5.5",
+ "crossbeam-channel",
  "ibc",
  "moka",
  "once_cell",
@@ -2211,7 +2255,7 @@ version = "0.15.0"
 dependencies = [
  "async-trait",
  "color-eyre",
- "crossbeam-channel 0.5.5",
+ "crossbeam-channel",
  "env_logger",
  "eyre",
  "flex-error",
@@ -2240,12 +2284,16 @@ dependencies = [
 [[package]]
 name = "ics23"
 version = "0.8.0-alpha"
-source = "git+https://github.com/composablefi/ics23?branch=seun-v0.8.0-alpha#c79df0901ddfdfb539dae1e451e7beadc01694f4"
+source = "git+https://github.com/composablefi/ics23?rev=86e970a4f22973946a0faf472b56951691d40874#86e970a4f22973946a0faf472b56951691d40874"
 dependencies = [
  "anyhow",
  "bytes",
  "hex",
  "prost",
+ "ripemd160",
+ "sha2 0.9.9",
+ "sha3 0.9.1",
+ "sp-core 6.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "sp-std 4.0.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.22)",
 ]
 
@@ -2863,7 +2911,7 @@ version = "0.8.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "df72b50274c0988d9f4a6e808e06d9d926f265db6f8bbda1576bcaa658e72763"
 dependencies = [
- "crossbeam-channel 0.5.5",
+ "crossbeam-channel",
  "crossbeam-epoch 0.8.2",
  "crossbeam-utils 0.8.9",
  "num_cpus",
@@ -3117,7 +3165,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6105e89802af13fdf48c49d7646d3b533a70e536d818aae7e78ba0433d01acb8"
 dependencies = [
  "async-trait",
- "crossbeam-channel 0.5.5",
+ "crossbeam-channel",
  "dashmap",
  "fnv",
  "futures-channel",
@@ -3742,7 +3790,7 @@ version = "1.9.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "258bcdb5ac6dad48491bb2992db6b7cf74878b0384908af124823d118c99683f"
 dependencies = [
- "crossbeam-channel 0.5.5",
+ "crossbeam-channel",
  "crossbeam-deque",
  "crossbeam-utils 0.8.9",
  "num_cpus",
@@ -3849,7 +3897,7 @@ dependencies = [
  "cc",
  "libc",
  "once_cell",
- "spin",
+ "spin 0.5.2",
  "untrusted",
  "web-sys",
  "winapi",
@@ -4284,16 +4332,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "serde_cbor"
-version = "0.11.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2bef2ebfde456fb76bbcf9f59315333decc4fda0b2b44b420243c11e0f5ec1f5"
-dependencies = [
- "half",
- "serde",
-]
-
-[[package]]
 name = "serde_derive"
 version = "1.0.137"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4447,6 +4485,18 @@ dependencies = [
  "cfg-if 1.0.0",
  "cpufeatures",
  "digest 0.10.3",
+]
+
+[[package]]
+name = "sha3"
+version = "0.9.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f81199417d4e5de3f04b1e871023acea7389672c4135918f05aa9cbf2f2fa809"
+dependencies = [
+ "block-buffer 0.9.0",
+ "digest 0.9.0",
+ "keccak",
+ "opaque-debug 0.3.0",
 ]
 
 [[package]]
@@ -4807,7 +4857,7 @@ dependencies = [
  "byteorder",
  "digest 0.10.3",
  "sha2 0.10.2",
- "sha3",
+ "sha3 0.10.1",
  "sp-std 4.0.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.22)",
  "twox-hash",
 ]
@@ -5357,6 +5407,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6e63cff320ae2c57904679ba7cb63280a3dc4613885beafb148ee7bf9aa9042d"
 
 [[package]]
+name = "spin"
+version = "0.9.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c530c2b0d0bf8b69304b39fe2001993e267461948b890cd037d8ad4293fa1a0d"
+dependencies = [
+ "lock_api",
+]
+
+[[package]]
 name = "spki"
 version = "0.5.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5433,6 +5492,12 @@ checksum = "7dcb1ed7b8330c5eed5441052651dd7a12c75e2ed88f2ec024ae1fa3a5e59945"
 dependencies = [
  "zeroize",
 ]
+
+[[package]]
+name = "subtle-ng"
+version = "2.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "734676eb262c623cec13c3155096e08d1f8f29adce39ba17948b18dad1e54142"
 
 [[package]]
 name = "subxt"
@@ -5558,13 +5623,13 @@ dependencies = [
 
 [[package]]
 name = "tendermint"
-version = "0.23.7"
-source = "git+https://github.com/composableFi/tendermint-rs?branch=seun-0.23.7#cb79c164e84c3d9176b374f2b227393fe000e691"
+version = "0.24.0-pre.2"
+source = "git+https://github.com/composableFi/tendermint-rs?rev=5a74e0f8da4d3dab83cc04b5f1363b018cf3d9e8#5a74e0f8da4d3dab83cc04b5f1363b018cf3d9e8"
 dependencies = [
  "async-trait",
  "bytes",
  "ed25519",
- "ed25519-dalek",
+ "ed25519-consensus",
  "flex-error",
  "futures",
  "k256",
@@ -5572,24 +5637,24 @@ dependencies = [
  "once_cell",
  "prost",
  "prost-types",
- "ripemd160",
+ "ripemd",
  "serde",
  "serde_bytes",
  "serde_json",
  "serde_repr",
- "sha2 0.9.9",
+ "sha2 0.10.2",
  "signature",
  "subtle",
  "subtle-encoding",
- "tendermint-proto 0.23.7 (git+https://github.com/composableFi/tendermint-rs?branch=seun-0.23.7)",
+ "tendermint-proto",
  "time",
  "zeroize",
 ]
 
 [[package]]
 name = "tendermint-config"
-version = "0.23.7"
-source = "git+https://github.com/composableFi/tendermint-rs?branch=seun-0.23.7#cb79c164e84c3d9176b374f2b227393fe000e691"
+version = "0.24.0-pre.2"
+source = "git+https://github.com/composableFi/tendermint-rs?rev=5a74e0f8da4d3dab83cc04b5f1363b018cf3d9e8#5a74e0f8da4d3dab83cc04b5f1363b018cf3d9e8"
 dependencies = [
  "flex-error",
  "serde",
@@ -5601,16 +5666,18 @@ dependencies = [
 
 [[package]]
 name = "tendermint-light-client"
-version = "0.23.7"
-source = "git+https://github.com/composableFi/tendermint-rs?branch=seun-0.23.7#cb79c164e84c3d9176b374f2b227393fe000e691"
+version = "0.24.0-pre.2"
+source = "git+https://github.com/composableFi/tendermint-rs?rev=5a74e0f8da4d3dab83cc04b5f1363b018cf3d9e8#5a74e0f8da4d3dab83cc04b5f1363b018cf3d9e8"
 dependencies = [
+ "async-recursion",
+ "async-trait",
  "contracts",
- "crossbeam-channel 0.4.4",
  "derive_more",
  "flex-error",
+ "flume",
  "futures",
+ "futures-timer",
  "serde",
- "serde_cbor",
  "serde_derive",
  "static_assertions",
  "tendermint",
@@ -5622,8 +5689,8 @@ dependencies = [
 
 [[package]]
 name = "tendermint-light-client-verifier"
-version = "0.23.7"
-source = "git+https://github.com/composableFi/tendermint-rs?branch=seun-0.23.7#cb79c164e84c3d9176b374f2b227393fe000e691"
+version = "0.24.0-pre.2"
+source = "git+https://github.com/composableFi/tendermint-rs?rev=5a74e0f8da4d3dab83cc04b5f1363b018cf3d9e8#5a74e0f8da4d3dab83cc04b5f1363b018cf3d9e8"
 dependencies = [
  "derive_more",
  "flex-error",
@@ -5634,26 +5701,8 @@ dependencies = [
 
 [[package]]
 name = "tendermint-proto"
-version = "0.23.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b71f925d74903f4abbdc4af0110635a307b3cb05b175fdff4a7247c14a4d0874"
-dependencies = [
- "bytes",
- "flex-error",
- "num-derive",
- "num-traits",
- "prost",
- "prost-types",
- "serde",
- "serde_bytes",
- "subtle-encoding",
- "time",
-]
-
-[[package]]
-name = "tendermint-proto"
-version = "0.23.7"
-source = "git+https://github.com/composableFi/tendermint-rs?branch=seun-0.23.7#cb79c164e84c3d9176b374f2b227393fe000e691"
+version = "0.24.0-pre.2"
+source = "git+https://github.com/composableFi/tendermint-rs?rev=5a74e0f8da4d3dab83cc04b5f1363b018cf3d9e8#5a74e0f8da4d3dab83cc04b5f1363b018cf3d9e8"
 dependencies = [
  "bytes",
  "flex-error",
@@ -5669,8 +5718,8 @@ dependencies = [
 
 [[package]]
 name = "tendermint-rpc"
-version = "0.23.7"
-source = "git+https://github.com/composableFi/tendermint-rs?branch=seun-0.23.7#cb79c164e84c3d9176b374f2b227393fe000e691"
+version = "0.24.0-pre.2"
+source = "git+https://github.com/composableFi/tendermint-rs?rev=5a74e0f8da4d3dab83cc04b5f1363b018cf3d9e8#5a74e0f8da4d3dab83cc04b5f1363b018cf3d9e8"
 dependencies = [
  "async-trait",
  "async-tungstenite",
@@ -5687,10 +5736,11 @@ dependencies = [
  "serde",
  "serde_bytes",
  "serde_json",
+ "subtle",
  "subtle-encoding",
  "tendermint",
  "tendermint-config",
- "tendermint-proto 0.23.7 (git+https://github.com/composableFi/tendermint-rs?branch=seun-0.23.7)",
+ "tendermint-proto",
  "thiserror",
  "time",
  "tokio",
@@ -5702,10 +5752,10 @@ dependencies = [
 
 [[package]]
 name = "tendermint-testgen"
-version = "0.23.7"
-source = "git+https://github.com/composableFi/tendermint-rs?branch=seun-0.23.7#cb79c164e84c3d9176b374f2b227393fe000e691"
+version = "0.24.0-pre.2"
+source = "git+https://github.com/composableFi/tendermint-rs?rev=5a74e0f8da4d3dab83cc04b5f1363b018cf3d9e8#5a74e0f8da4d3dab83cc04b5f1363b018cf3d9e8"
 dependencies = [
- "ed25519-dalek",
+ "ed25519-consensus",
  "gumdrop",
  "serde",
  "serde_json",

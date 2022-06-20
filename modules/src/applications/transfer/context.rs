@@ -24,7 +24,10 @@ pub trait Ics20Keeper:
     type AccountId;
 }
 
-pub trait Ics20Reader: ChannelReader {
+pub trait Ics20Reader: ChannelReader
+where
+    Self: Sized,
+{
     type AccountId: TryFrom<Signer>;
 
     /// get_port returns the portID for the transfer module.
