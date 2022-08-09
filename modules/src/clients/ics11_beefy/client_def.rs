@@ -290,7 +290,7 @@ impl<HostFunctions: HostFunctionsProvider> ClientDef for BeefyClient<HostFunctio
         sequence: Sequence,
         commitment: PacketCommitment,
     ) -> Result<(), Error> {
-        verify_delay_passed(ctx, height, connection_end)?;
+        // verify_delay_passed(ctx, height, connection_end)?;
 
         let commitment_path = CommitmentsPath {
             port_id: port_id.clone(),
@@ -321,7 +321,7 @@ impl<HostFunctions: HostFunctionsProvider> ClientDef for BeefyClient<HostFunctio
         sequence: Sequence,
         ack: AcknowledgementCommitment,
     ) -> Result<(), Error> {
-        verify_delay_passed(ctx, height, connection_end)?;
+        // verify_delay_passed(ctx, height, connection_end)?;
 
         let ack_path = AcksPath {
             port_id: port_id.clone(),
@@ -350,7 +350,7 @@ impl<HostFunctions: HostFunctionsProvider> ClientDef for BeefyClient<HostFunctio
         channel_id: &ChannelId,
         sequence: Sequence,
     ) -> Result<(), Error> {
-        verify_delay_passed(ctx, height, connection_end)?;
+        // verify_delay_passed(ctx, height, connection_end)?;
 
         let seq_bytes = codec::Encode::encode(&u64::from(sequence));
 
@@ -377,7 +377,7 @@ impl<HostFunctions: HostFunctionsProvider> ClientDef for BeefyClient<HostFunctio
         channel_id: &ChannelId,
         sequence: Sequence,
     ) -> Result<(), Error> {
-        verify_delay_passed(ctx, height, connection_end)?;
+        // verify_delay_passed(ctx, height, connection_end)?;
 
         let receipt_path = ReceiptsPath {
             port_id: port_id.clone(),
