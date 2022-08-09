@@ -59,6 +59,7 @@ pub fn send_packet(ctx: &dyn ReaderContext, packet: Packet) -> HandlerResult<Pac
         return Err(Error::frozen_client(connection_end.client_id().clone()));
     }
 
+    // TODO: Re-enable when latest height for beefy client is properly implemented
     // let latest_height = client_state.latest_height();
 
     // if !packet.timeout_height.is_zero() && packet.timeout_height <= latest_height {

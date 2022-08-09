@@ -290,6 +290,7 @@ impl<HostFunctions: HostFunctionsProvider> ClientDef for BeefyClient<HostFunctio
         sequence: Sequence,
         commitment: PacketCommitment,
     ) -> Result<(), Error> {
+        // TODO: Re-enable when latest height for beefy client is properly implemented
         // verify_delay_passed(ctx, height, connection_end)?;
 
         let commitment_path = CommitmentsPath {
