@@ -562,7 +562,7 @@ mod tests {
         }
     }
 
-    // #[cfg(feature = "ics11_beefy")]
+    #[cfg(feature = "ics11_beefy")]
     #[tokio::test]
     async fn test_continuous_update_of_beefy_client() {
         use crate::clients::ics11_beefy::client_state::ClientState as BeefyClientState;
@@ -586,7 +586,7 @@ mod tests {
 
         let mut ctx = MockContext::new(
             ChainId::new("mockgaiaA".to_string(), 1),
-            HostType::Mock,
+            HostType::Beefy,
             5,
             chain_start_height,
         );
