@@ -221,8 +221,8 @@ impl<HostFunctions: HostFunctionsProvider> ClientDef for BeefyClient<HostFunctio
     fn verify_client_consensus_state(
         &self,
         _ctx: &dyn ReaderContext,
-        _client_state: &Self::ClientState,
-        _height: Height,
+        client_state: &Self::ClientState,
+        height: Height,
         prefix: &CommitmentPrefix,
         proof: &CommitmentProofBytes,
         root: &CommitmentRoot,
@@ -230,6 +230,7 @@ impl<HostFunctions: HostFunctionsProvider> ClientDef for BeefyClient<HostFunctio
         consensus_height: Height,
         expected_consensus_state: &AnyConsensusState,
     ) -> Result<(), Error> {
+        client_state.verify_height(height)?;
         let path = ClientConsensusStatePath {
             client_id: client_id.clone(),
             epoch: consensus_height.revision_number,
@@ -244,14 +245,15 @@ impl<HostFunctions: HostFunctionsProvider> ClientDef for BeefyClient<HostFunctio
         &self,
         _ctx: &dyn ReaderContext,
         _client_id: &ClientId,
-        _client_state: &Self::ClientState,
-        _height: Height,
+        client_state: &Self::ClientState,
+        height: Height,
         prefix: &CommitmentPrefix,
         proof: &CommitmentProofBytes,
         root: &CommitmentRoot,
         connection_id: &ConnectionId,
         expected_connection_end: &ConnectionEnd,
     ) -> Result<(), Error> {
+        client_state.verify_height(height)?;
         let path = ConnectionsPath(connection_id.clone());
         let value = expected_connection_end.encode_vec();
         verify_membership::<HostFunctions, _>(prefix, proof, root, path, value)
@@ -261,8 +263,8 @@ impl<HostFunctions: HostFunctionsProvider> ClientDef for BeefyClient<HostFunctio
         &self,
         _ctx: &dyn ReaderContext,
         _client_id: &ClientId,
-        _client_state: &Self::ClientState,
-        _height: Height,
+        client_state: &Self::ClientState,
+        height: Height,
         prefix: &CommitmentPrefix,
         proof: &CommitmentProofBytes,
         root: &CommitmentRoot,
@@ -270,6 +272,7 @@ impl<HostFunctions: HostFunctionsProvider> ClientDef for BeefyClient<HostFunctio
         channel_id: &ChannelId,
         expected_channel_end: &ChannelEnd,
     ) -> Result<(), Error> {
+        client_state.verify_height(height)?;
         let path = ChannelEndsPath(port_id.clone(), *channel_id);
         let value = expected_channel_end.encode_vec();
         verify_membership::<HostFunctions, _>(prefix, proof, root, path, value)
@@ -278,14 +281,15 @@ impl<HostFunctions: HostFunctionsProvider> ClientDef for BeefyClient<HostFunctio
     fn verify_client_full_state(
         &self,
         _ctx: &dyn ReaderContext,
-        _client_state: &Self::ClientState,
-        _height: Height,
+        client_state: &Self::ClientState,
+        height: Height,
         prefix: &CommitmentPrefix,
         proof: &CommitmentProofBytes,
         root: &CommitmentRoot,
         client_id: &ClientId,
         expected_client_state: &AnyClientState,
     ) -> Result<(), Error> {
+        client_state.verify_height(height)?;
         let path = ClientStatePath(client_id.clone());
         let value = expected_client_state.encode_vec();
         verify_membership::<HostFunctions, _>(prefix, proof, root, path, value)
@@ -294,8 +298,8 @@ impl<HostFunctions: HostFunctionsProvider> ClientDef for BeefyClient<HostFunctio
     fn verify_packet_data(
         &self,
         ctx: &dyn ReaderContext,
-        _client_id: &ClientId,
-        _client_state: &Self::ClientState,
+        client_id: &ClientId,
+        client_state: &Self::ClientState,
         height: Height,
         connection_end: &ConnectionEnd,
         proof: &CommitmentProofBytes,
@@ -305,6 +309,7 @@ impl<HostFunctions: HostFunctionsProvider> ClientDef for BeefyClient<HostFunctio
         sequence: Sequence,
         commitment: PacketCommitment,
     ) -> Result<(), Error> {
+        client_state.verify_height(height)?;
         verify_delay_passed(ctx, height, connection_end)?;
 
         let commitment_path = CommitmentsPath {
@@ -326,7 +331,7 @@ impl<HostFunctions: HostFunctionsProvider> ClientDef for BeefyClient<HostFunctio
         &self,
         ctx: &dyn ReaderContext,
         _client_id: &ClientId,
-        _client_state: &Self::ClientState,
+        client_state: &Self::ClientState,
         height: Height,
         connection_end: &ConnectionEnd,
         proof: &CommitmentProofBytes,
@@ -336,6 +341,7 @@ impl<HostFunctions: HostFunctionsProvider> ClientDef for BeefyClient<HostFunctio
         sequence: Sequence,
         ack: AcknowledgementCommitment,
     ) -> Result<(), Error> {
+        client_state.verify_height(height)?;
         verify_delay_passed(ctx, height, connection_end)?;
 
         let ack_path = AcksPath {
@@ -356,7 +362,7 @@ impl<HostFunctions: HostFunctionsProvider> ClientDef for BeefyClient<HostFunctio
         &self,
         ctx: &dyn ReaderContext,
         _client_id: &ClientId,
-        _client_state: &Self::ClientState,
+        client_state: &Self::ClientState,
         height: Height,
         connection_end: &ConnectionEnd,
         proof: &CommitmentProofBytes,
@@ -365,6 +371,7 @@ impl<HostFunctions: HostFunctionsProvider> ClientDef for BeefyClient<HostFunctio
         channel_id: &ChannelId,
         sequence: Sequence,
     ) -> Result<(), Error> {
+        client_state.verify_height(height)?;
         verify_delay_passed(ctx, height, connection_end)?;
 
         let seq_bytes = codec::Encode::encode(&u64::from(sequence));
@@ -383,7 +390,7 @@ impl<HostFunctions: HostFunctionsProvider> ClientDef for BeefyClient<HostFunctio
         &self,
         ctx: &dyn ReaderContext,
         _client_id: &ClientId,
-        _client_state: &Self::ClientState,
+        client_state: &Self::ClientState,
         height: Height,
         connection_end: &ConnectionEnd,
         proof: &CommitmentProofBytes,
@@ -392,6 +399,7 @@ impl<HostFunctions: HostFunctionsProvider> ClientDef for BeefyClient<HostFunctio
         channel_id: &ChannelId,
         sequence: Sequence,
     ) -> Result<(), Error> {
+        client_state.verify_height(height)?;
         verify_delay_passed(ctx, height, connection_end)?;
 
         let receipt_path = ReceiptsPath {
