@@ -11,15 +11,24 @@ pub struct ClientState {
     /// Block height when the client was frozen due to a misbehaviour
     #[prost(uint64, tag="3")]
     pub frozen_height: u64,
+    //// Known relay chains 
+    #[prost(enumeration="RelayChain", tag="4")]
+    pub relay_chain: i32,
+    //// ParaId of associated parachain
+    #[prost(uint32, tag="5")]
+    pub para_id: u32,
+    //// latest parachain height
+    #[prost(uint32, tag="6")]
+    pub latest_para_height: u32,
     /// block number that the beefy protocol was activated on the relay chain.
     /// This should be the first block in the merkle-mountain-range tree.
-    #[prost(uint32, tag="4")]
+    #[prost(uint32, tag="7")]
     pub beefy_activation_block: u32,
     /// authorities for the current round
-    #[prost(message, optional, tag="5")]
+    #[prost(message, optional, tag="8")]
     pub authority: ::core::option::Option<BeefyAuthoritySet>,
     /// authorities for the next round
-    #[prost(message, optional, tag="6")]
+    #[prost(message, optional, tag="9")]
     pub next_authority_set: ::core::option::Option<BeefyAuthoritySet>,
 }
 /// Actual payload items
@@ -195,4 +204,11 @@ pub struct BeefyMmrLeaf {
     /// merkle root hash of parachain heads included in the leaf.
     #[prost(bytes="vec", tag="5")]
     pub parachain_heads: ::prost::alloc::vec::Vec<u8>,
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+#[repr(i32)]
+pub enum RelayChain {
+    Polkadot = 0,
+    Kusama = 1,
+    Rococo = 2,
 }

@@ -1122,6 +1122,7 @@ impl ClientReader for MockContext {
         self.latest_height()
     }
 
+    #[cfg(not(feature = "ics11_beefy"))]
     fn host_timestamp(&self) -> Timestamp {
         self.history
             .last()
@@ -1129,6 +1130,11 @@ impl ClientReader for MockContext {
             .timestamp()
             .add(self.block_time)
             .unwrap()
+    }
+
+    #[cfg(feature = "ics11_beefy")]
+    fn host_timestamp(&self) -> Timestamp {
+        (Timestamp::now() + Duration::from_secs(86400 * 30)).unwrap()
     }
 
     fn host_consensus_state(&self, height: Height) -> Result<AnyConsensusState, Ics02Error> {

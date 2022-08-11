@@ -137,13 +137,17 @@ impl<HostFunctions: HostFunctionsProvider> ClientDef for BeefyClient<HostFunctio
     ) -> Result<(Self::ClientState, ConsensusUpdateResult), Error> {
         let mut parachain_cs_states = vec![];
         // Extract the new client state from the verified header
-        let client_state = client_state
+        let mut client_state = client_state
             .from_header(header.clone())
             .map_err(Error::beefy)?;
+        let mut latest_para_height = client_state.latest_para_height;
         for header in header.parachain_headers {
             // Skip genesis block of parachains since it has no timestamp or ibc root
-            if header.parachain_header.number == 0 {
+            if header.parachain_header.number == 0 || header.para_id != client_state.para_id {
                 continue;
+            }
+            if latest_para_height < header.parachain_header.number {
+                latest_para_height = header.parachain_header.number;
             }
             let height = Height::new(header.para_id as u64, header.parachain_header.number as u64);
             // Skip duplicate consensus states
@@ -156,6 +160,8 @@ impl<HostFunctions: HostFunctionsProvider> ClientDef for BeefyClient<HostFunctio
             ))
         }
 
+        client_state.latest_para_height = latest_para_height;
+
         Ok((
             client_state,
             ConsensusUpdateResult::Batch(parachain_cs_states),
@@ -167,16 +173,25 @@ impl<HostFunctions: HostFunctionsProvider> ClientDef for BeefyClient<HostFunctio
         client_state: Self::ClientState,
         header: Self::Header,
     ) -> Result<Self::ClientState, Error> {
-        let height = if let Some(mmr_update) = header.mmr_update_proof {
-            Height::new(
-                0,
-                mmr_update.signed_commitment.commitment.block_number as u64,
-            )
-        } else {
-            Height::new(0, client_state.latest_beefy_height as u64)
-        };
+        let latest_para_height = header
+            .parachain_headers
+            .into_iter()
+            .filter_map(|header| {
+                if header.para_id != client_state.para_id {
+                    None
+                } else {
+                    Some(header.parachain_header.number)
+                }
+            })
+            .max();
+        let frozen_height = latest_para_height
+            .map(|height| Height::new(client_state.para_id.into(), height.into()))
+            .unwrap_or(Height::new(
+                client_state.para_id.into(),
+                client_state.latest_para_height.into(),
+            ));
         client_state
-            .with_frozen_height(height)
+            .with_frozen_height(frozen_height)
             .map_err(|e| Error::beefy(BeefyError::implementation_specific(e.to_string())))
     }
 
