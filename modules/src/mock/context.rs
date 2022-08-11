@@ -1124,7 +1124,7 @@ impl ClientReader for MockContext {
 
     fn host_timestamp(&self) -> Timestamp {
         if self.host_chain_type == HostType::Beefy {
-            (Timestamp::now() + Duration::from_secs(86400 * 30)).unwrap()
+            (Timestamp::now() + Duration::from_secs(86400)).unwrap()
         } else {
             self.history
                 .last()
