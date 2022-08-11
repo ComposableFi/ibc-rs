@@ -680,7 +680,6 @@ mod tests {
                 parent_number_and_hash: Default::default(),
                 beefy_next_authority_set: Default::default(),
             },
-            para_id: client_wrapper.para_id,
             parachain_heads_proof: vec![],
             heads_leaf_index: 0,
             heads_total_count: 0,
@@ -767,7 +766,6 @@ mod tests {
                         parachain_header: Decode::decode(&mut &*header.parachain_header.as_slice())
                             .unwrap(),
                         partial_mmr_leaf: header.partial_mmr_leaf,
-                        para_id: header.para_id,
                         parachain_heads_proof: header.parachain_heads_proof,
                         heads_leaf_index: header.heads_leaf_index,
                         heads_total_count: header.heads_total_count,

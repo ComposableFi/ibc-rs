@@ -92,7 +92,7 @@ impl<HostFunctions: HostFunctionsProvider> ClientDef for BeefyClient<HostFunctio
                 ParachainHeader {
                     parachain_header: header.parachain_header.encode(),
                     partial_mmr_leaf: header.partial_mmr_leaf,
-                    para_id: header.para_id,
+                    para_id: client_state.para_id,
                     parachain_heads_proof: header.parachain_heads_proof,
                     heads_leaf_index: header.heads_leaf_index,
                     heads_total_count: header.heads_total_count,
@@ -143,13 +143,16 @@ impl<HostFunctions: HostFunctionsProvider> ClientDef for BeefyClient<HostFunctio
         let mut latest_para_height = client_state.latest_para_height;
         for header in header.parachain_headers {
             // Skip genesis block of parachains since it has no timestamp or ibc root
-            if header.parachain_header.number == 0 || header.para_id != client_state.para_id {
+            if header.parachain_header.number == 0 {
                 continue;
             }
             if latest_para_height < header.parachain_header.number {
                 latest_para_height = header.parachain_header.number;
             }
-            let height = Height::new(header.para_id as u64, header.parachain_header.number as u64);
+            let height = Height::new(
+                client_state.para_id as u64,
+                header.parachain_header.number as u64,
+            );
             // Skip duplicate consensus states
             if ctx.consensus_state(&client_id, height).is_ok() {
                 continue;
@@ -176,13 +179,7 @@ impl<HostFunctions: HostFunctionsProvider> ClientDef for BeefyClient<HostFunctio
         let latest_para_height = header
             .parachain_headers
             .into_iter()
-            .filter_map(|header| {
-                if header.para_id != client_state.para_id {
-                    None
-                } else {
-                    Some(header.parachain_header.number)
-                }
-            })
+            .map(|header| header.parachain_header.number)
             .max();
         let frozen_height = latest_para_height
             .map(|height| Height::new(client_state.para_id.into(), height.into()))
@@ -298,7 +295,7 @@ impl<HostFunctions: HostFunctionsProvider> ClientDef for BeefyClient<HostFunctio
     fn verify_packet_data(
         &self,
         ctx: &dyn ReaderContext,
-        client_id: &ClientId,
+        _client_id: &ClientId,
         client_state: &Self::ClientState,
         height: Height,
         connection_end: &ConnectionEnd,

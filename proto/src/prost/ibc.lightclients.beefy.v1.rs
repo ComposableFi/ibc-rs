@@ -135,26 +135,23 @@ pub struct ParachainHeader {
     /// scale-encoded parachain header bytes
     #[prost(bytes="vec", tag="1")]
     pub parachain_header: ::prost::alloc::vec::Vec<u8>,
-    /// reconstructed MmrLeaf, see beefy-go spec
+    /// see beefy-go spec
     #[prost(message, optional, tag="2")]
     pub mmr_leaf_partial: ::core::option::Option<BeefyMmrLeafPartial>,
-    /// para_id of the header.
-    #[prost(uint32, tag="3")]
-    pub para_id: u32,
     /// proofs for our header in the parachain heads root
-    #[prost(bytes="vec", repeated, tag="4")]
+    #[prost(bytes="vec", repeated, tag="3")]
     pub parachain_heads_proof: ::prost::alloc::vec::Vec<::prost::alloc::vec::Vec<u8>>,
     /// leaf index for parachain heads proof
-    #[prost(uint32, tag="5")]
+    #[prost(uint32, tag="4")]
     pub heads_leaf_index: u32,
     /// total number of para heads in parachain_heads_root
-    #[prost(uint32, tag="6")]
+    #[prost(uint32, tag="5")]
     pub heads_total_count: u32,
     /// trie merkle proof of inclusion in header.extrinsic_root
-    #[prost(bytes="vec", repeated, tag="7")]
+    #[prost(bytes="vec", repeated, tag="6")]
     pub extrinsic_proof: ::prost::alloc::vec::Vec<::prost::alloc::vec::Vec<u8>>,
     /// the actual timestamp extrinsic
-    #[prost(bytes="vec", tag="8")]
+    #[prost(bytes="vec", tag="7")]
     pub timestamp_extrinsic: ::prost::alloc::vec::Vec<u8>,
 }
 /// Partial data for MmrLeaf
