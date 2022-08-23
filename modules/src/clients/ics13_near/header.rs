@@ -3,7 +3,7 @@ use crate::core::ics02_client::{
     header::{AnyHeader, Header},
 };
 
-use super::types::LightClientBlockView;
+use near_lite_client::LightClientBlockView;
 
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct NearHeader {

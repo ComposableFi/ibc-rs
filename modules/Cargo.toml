@@ -76,6 +76,7 @@ sha3 = { version = "0.10.1", optional = true }
 ripemd = { version = "0.1.1", optional = true }
 
 primitive-types = { version = "0.11.1", default-features = false, features = ["serde_no_std"] }
+near-lite-client = { git = "https://github.com/composableFi/near-rs", package = "near-lite-client", branch = "update-api" }
 
 
 [dependencies.tendermint]
