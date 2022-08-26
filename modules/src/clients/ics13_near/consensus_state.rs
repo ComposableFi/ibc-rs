@@ -6,6 +6,7 @@ use crate::core::ics23_commitment::commitment::CommitmentRoot;
 #[derive(Debug, Clone)]
 pub struct NearConsensusState {
     commitment_root: CommitmentRoot,
+    epoch_block_producers: NearBlockProducers,
 }
 
 impl ConsensusState for NearConsensusState {

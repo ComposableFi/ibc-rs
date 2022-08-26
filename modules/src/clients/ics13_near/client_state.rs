@@ -6,30 +6,23 @@ use crate::core::{
 use super::types::{CryptoHash, LightClientBlockView, ValidatorStakeView};
 use crate::prelude::*;
 
+use near_lite_client::NearBlockProducers;
+
 #[derive(Debug, Clone)]
 pub struct NearClientState {
     chain_id: ChainId,
     head: LightClientBlockView,
     current_epoch: CryptoHash,
     next_epoch: CryptoHash,
-    current_validators: Vec<ValidatorStakeView>,
+    epoch_block_producers: NearBlockProducers,
     next_validators: Vec<ValidatorStakeView>,
 }
 
 pub struct NearUpgradeOptions {}
 
 impl NearClientState {
-    pub fn get_validators_by_epoch(
-        &self,
-        epoch_id: &CryptoHash,
-    ) -> Option<&Vec<ValidatorStakeView>> {
-        if epoch_id == &self.current_epoch {
-            Some(&self.current_validators)
-        } else if epoch_id == &self.next_epoch {
-            Some(&self.next_validators)
-        } else {
-            None
-        }
+    pub fn get_epoch_block_producers(&self) -> &NearBlockProducers {
+        &self.epoch_block_producers
     }
 
     pub fn get_head(&self) -> &LightClientBlockView {

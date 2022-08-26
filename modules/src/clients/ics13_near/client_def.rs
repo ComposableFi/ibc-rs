@@ -42,7 +42,7 @@ impl<T: HostFunctionsProvider> ClientDef for NearClient<T> {
     /// ```rust,no_run
     /// pub struct NearLightClientState {
     ///     head: LightClientBlockView,
-    ///     current_validators: Vec<ValidatorStakeView>,
+    ///     eopch_block_producers: NearBlockProducers,
     ///     next_validators:  Vec<ValidatorStakeView>,
     /// }
     /// ```
@@ -62,10 +62,11 @@ impl<T: HostFunctionsProvider> ClientDef for NearClient<T> {
         header: Self::Header,
     ) -> Result<(), Error> {
         // question: how can I read the state? We need the block producers for the current epoch
+
         Ok(validate_light_block::<T>(
             &header,
             client_state,
-            epoch_block_producers,
+            client_state.get_epoch_block_producers(),
         )?)
     }
 
