@@ -1,3 +1,4 @@
+use ibc_proto::google::protobuf::Timestamp;
 use super::error::Error;
 use crate::core::ics02_client::client_consensus::{AnyConsensusState, ConsensusState};
 use crate::core::ics02_client::client_type::ClientType;
@@ -6,7 +7,7 @@ use crate::core::ics23_commitment::commitment::CommitmentRoot;
 #[derive(Debug, Clone)]
 pub struct NearConsensusState {
     commitment_root: CommitmentRoot,
-    epoch_block_producers: NearBlockProducers,
+    timestamp: Timestamp
 }
 
 impl ConsensusState for NearConsensusState {

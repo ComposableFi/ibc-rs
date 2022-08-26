@@ -80,7 +80,9 @@ impl<T: HostFunctionsProvider> ClientDef for NearClient<T> {
         // 1. create new client state from this header, return that.
         // 2. as well as all the neccessary consensus states.
         //
-        //
+        // []--[]--[]--[]--[]--[]--[]--[]--[]--[]
+        // []--[]--[]--[]--[]--[]--[]--[]--[]--[]
+        // []--[]--[]--[]--[]--[]--[]--[]--[]--[]
         // []--[]--[]--[]--[]--[]--[]--[]--[]--[]
         // 11  12  13  14  15  16  17  18  19  20 <- block merkle root
         // ^                                    ^
