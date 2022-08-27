@@ -1143,7 +1143,11 @@ impl ClientReader for MockContext {
         }
     }
 
-    fn host_consensus_state(&self, height: Height, _proof: &CommitmentProofBytes) -> Result<AnyConsensusState, Ics02Error> {
+    fn host_consensus_state(
+        &self,
+        height: Height,
+        _proof: &CommitmentProofBytes,
+    ) -> Result<AnyConsensusState, Ics02Error> {
         match self.host_block(height) {
             Some(block_ref) => Ok(block_ref.clone().into()),
             None => Err(Ics02Error::missing_local_consensus_state(height)),

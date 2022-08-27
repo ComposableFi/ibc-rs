@@ -9,8 +9,16 @@ use crate::core::ics23_commitment::commitment::CommitmentProofBytes;
 use crate::core::ics26_routing::context::ReaderContext;
 use crate::proofs::{ConsensusProof, Proofs};
 use crate::Height;
+use codec::{Decode, Encode};
 
-#[cfg(not(feature = "skip_host_consensus_verification"))]
+/// Connection proof type, used in relayer
+#[derive(Encode, Decode)]
+pub struct ConnectionProof {
+    pub header: Vec<u8>,
+    pub extrinsic_with_proof: (Vec<u8>, Vec<Vec<u8>>),
+    pub connection_proof: Vec<u8>,
+}
+
 /// Entry point for verifying all proofs bundled in any ICS3 message.
 pub fn verify_proofs<HostFunctions: HostFunctionsProvider>(
     ctx: &dyn ReaderContext,
@@ -55,43 +63,6 @@ pub fn verify_proofs<HostFunctions: HostFunctionsProvider>(
     } else {
         Ok(())
     }
-}
-
-#[cfg(feature = "skip_host_consensus_verification")]
-/// Entry point for verifying all proofs bundled in any ICS3 message.
-pub fn verify_proofs<HostFunctions: HostFunctionsProvider>(
-    ctx: &dyn ReaderContext,
-    client_state: Option<AnyClientState>,
-    height: Height,
-    connection_end: &ConnectionEnd,
-    expected_conn: &ConnectionEnd,
-    proofs: &Proofs,
-) -> Result<(), Error> {
-    verify_connection_proof::<HostFunctions>(
-        ctx,
-        height,
-        connection_end,
-        expected_conn,
-        proofs.height(),
-        proofs.object_proof(),
-    )?;
-
-    // If the message includes a client state, then verify the proof for that state.
-    if let Some(expected_client_state) = client_state {
-        verify_client_proof::<HostFunctions>(
-            ctx,
-            height,
-            connection_end,
-            expected_client_state,
-            proofs.height(),
-            proofs
-                .client_proof()
-                .as_ref()
-                .ok_or_else(Error::null_client_proof)?,
-        )?;
-    }
-
-    Ok(())
 }
 
 /// Verifies the authenticity and semantic correctness of a commitment `proof`. The commitment
@@ -217,19 +188,36 @@ pub fn verify_consensus_proof<HostFunctions: HostFunctionsProvider>(
 
     let client = AnyClient::<HostFunctions>::from_client_type(client_state.client_type());
 
+    let consensus_proof = match consensus_state {
+        #[cfg(any(test, feature = "ics11_beefy"))]
+        AnyConsensusState::Beefy(_) => {
+            // if the host is beefy or near, we need to decode the proof before passing it on.
+            let proof: ConnectionProof = codec::Decode::decode(&mut proof.proof().as_bytes())
+                .map_err(|e| {
+                    Error::implementation_specific(format!("failed to decode: {:?}", e))
+                })?;
+            CommitmentProofBytes::try_from(proof.connection_proof).map_err(|e| {
+                Error::implementation_specific(format!("empty proof bytes: {:?}", e))
+            })?
+        }
+        _ => proof.proof().clone(),
+    };
+
     client
         .verify_client_consensus_state(
             ctx,
             &client_state,
             height,
             connection_end.counterparty().prefix(),
-            proof.proof(),
+            &consensus_proof,
             consensus_state.root(),
             connection_end.counterparty().client_id(),
             proof.height(),
             &expected_consensus,
         )
-        .map_err(|e| Error::consensus_state_verification_failure(proof.height(), e))
+        .map_err(|e| Error::consensus_state_verification_failure(proof.height(), e))?;
+
+    Ok(())
 }
 
 /// Checks that `claimed_height` is within normal bounds, i.e., fresh enough so that the chain has

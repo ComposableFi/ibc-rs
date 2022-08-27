@@ -416,7 +416,11 @@ impl ClientReader for DummyTransferModule {
         Height::zero()
     }
 
-    fn host_consensus_state(&self, _height: Height, _proof: &CommitmentProofBytes) -> Result<AnyConsensusState, Ics02Error> {
+    fn host_consensus_state(
+        &self,
+        _height: Height,
+        _proof: &CommitmentProofBytes,
+    ) -> Result<AnyConsensusState, Ics02Error> {
         unimplemented!()
     }
 
