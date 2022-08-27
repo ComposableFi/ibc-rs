@@ -8,7 +8,6 @@ use crate::core::ics02_client::client_state::AnyClientState;
 use crate::core::ics02_client::client_type::ClientType;
 use crate::core::ics02_client::error::{Error, ErrorDetail};
 use crate::core::ics02_client::handler::ClientResult::{self, Create, Update, Upgrade};
-use crate::core::ics23_commitment::commitment::CommitmentProofBytes;
 use crate::core::ics24_host::identifier::ClientId;
 use crate::timestamp::Timestamp;
 use crate::Height;
@@ -69,7 +68,7 @@ pub trait ClientReader {
     fn host_consensus_state(
         &self,
         height: Height,
-        proof: &CommitmentProofBytes,
+        proof: Option<Vec<u8>>,
     ) -> Result<AnyConsensusState, Error>;
 
     /// Returns a natural number, counting how many clients have been created thus far.

@@ -27,7 +27,6 @@ use crate::core::ics04_channel::packet::{Receipt, Sequence};
 use crate::core::ics04_channel::Version;
 use crate::core::ics05_port::context::PortReader;
 use crate::core::ics05_port::error::Error as PortError;
-use crate::core::ics23_commitment::commitment::CommitmentProofBytes;
 use crate::core::ics24_host::identifier::{ChannelId, ClientId, ConnectionId, PortId};
 use crate::core::ics26_routing::context::{Module, ModuleId, ModuleOutputBuilder, ReaderContext};
 use crate::mock::context::MockIbcStore;
@@ -419,7 +418,7 @@ impl ClientReader for DummyTransferModule {
     fn host_consensus_state(
         &self,
         _height: Height,
-        _proof: &CommitmentProofBytes,
+        _proof: Option<Vec<u8>>,
     ) -> Result<AnyConsensusState, Ics02Error> {
         unimplemented!()
     }

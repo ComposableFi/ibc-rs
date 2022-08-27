@@ -1,5 +1,7 @@
 //! ICS3 verification functions, common across all four handlers of ICS3.
 use crate::clients::host_functions::HostFunctionsProvider;
+#[cfg(feature = "ics11_beefy")]
+use crate::core::ics02_client::client_consensus::AnyConsensusState;
 use crate::core::ics02_client::client_consensus::ConsensusState;
 use crate::core::ics02_client::client_state::{AnyClientState, ClientState};
 use crate::core::ics02_client::{client_def::AnyClient, client_def::ClientDef};
@@ -14,8 +16,7 @@ use codec::{Decode, Encode};
 /// Connection proof type, used in relayer
 #[derive(Encode, Decode)]
 pub struct ConnectionProof {
-    pub header: Vec<u8>,
-    pub extrinsic_with_proof: (Vec<u8>, Vec<Vec<u8>>),
+    pub host_proof: Vec<u8>,
     pub connection_proof: Vec<u8>,
 }
 
@@ -177,30 +178,36 @@ pub fn verify_consensus_proof<HostFunctions: HostFunctionsProvider>(
         return Err(Error::frozen_client(connection_end.client_id().clone()));
     }
 
-    // Fetch the expected consensus state from the historical (local) header data.
-    let expected_consensus = ctx
-        .host_consensus_state(proof.height(), proof.proof())
-        .map_err(|e| Error::consensus_state_verification_failure(proof.height(), e))?;
-
     let consensus_state = ctx
         .consensus_state(connection_end.client_id(), height)
         .map_err(|e| Error::consensus_state_verification_failure(height, e))?;
 
     let client = AnyClient::<HostFunctions>::from_client_type(client_state.client_type());
 
-    let consensus_proof = match consensus_state {
-        #[cfg(any(test, feature = "ics11_beefy"))]
+    let (consensus_proof, expected_consensus) = match consensus_state {
+        #[cfg(feature = "ics11_beefy")]
         AnyConsensusState::Beefy(_) => {
             // if the host is beefy or near, we need to decode the proof before passing it on.
-            let proof: ConnectionProof = codec::Decode::decode(&mut proof.proof().as_bytes())
-                .map_err(|e| {
+            let connection_proof: ConnectionProof =
+                codec::Decode::decode(&mut proof.proof().as_bytes()).map_err(|e| {
                     Error::implementation_specific(format!("failed to decode: {:?}", e))
                 })?;
-            CommitmentProofBytes::try_from(proof.connection_proof).map_err(|e| {
-                Error::implementation_specific(format!("empty proof bytes: {:?}", e))
-            })?
+            // Fetch the expected consensus state from the historical (local) header data.
+            let expected_consensus = ctx
+                .host_consensus_state(proof.height(), Some(connection_proof.host_proof))
+                .map_err(|e| Error::consensus_state_verification_failure(proof.height(), e))?;
+            (
+                CommitmentProofBytes::try_from(connection_proof.connection_proof).map_err(|e| {
+                    Error::implementation_specific(format!("empty proof bytes: {:?}", e))
+                })?,
+                expected_consensus,
+            )
         }
-        _ => proof.proof().clone(),
+        _ => (
+            proof.proof().clone(),
+            ctx.host_consensus_state(proof.height(), None)
+                .map_err(|e| Error::consensus_state_verification_failure(proof.height(), e))?,
+        ),
     };
 
     client
