@@ -1070,6 +1070,10 @@ impl ClientReader for MockContext {
         }
     }
 
+    fn host_client_type(&self) -> ClientType {
+        ClientType::Tendermint
+    }
+
     /// Search for the lowest consensus state higher than `height`.
     fn next_consensus_state(
         &self,
@@ -1251,6 +1255,10 @@ impl ClientKeeper for MockContext {
             .unwrap()
             .client_processed_heights
             .insert((client_id, height), host_height);
+        Ok(())
+    }
+
+    fn validate_self_client(&self, _client_state: &AnyClientState) -> Result<(), Ics02Error> {
         Ok(())
     }
 }

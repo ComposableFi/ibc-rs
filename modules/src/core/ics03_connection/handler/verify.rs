@@ -1,15 +1,15 @@
 //! ICS3 verification functions, common across all four handlers of ICS3.
 use crate::clients::host_functions::HostFunctionsProvider;
 #[cfg(feature = "ics11_beefy")]
-use crate::core::ics02_client::client_consensus::AnyConsensusState;
 use crate::core::ics02_client::client_consensus::ConsensusState;
 use crate::core::ics02_client::client_state::{AnyClientState, ClientState};
+use crate::core::ics02_client::client_type::ClientType;
 use crate::core::ics02_client::{client_def::AnyClient, client_def::ClientDef};
 use crate::core::ics03_connection::connection::ConnectionEnd;
 use crate::core::ics03_connection::error::Error;
 use crate::core::ics23_commitment::commitment::CommitmentProofBytes;
 use crate::core::ics26_routing::context::ReaderContext;
-use crate::proofs::{ConsensusProof, Proofs};
+use crate::proofs::ConsensusProof;
 use crate::Height;
 use codec::{Decode, Encode};
 
@@ -18,52 +18,6 @@ use codec::{Decode, Encode};
 pub struct ConnectionProof {
     pub host_proof: Vec<u8>,
     pub connection_proof: Vec<u8>,
-}
-
-/// Entry point for verifying all proofs bundled in any ICS3 message.
-pub fn verify_proofs<HostFunctions: HostFunctionsProvider>(
-    ctx: &dyn ReaderContext,
-    client_state: Option<AnyClientState>,
-    height: Height,
-    connection_end: &ConnectionEnd,
-    expected_conn: &ConnectionEnd,
-    proofs: &Proofs,
-) -> Result<(), Error> {
-    verify_connection_proof::<HostFunctions>(
-        ctx,
-        height,
-        connection_end,
-        expected_conn,
-        proofs.height(),
-        proofs.object_proof(),
-    )?;
-
-    // If the message includes a client state, then verify the proof for that state.
-    if let Some(expected_client_state) = client_state {
-        verify_client_proof::<HostFunctions>(
-            ctx,
-            height,
-            connection_end,
-            expected_client_state,
-            proofs.height(),
-            proofs
-                .client_proof()
-                .as_ref()
-                .ok_or_else(Error::null_client_proof)?,
-        )?;
-    }
-
-    // If a consensus proof is attached to the message, then verify it.
-    if let Some(proof) = proofs.consensus_proof() {
-        Ok(verify_consensus_proof::<HostFunctions>(
-            ctx,
-            height,
-            connection_end,
-            &proof,
-        )?)
-    } else {
-        Ok(())
-    }
 }
 
 /// Verifies the authenticity and semantic correctness of a commitment `proof`. The commitment
@@ -184,9 +138,9 @@ pub fn verify_consensus_proof<HostFunctions: HostFunctionsProvider>(
 
     let client = AnyClient::<HostFunctions>::from_client_type(client_state.client_type());
 
-    let (consensus_proof, expected_consensus) = match consensus_state {
+    let (consensus_proof, expected_consensus) = match ctx.host_client_type() {
         #[cfg(feature = "ics11_beefy")]
-        AnyConsensusState::Beefy(_) => {
+        ClientType::Beefy => {
             // if the host is beefy or near, we need to decode the proof before passing it on.
             let connection_proof: ConnectionProof =
                 codec::Decode::decode(&mut proof.proof().as_bytes()).map_err(|e| {
