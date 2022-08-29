@@ -13,7 +13,6 @@ use crate::timestamp::Timestamp;
 use crate::Height;
 use sp_std::vec::Vec;
 
-
 /// Defines the read-only part of ICS2 (client functions) context.
 pub trait ClientReader {
     fn client_type(&self, client_id: &ClientId) -> Result<ClientType, Error>;

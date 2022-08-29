@@ -30,9 +30,9 @@ use sp_runtime::traits::{BlakeTwo256, SaturatedConversion};
 /// Beefy consensus header
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct BeefyHeader {
-    pub parachain_headers: Vec<ParachainHeader>, // contains the parachain headers
-    pub mmr_proofs: Vec<Vec<u8>>,                // mmr proofs for these headers
-    pub mmr_size: u64,                           // The latest mmr size
+    pub parachain_headers: Option<Vec<ParachainHeader>>, // contains the parachain headers
+    pub mmr_proofs: Vec<Vec<u8>>,                        // mmr proofs for these headers
+    pub mmr_size: u64,                                   // The latest mmr size
     pub mmr_update_proof: Option<MmrUpdateProof>, // Proof for updating the latest mmr root hash
 }
 
@@ -253,7 +253,7 @@ impl TryFrom<RawBeefyHeader> for BeefyHeader {
         };
 
         Ok(Self {
-            parachain_headers,
+            parachain_headers: Some(parachain_headers),
             mmr_proofs: raw_header.mmr_proofs,
             mmr_size: raw_header.mmr_size,
             mmr_update_proof,
@@ -266,43 +266,57 @@ impl From<BeefyHeader> for RawBeefyHeader {
         Self {
             parachain_headers: beefy_header
                 .parachain_headers
-                .into_iter()
-                .map(
-                    |para_header| ibc_proto::ibc::lightclients::beefy::v1::ParachainHeader {
-                        parachain_header: para_header.parachain_header.encode(),
-                        mmr_leaf_partial: Some(RawBeefyMmrLeafPartial {
-                            version: {
-                                let (major, minor) = para_header.partial_mmr_leaf.version.split();
-                                merge_leaf_version(major, minor) as u32
-                            },
-                            parent_number: para_header.partial_mmr_leaf.parent_number_and_hash.0,
-                            parent_hash: para_header
-                                .partial_mmr_leaf
-                                .parent_number_and_hash
-                                .1
-                                .encode(),
-                            beefy_next_authority_set: Some(RawBeefyAuthoritySet {
-                                id: para_header.partial_mmr_leaf.beefy_next_authority_set.id,
-                                len: para_header.partial_mmr_leaf.beefy_next_authority_set.len,
-                                authority_root: para_header
-                                    .partial_mmr_leaf
-                                    .beefy_next_authority_set
-                                    .root
-                                    .encode(),
-                            }),
-                        }),
-                        parachain_heads_proof: para_header
-                            .parachain_heads_proof
-                            .into_iter()
-                            .map(|item| item.to_vec())
-                            .collect(),
-                        heads_leaf_index: para_header.heads_leaf_index,
-                        heads_total_count: para_header.heads_total_count,
-                        extrinsic_proof: para_header.extrinsic_proof,
-                        timestamp_extrinsic: para_header.timestamp_extrinsic,
-                    },
-                )
-                .collect(),
+                .map(|headers| {
+                    headers
+                        .into_iter()
+                        .map(|para_header| {
+                            ibc_proto::ibc::lightclients::beefy::v1::ParachainHeader {
+                                parachain_header: para_header.parachain_header.encode(),
+                                mmr_leaf_partial: Some(RawBeefyMmrLeafPartial {
+                                    version: {
+                                        let (major, minor) =
+                                            para_header.partial_mmr_leaf.version.split();
+                                        merge_leaf_version(major, minor) as u32
+                                    },
+                                    parent_number: para_header
+                                        .partial_mmr_leaf
+                                        .parent_number_and_hash
+                                        .0,
+                                    parent_hash: para_header
+                                        .partial_mmr_leaf
+                                        .parent_number_and_hash
+                                        .1
+                                        .encode(),
+                                    beefy_next_authority_set: Some(RawBeefyAuthoritySet {
+                                        id: para_header
+                                            .partial_mmr_leaf
+                                            .beefy_next_authority_set
+                                            .id,
+                                        len: para_header
+                                            .partial_mmr_leaf
+                                            .beefy_next_authority_set
+                                            .len,
+                                        authority_root: para_header
+                                            .partial_mmr_leaf
+                                            .beefy_next_authority_set
+                                            .root
+                                            .encode(),
+                                    }),
+                                }),
+                                parachain_heads_proof: para_header
+                                    .parachain_heads_proof
+                                    .into_iter()
+                                    .map(|item| item.to_vec())
+                                    .collect(),
+                                heads_leaf_index: para_header.heads_leaf_index,
+                                heads_total_count: para_header.heads_total_count,
+                                extrinsic_proof: para_header.extrinsic_proof,
+                                timestamp_extrinsic: para_header.timestamp_extrinsic,
+                            }
+                        })
+                        .collect()
+                })
+                .unwrap_or_default(),
             mmr_proofs: beefy_header.mmr_proofs,
             mmr_size: beefy_header.mmr_size,
             mmr_update_proof: if let Some(mmr_update) = beefy_header.mmr_update_proof {

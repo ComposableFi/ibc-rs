@@ -746,7 +746,10 @@ mod tests {
 
             let block_number = signed_commitment.commitment.block_number;
             let headers = client_wrapper
-                .query_finalized_parachain_headers_at(block_number, client_state.latest_beefy_height)
+                .query_finalized_parachain_headers_at(
+                    block_number,
+                    client_state.latest_beefy_height,
+                )
                 .await
                 .unwrap();
             let (parachain_headers, batch_proof) = client_wrapper
@@ -766,19 +769,23 @@ mod tests {
             let mmr_size = NodesUtils::new(batch_proof.leaf_count).size();
 
             let header = BeefyHeader {
-                parachain_headers: parachain_headers
-                    .into_iter()
-                    .map(|header| BeefyParachainHeader {
-                        parachain_header: Decode::decode(&mut &*header.parachain_header.as_slice())
+                parachain_headers: Some(
+                    parachain_headers
+                        .into_iter()
+                        .map(|header| BeefyParachainHeader {
+                            parachain_header: Decode::decode(
+                                &mut &*header.parachain_header.as_slice(),
+                            )
                             .unwrap(),
-                        partial_mmr_leaf: header.partial_mmr_leaf,
-                        parachain_heads_proof: header.parachain_heads_proof,
-                        heads_leaf_index: header.heads_leaf_index,
-                        heads_total_count: header.heads_total_count,
-                        extrinsic_proof: header.extrinsic_proof,
-                        timestamp_extrinsic: header.timestamp_extrinsic,
-                    })
-                    .collect(),
+                            partial_mmr_leaf: header.partial_mmr_leaf,
+                            parachain_heads_proof: header.parachain_heads_proof,
+                            heads_leaf_index: header.heads_leaf_index,
+                            heads_total_count: header.heads_total_count,
+                            extrinsic_proof: header.extrinsic_proof,
+                            timestamp_extrinsic: header.timestamp_extrinsic,
+                        })
+                        .collect(),
+                ),
                 mmr_proofs: batch_proof
                     .items
                     .into_iter()

@@ -11,8 +11,8 @@ use crate::core::ics23_commitment::commitment::CommitmentProofBytes;
 use crate::core::ics26_routing::context::ReaderContext;
 use crate::proofs::ConsensusProof;
 use crate::Height;
-use codec::{Decode, Encode};
 use alloc::format;
+use codec::{Decode, Encode};
 use sp_std::vec::Vec;
 
 /// Connection proof type, used in relayer
