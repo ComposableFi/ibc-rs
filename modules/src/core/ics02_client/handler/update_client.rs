@@ -123,6 +123,7 @@ pub fn process<HostFunctions: HostFunctionsProvider>(
 
 #[cfg(test)]
 mod tests {
+    use crate::clients::ics11_beefy::header::ParachainHeadersWithProof;
     use core::str::FromStr;
     use subxt::sp_runtime::traits::Header;
     use test_log::test;
@@ -781,8 +782,8 @@ mod tests {
             let mmr_size = NodesUtils::new(batch_proof.leaf_count).size();
 
             let header = BeefyHeader {
-                parachain_headers: Some(
-                    parachain_headers
+                headers_with_proof: Some(ParachainHeadersWithProof {
+                    headers: parachain_headers
                         .into_iter()
                         .map(|header| BeefyParachainHeader {
                             parachain_header: Decode::decode(
@@ -797,13 +798,13 @@ mod tests {
                             timestamp_extrinsic: header.timestamp_extrinsic,
                         })
                         .collect(),
-                ),
-                mmr_proofs: batch_proof
-                    .items
-                    .into_iter()
-                    .map(|item| item.encode())
-                    .collect(),
-                mmr_size,
+                    mmr_proofs: batch_proof
+                        .items
+                        .into_iter()
+                        .map(|item| item.encode())
+                        .collect(),
+                    mmr_size,
+                }),
                 mmr_update_proof: Some(mmr_update),
             };
 

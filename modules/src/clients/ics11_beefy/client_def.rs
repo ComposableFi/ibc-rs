@@ -80,9 +80,10 @@ impl<HostFunctions: HostFunctionsProvider> ClientDef for BeefyClient<HostFunctio
         };
 
         // Extract parachain headers from the beefy header if they exist
-        if let Some(parachain_headers) = header.parachain_headers {
+        if let Some(headers_with_proof) = header.headers_with_proof {
             let mut leaf_indices = vec![];
-            let parachain_headers = parachain_headers
+            let parachain_headers = headers_with_proof
+                .headers
                 .into_iter()
                 .map(|header| {
                     let leaf_index = client_state
@@ -109,7 +110,7 @@ impl<HostFunctions: HostFunctionsProvider> ClientDef for BeefyClient<HostFunctio
                 mmr_proof: BatchProof {
                     leaf_indices,
                     leaf_count,
-                    items: header
+                    items: headers_with_proof
                         .mmr_proofs
                         .into_iter()
                         .map(|item| {
@@ -146,8 +147,8 @@ impl<HostFunctions: HostFunctionsProvider> ClientDef for BeefyClient<HostFunctio
             .map_err(Error::beefy)?;
         let mut latest_para_height = client_state.latest_para_height;
 
-        if let Some(parachain_headers) = header.parachain_headers {
-            for header in parachain_headers {
+        if let Some(parachain_headers) = header.headers_with_proof {
+            for header in parachain_headers.headers {
                 // Skip genesis block of parachains since it has no timestamp or ibc root
                 if header.parachain_header.number == 0 {
                     continue;
@@ -184,9 +185,10 @@ impl<HostFunctions: HostFunctionsProvider> ClientDef for BeefyClient<HostFunctio
         header: Self::Header,
     ) -> Result<Self::ClientState, Error> {
         let latest_para_height = header
-            .parachain_headers
+            .headers_with_proof
             .map(|headers| {
                 headers
+                    .headers
                     .into_iter()
                     .map(|header| header.parachain_header.number)
                     .max()
