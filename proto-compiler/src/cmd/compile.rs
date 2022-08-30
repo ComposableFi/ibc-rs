@@ -235,6 +235,7 @@ impl CompileCmd {
 
         let compilation = tonic_build::configure()
             .out_dir(out_dir)
+            .compile_well_known_types(true)
             .compile(&protos, &includes);
 
         match compilation {

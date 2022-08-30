@@ -99,7 +99,7 @@ pub struct ConsensusState {
     /// timestamp that corresponds to the block height in which the ConsensusState
     /// was stored.
     #[prost(message, optional, tag="1")]
-    pub timestamp: ::core::option::Option<::prost_types::Timestamp>,
+    pub timestamp: ::core::option::Option<super::super::super::super::google::protobuf::Timestamp>,
     /// packet commitment root
     #[prost(bytes="vec", tag="2")]
     pub root: ::prost::alloc::vec::Vec<u8>,
