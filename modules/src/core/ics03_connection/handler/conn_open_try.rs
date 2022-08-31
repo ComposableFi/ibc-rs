@@ -5,7 +5,8 @@ use crate::core::ics03_connection::connection::{ConnectionEnd, Counterparty, Sta
 use crate::core::ics03_connection::error::Error;
 use crate::core::ics03_connection::events::Attributes;
 use crate::core::ics03_connection::handler::verify::{
-    check_client_consensus_height, verify_proofs,
+    check_client_consensus_height, verify_client_proof, verify_connection_proof,
+    verify_consensus_proof,
 };
 use crate::core::ics03_connection::handler::{ConnectionIdState, ConnectionResult};
 use crate::core::ics03_connection::msgs::conn_open_try::MsgConnectionOpenTry;
@@ -27,48 +28,24 @@ pub(crate) fn process<HostFunctions: HostFunctionsProvider>(
     }
 
     // Unwrap the old connection end (if any) and its identifier.
-    let (mut new_connection_end, conn_id) = match &msg.previous_connection_id {
-        // A connection with this id should already exist. Search & validate.
-        Some(prev_id) => {
-            let old_connection_end = ctx.connection_end(prev_id)?;
+    let (mut new_connection_end, conn_id) = {
+        // Build a new connection end as well as an identifier.
+        let conn_end = ConnectionEnd::new(
+            State::Init,
+            msg.client_id.clone(),
+            msg.counterparty.clone(),
+            msg.counterparty_versions.clone(),
+            msg.delay_period,
+        );
+        let id_counter = ctx.connection_counter()?;
+        let conn_id = ConnectionId::new(id_counter);
 
-            // Validate that existing connection end matches with the one we're trying to establish.
-            if old_connection_end.state_matches(&State::Init)
-                && old_connection_end.counterparty_matches(&msg.counterparty)
-                && old_connection_end.client_id_matches(&msg.client_id)
-                && old_connection_end.delay_period() == msg.delay_period
-            {
-                // A ConnectionEnd already exists and all validation passed.
-                output.log(format!(
-                    "success: `previous_connection_id` {} validation passed",
-                    prev_id
-                ));
-                Ok((old_connection_end, prev_id.clone()))
-            } else {
-                // A ConnectionEnd already exists and validation failed.
-                Err(Error::connection_mismatch(prev_id.clone()))
-            }
-        }
-        // No prev. connection id was supplied, create a new connection end and conn id.
-        None => {
-            // Build a new connection end as well as an identifier.
-            let conn_end = ConnectionEnd::new(
-                State::Init,
-                msg.client_id.clone(),
-                msg.counterparty.clone(),
-                msg.counterparty_versions.clone(),
-                msg.delay_period,
-            );
-            let id_counter = ctx.connection_counter()?;
-            let conn_id = ConnectionId::new(id_counter);
-
-            output.log(format!(
-                "success: new connection end and identifier {} generated",
-                conn_id
-            ));
-            Ok((conn_end, conn_id))
-        }
-    }?;
+        output.log(format!(
+            "success: new connection end and identifier {} generated",
+            conn_id
+        ));
+        (conn_end, conn_id)
+    };
 
     // Proof verification in two steps:
     // 1. Setup: build the ConnectionEnd as we expect to find it on the other party.
@@ -80,14 +57,44 @@ pub(crate) fn process<HostFunctions: HostFunctionsProvider>(
         msg.delay_period,
     );
 
-    // 2. Pass the details to the verification function.
-    verify_proofs::<HostFunctions>(
+    let client_state = msg.client_state.ok_or_else(|| {
+        Error::implementation_specific("client state is required in connOpenTry".into())
+    })?;
+
+    let client_proof = msg.proofs.client_proof().as_ref().ok_or_else(|| {
+        Error::implementation_specific("client proof is required in connOpenTry".into())
+    })?;
+
+    let consensus_proof = msg.proofs.consensus_proof().ok_or_else(|| {
+        Error::implementation_specific("consensus proof is required in connOpenTry".into())
+    })?;
+
+    ctx.validate_self_client(&client_state)
+        .map_err(Error::ics02_client)?;
+
+    verify_connection_proof::<HostFunctions>(
         ctx,
-        msg.client_state.clone(),
         msg.proofs.height(),
         &new_connection_end,
         &expected_conn,
-        &msg.proofs,
+        msg.proofs.height(),
+        msg.proofs.object_proof(),
+    )?;
+
+    verify_client_proof::<HostFunctions>(
+        ctx,
+        msg.proofs.height(),
+        &new_connection_end,
+        client_state,
+        msg.proofs.height(),
+        client_proof,
+    )?;
+
+    verify_consensus_proof::<HostFunctions>(
+        ctx,
+        msg.proofs.height(),
+        &new_connection_end,
+        &consensus_proof,
     )?;
 
     // Transition the connection end to the new state & pick a version.
@@ -113,11 +120,7 @@ pub(crate) fn process<HostFunctions: HostFunctionsProvider>(
 
     let result = ConnectionResult {
         connection_id: conn_id,
-        connection_id_state: if matches!(msg.previous_connection_id, None) {
-            ConnectionIdState::Generated
-        } else {
-            ConnectionIdState::Reused
-        },
+        connection_id_state: ConnectionIdState::Generated,
         connection_end: new_connection_end,
     };
 
@@ -219,18 +222,6 @@ mod tests {
                 ctx: context.clone().with_client(&msg_proof_height_missing.client_id, Height::new(0, client_consensus_state_height)),
                 msg: ConnectionMsg::ConnectionOpenTry(Box::new(msg_proof_height_missing)),
                 want_pass: false,
-            },
-            Test {
-                name: "Good parameters but has previous_connection_id".to_string(),
-                ctx: context.clone().with_client(&msg_conn_try.client_id, Height::new(0, client_consensus_state_height)),
-                msg: ConnectionMsg::ConnectionOpenTry(Box::new(msg_conn_try.clone())),
-                want_pass: false,
-            },
-            Test {
-                name: "Good parameters".to_string(),
-                ctx: context.with_client(&msg_conn_try.client_id, Height::new(0, client_consensus_state_height)),
-                msg: ConnectionMsg::ConnectionOpenTry(Box::new(msg_conn_try.with_previous_connection_id(None))),
-                want_pass: true,
             },
         ]
         .into_iter()

@@ -11,6 +11,7 @@ use crate::core::ics02_client::handler::ClientResult::{self, Create, Update, Upg
 use crate::core::ics24_host::identifier::ClientId;
 use crate::timestamp::Timestamp;
 use crate::Height;
+use alloc::vec::Vec;
 
 /// Defines the read-only part of ICS2 (client functions) context.
 pub trait ClientReader {
@@ -26,6 +27,9 @@ pub trait ClientReader {
         client_id: &ClientId,
         height: Height,
     ) -> Result<AnyConsensusState, Error>;
+
+    /// This should return the host type.
+    fn host_client_type(&self) -> ClientType;
 
     /// Similar to `consensus_state`, attempt to retrieve the consensus state,
     /// but return `None` if no state exists at the given height.
@@ -64,7 +68,12 @@ pub trait ClientReader {
     fn host_timestamp(&self) -> Timestamp;
 
     /// Returns the `ConsensusState` of the host (local) chain at a specific height.
-    fn host_consensus_state(&self, height: Height) -> Result<AnyConsensusState, Error>;
+    /// If this is fetched from a proof whose origin is off-chain, it should ideally be verified first.
+    fn host_consensus_state(
+        &self,
+        height: Height,
+        proof: Option<Vec<u8>>,
+    ) -> Result<AnyConsensusState, Error>;
 
     /// Returns a natural number, counting how many clients have been created thus far.
     /// The value of this counter should increase only via method `ClientKeeper::increase_client_counter`.
@@ -218,4 +227,8 @@ pub trait ClientKeeper {
         height: Height,
         host_height: Height,
     ) -> Result<(), Error>;
+
+    /// validates the client parameters for a client of the running chain
+    /// This function is only used to validate the client state the counterparty stores for this chain
+    fn validate_self_client(&self, client_state: &AnyClientState) -> Result<(), Error>;
 }

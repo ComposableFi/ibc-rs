@@ -961,7 +961,15 @@ impl ChannelKeeper for MockContext {
         Ok(())
     }
 
-    fn store_packet(
+    fn store_send_packet(
+        &mut self,
+        _key: (PortId, ChannelId, Sequence),
+        _packet: crate::core::ics04_channel::packet::Packet,
+    ) -> Result<(), Ics04Error> {
+        Ok(())
+    }
+
+    fn store_recv_packet(
         &mut self,
         _key: (PortId, ChannelId, Sequence),
         _packet: crate::core::ics04_channel::packet::Packet,
@@ -1062,6 +1070,10 @@ impl ClientReader for MockContext {
         }
     }
 
+    fn host_client_type(&self) -> ClientType {
+        ClientType::Tendermint
+    }
+
     /// Search for the lowest consensus state higher than `height`.
     fn next_consensus_state(
         &self,
@@ -1135,7 +1147,11 @@ impl ClientReader for MockContext {
         }
     }
 
-    fn host_consensus_state(&self, height: Height) -> Result<AnyConsensusState, Ics02Error> {
+    fn host_consensus_state(
+        &self,
+        height: Height,
+        _proof: Option<Vec<u8>>,
+    ) -> Result<AnyConsensusState, Ics02Error> {
         match self.host_block(height) {
             Some(block_ref) => Ok(block_ref.clone().into()),
             None => Err(Ics02Error::missing_local_consensus_state(height)),
@@ -1239,6 +1255,10 @@ impl ClientKeeper for MockContext {
             .unwrap()
             .client_processed_heights
             .insert((client_id, height), host_height);
+        Ok(())
+    }
+
+    fn validate_self_client(&self, _client_state: &AnyClientState) -> Result<(), Ics02Error> {
         Ok(())
     }
 }
