@@ -2,6 +2,7 @@ use crate::clients::host_functions::HostFunctionsProvider;
 use crate::clients::ics07_tendermint::client_def::TendermintClient;
 #[cfg(any(test, feature = "ics11_beefy"))]
 use crate::clients::ics11_beefy::client_def::BeefyClient;
+use crate::clients::ics13_near::client_def::NearClient;
 use crate::core::ics02_client::client_consensus::{AnyConsensusState, ConsensusState};
 use crate::core::ics02_client::client_state::{AnyClientState, ClientState};
 use crate::core::ics02_client::client_type::ClientType;
@@ -212,8 +213,8 @@ pub enum AnyClient<HostFunctions: HostFunctionsProvider> {
     Tendermint(TendermintClient<HostFunctions>),
     #[cfg(any(test, feature = "ics11_beefy"))]
     Beefy(BeefyClient<HostFunctions>),
-    #[cfg(any(test, feature = "ics11_beefy"))]
-    Near(BeefyClient<HostFunctions>),
+    #[cfg(any(test, feature = "ics13_near"))]
+    Near(NearClient<HostFunctions>),
     #[cfg(any(test, feature = "mocks"))]
     Mock(MockClient),
 }
@@ -226,8 +227,8 @@ impl<HostFunctions: HostFunctionsProvider> AnyClient<HostFunctions> {
             }
             #[cfg(any(test, feature = "ics11_beefy"))]
             ClientType::Beefy => Self::Beefy(BeefyClient::<HostFunctions>::default()),
-            #[cfg(any(test, feature = "ics11_beefy"))]
-            ClientType::Near => Self::Near(BeefyClient::<HostFunctions>::default()),
+            #[cfg(any(test, feature = "ics13_near"))]
+            ClientType::Near => Self::Near(NearClient::<HostFunctions>::default()),
             #[cfg(any(test, feature = "mocks"))]
             ClientType::Mock => Self::Mock(MockClient::default()),
         }
@@ -270,7 +271,7 @@ impl<HostFunctions: HostFunctionsProvider> ClientDef for AnyClient<HostFunctions
                 client.verify_header(ctx, client_id, client_state, header)
             }
 
-            #[cfg(any(test, feature = "ics11_beefy"))]
+            #[cfg(any(test, feature = "ics13_near"))]
             Self::Near(_) => {
                 // let (client_state, header) = downcast!(
                 //     client_state => AnyClientState::Beefy,
@@ -329,7 +330,7 @@ impl<HostFunctions: HostFunctionsProvider> ClientDef for AnyClient<HostFunctions
 
                 Ok((AnyClientState::Beefy(new_state), new_consensus))
             }
-            #[cfg(any(test, feature = "ics11_beefy"))]
+            #[cfg(any(test, feature = "ics13_near"))]
             Self::Near(_) => {
                 todo!()
             }
@@ -376,7 +377,7 @@ impl<HostFunctions: HostFunctionsProvider> ClientDef for AnyClient<HostFunctions
                 let client_state = client.update_state_on_misbehaviour(client_state, header)?;
                 Ok(Self::ClientState::Beefy(client_state))
             }
-            #[cfg(any(test, feature = "ics11_beefy"))]
+            #[cfg(any(test, feature = "ics13_near"))]
             AnyClient::Near(_) => {
                 todo!()
             }
@@ -421,7 +422,7 @@ impl<HostFunctions: HostFunctionsProvider> ClientDef for AnyClient<HostFunctions
 
                 client.check_for_misbehaviour(ctx, client_id, client_state, header)
             }
-            #[cfg(any(test, feature = "ics11_beefy"))]
+            #[cfg(any(test, feature = "ics13_near"))]
             AnyClient::Near(_) => {
                 todo!()
             }
@@ -481,7 +482,7 @@ impl<HostFunctions: HostFunctionsProvider> ClientDef for AnyClient<HostFunctions
                 Ok((AnyClientState::Beefy(new_state), new_consensus))
             }
 
-            #[cfg(any(test, feature = "ics11_beefy"))]
+            #[cfg(any(test, feature = "ics13_near"))]
             Self::Near(_) => {
                 todo!()
             }
@@ -557,7 +558,7 @@ impl<HostFunctions: HostFunctionsProvider> ClientDef for AnyClient<HostFunctions
                     expected_consensus_state,
                 )
             }
-            #[cfg(any(test, feature = "ics11_beefy"))]
+            #[cfg(any(test, feature = "ics13_near"))]
             Self::Near(_) => {
                 todo!()
             }
@@ -629,7 +630,7 @@ impl<HostFunctions: HostFunctionsProvider> ClientDef for AnyClient<HostFunctions
                     expected_connection_end,
                 )
             }
-            #[cfg(any(test, feature = "ics11_beefy"))]
+            #[cfg(any(test, feature = "ics13_near"))]
             Self::Near(_) => {
                 todo!()
             }
@@ -703,7 +704,7 @@ impl<HostFunctions: HostFunctionsProvider> ClientDef for AnyClient<HostFunctions
                     expected_channel_end,
                 )
             }
-            #[cfg(any(test, feature = "ics11_beefy"))]
+            #[cfg(any(test, feature = "ics13_near"))]
             Self::Near(_) => {
                 todo!()
             }
@@ -775,7 +776,7 @@ impl<HostFunctions: HostFunctionsProvider> ClientDef for AnyClient<HostFunctions
                     client_state_on_counterparty,
                 )
             }
-            #[cfg(any(test, feature = "ics11_beefy"))]
+            #[cfg(any(test, feature = "ics13_near"))]
             Self::Near(_) => {
                 todo!()
             }
@@ -857,7 +858,7 @@ impl<HostFunctions: HostFunctionsProvider> ClientDef for AnyClient<HostFunctions
                     commitment,
                 )
             }
-            #[cfg(any(test, feature = "ics11_beefy"))]
+            #[cfg(any(test, feature = "ics13_near"))]
             Self::Near(_) => {
                 todo!()
             }
@@ -942,7 +943,7 @@ impl<HostFunctions: HostFunctionsProvider> ClientDef for AnyClient<HostFunctions
                     ack_commitment,
                 )
             }
-            #[cfg(any(test, feature = "ics11_beefy"))]
+            #[cfg(any(test, feature = "ics13_near"))]
             Self::Near(_) => {
                 todo!()
             }
@@ -1023,7 +1024,7 @@ impl<HostFunctions: HostFunctionsProvider> ClientDef for AnyClient<HostFunctions
                     sequence,
                 )
             }
-            #[cfg(any(test, feature = "ics11_beefy"))]
+            #[cfg(any(test, feature = "ics13_near"))]
             Self::Near(_) => {
                 todo!()
             }
@@ -1104,7 +1105,7 @@ impl<HostFunctions: HostFunctionsProvider> ClientDef for AnyClient<HostFunctions
                     sequence,
                 )
             }
-            #[cfg(any(test, feature = "ics11_beefy"))]
+            #[cfg(any(test, feature = "ics13_near"))]
             Self::Near(_) => {
                 todo!()
             }

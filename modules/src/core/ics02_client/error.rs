@@ -7,7 +7,7 @@ use tendermint_proto::Error as TendermintProtoError;
 use crate::clients::ics07_tendermint::error::Error as Ics07Error;
 #[cfg(any(test, feature = "ics11_beefy"))]
 use crate::clients::ics11_beefy::error::Error as Ics11Error;
-#[cfg(any(test, feature = "ics11_beefy"))]
+#[cfg(any(test, feature = "ics13_near"))]
 use crate::clients::ics13_near::error::Error as Ics13Error;
 use crate::core::ics02_client::client_type::ClientType;
 use crate::core::ics02_client::height::HeightError;
@@ -17,6 +17,12 @@ use crate::core::ics24_host::identifier::ClientId;
 use crate::signer::SignerError;
 use crate::timestamp::Timestamp;
 use crate::Height;
+
+#[cfg(not(any(test, feature = "ics13_near")))]
+enum Never {}
+
+#[cfg(not(any(test, feature = "ics13_near")))]
+type Ics13Error = Never;
 
 #[cfg(not(any(test, feature = "ics11_beefy")))]
 define_error! {
@@ -278,6 +284,10 @@ define_error! {
         Signer
             [ SignerError ]
             | _ | { "failed to parse signer" },
+
+        Near
+            [ Ics13Error ]
+            | _ | { "Near error" },
     }
 }
 
@@ -453,10 +463,6 @@ define_error! {
             [ Ics11Error ]
             | _ | { "Beefy error" },
 
-        Near
-            [ Ics13Error ]
-            | _ | { "Near error" },
-
         InvalidPacketTimestamp
             [ crate::timestamp::ParseTimestampError ]
             | _ | { "invalid packet timeout timestamp value" },
@@ -565,7 +571,7 @@ impl From<Ics11Error> for Error {
     }
 }
 
-#[cfg(any(test, feature = "ics11_beefy"))]
+#[cfg(any(test, feature = "ics13_near"))]
 impl From<Ics13Error> for Error {
     fn from(e: Ics13Error) -> Error {
         Error::near(e)

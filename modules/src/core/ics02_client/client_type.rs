@@ -10,7 +10,7 @@ pub enum ClientType {
     Tendermint = 1,
     #[cfg(any(test, feature = "ics11_beefy"))]
     Beefy = 2,
-    #[cfg(any(test, feature = "ics11_beefy"))]
+    #[cfg(any(test, feature = "ics13_near"))]
     Near = 3,
     #[cfg(any(test, feature = "mocks"))]
     Mock = 9999,
@@ -20,8 +20,8 @@ impl ClientType {
     const TENDERMINT_STR: &'static str = "07-tendermint";
     #[cfg(any(test, feature = "ics11_beefy"))]
     const BEEFY_STR: &'static str = "11-beefy";
-    #[cfg(any(test, feature = "ics11_beefy"))]
-    const NEAR_STR: &'static str = "11-beefy";
+    #[cfg(any(test, feature = "ics13_near"))]
+    const NEAR_STR: &'static str = "11-near";
 
     #[cfg_attr(not(test), allow(dead_code))]
     const MOCK_STR: &'static str = "9999-mock";
@@ -32,7 +32,7 @@ impl ClientType {
             Self::Tendermint => Self::TENDERMINT_STR,
             #[cfg(any(test, feature = "ics11_beefy"))]
             Self::Beefy => Self::BEEFY_STR,
-            #[cfg(any(test, feature = "ics11_beefy"))]
+            #[cfg(any(test, feature = "ics13_near"))]
             Self::Near => Self::NEAR_STR,
             #[cfg(any(test, feature = "mocks"))]
             Self::Mock => Self::MOCK_STR,

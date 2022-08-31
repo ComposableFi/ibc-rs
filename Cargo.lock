@@ -1857,6 +1857,7 @@ dependencies = [
  "ics23",
  "modelator",
  "near-lite-client",
+ "near-primitives-wasm",
  "num-traits",
  "parity-scale-codec",
  "primitive-types",
@@ -2634,9 +2635,10 @@ dependencies = [
 [[package]]
 name = "near-lite-client"
 version = "0.1.0"
-source = "git+https://github.com/composableFi/near-rs?branch=update-api#3e261aa9a890f3fa4a0af1cf76f5b8a6a1ca6f9d"
+source = "git+https://github.com/composableFi/near-rs?branch=update-api#e77940e6905606aa3f230045c22a7df89a8c7cd1"
 dependencies = [
  "borsh",
+ "derive_more",
  "near-merkle-proofs",
  "near-primitives-wasm",
  "sha2 0.10.2",
@@ -2648,7 +2650,7 @@ dependencies = [
 [[package]]
 name = "near-merkle-proofs"
 version = "0.1.0"
-source = "git+https://github.com/composableFi/near-rs?branch=update-api#3e261aa9a890f3fa4a0af1cf76f5b8a6a1ca6f9d"
+source = "git+https://github.com/composableFi/near-rs?branch=update-api#e77940e6905606aa3f230045c22a7df89a8c7cd1"
 dependencies = [
  "borsh",
  "core2",
@@ -2660,9 +2662,11 @@ dependencies = [
 [[package]]
 name = "near-primitives-wasm"
 version = "0.1.0"
-source = "git+https://github.com/composableFi/near-rs?branch=update-api#3e261aa9a890f3fa4a0af1cf76f5b8a6a1ca6f9d"
+source = "git+https://github.com/composableFi/near-rs?branch=update-api#e77940e6905606aa3f230045c22a7df89a8c7cd1"
 dependencies = [
  "borsh",
+ "derive_more",
+ "serde",
  "sha2 0.10.2",
  "sp-core 6.0.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.18)",
  "sp-io 6.0.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.18)",
@@ -3928,9 +3932,9 @@ checksum = "93f6841e709003d68bb2deee8c343572bf446003ec20a583e76f7b15cebf3711"
 
 [[package]]
 name = "serde"
-version = "1.0.142"
+version = "1.0.144"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e590c437916fb6b221e1d00df6e3294f3fccd70ca7e92541c475d6ed6ef5fee2"
+checksum = "0f747710de3dcd43b88c9168773254e809d8ddbdf9653b84e2554ab219f17860"
 dependencies = [
  "serde_derive",
 ]
@@ -3946,9 +3950,9 @@ dependencies = [
 
 [[package]]
 name = "serde_derive"
-version = "1.0.142"
+version = "1.0.144"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "34b5b8d809babe02f538c2cfec6f2c1ed10804c0e5a6a041a049a4f5588ccc2e"
+checksum = "94ed3a816fb1d101812f83e789f888322c34e291f894f19590dc310963e87a00"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -5990,9 +5994,9 @@ version = "1.6.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "97fee6b57c6a41524a810daee9286c02d7752c4253064d0b05472833a438f675"
 dependencies = [
- "cfg-if 1.0.0",
+ "cfg-if 0.1.10",
  "digest 0.10.3",
- "rand 0.8.5",
+ "rand 0.4.6",
  "static_assertions",
 ]
 

@@ -10,6 +10,8 @@ use ibc_proto::ibc::core::client::v1::IdentifiedClientState;
 use crate::clients::ics07_tendermint::client_state;
 #[cfg(any(test, feature = "ics11_beefy"))]
 use crate::clients::ics11_beefy::client_state as beefy_client_state;
+#[cfg(any(test, feature = "ics13_near"))]
+use crate::clients::ics13_near::client_state as near_client_state;
 use crate::core::ics02_client::client_type::ClientType;
 use crate::core::ics02_client::error::Error;
 use crate::core::ics02_client::trust_threshold::TrustThreshold;
@@ -22,6 +24,7 @@ use crate::Height;
 
 pub const TENDERMINT_CLIENT_STATE_TYPE_URL: &str = "/ibc.lightclients.tendermint.v1.ClientState";
 pub const BEEFY_CLIENT_STATE_TYPE_URL: &str = "/ibc.lightclients.beefy.v1.ClientState";
+pub const NEAR_CLIENT_STATE_TYPE_URL: &str = "/ibc.lightclients.near.v1.ClientState";
 pub const MOCK_CLIENT_STATE_TYPE_URL: &str = "/ibc.mock.ClientState";
 
 pub trait ClientState: Clone + core::fmt::Debug + Send + Sync {
@@ -66,6 +69,8 @@ pub enum AnyUpgradeOptions {
     Tendermint(client_state::UpgradeOptions),
     #[cfg(any(test, feature = "ics11_beefy"))]
     Beefy(beefy_client_state::UpgradeOptions),
+    #[cfg(any(test, feature = "ics13_near"))]
+    Near(near_client_state::UpgradeOptions),
     #[cfg(any(test, feature = "mocks"))]
     Mock(()),
 }
@@ -77,6 +82,10 @@ impl AnyUpgradeOptions {
             #[cfg(any(test, feature = "ics11_beefy"))]
             Self::Beefy(_) => {
                 panic!("cannot downcast AnyUpgradeOptions::Beefy to Tendermint::UpgradeOptions")
+            }
+            #[cfg(any(test, feature = "ics13_near"))]
+            Self::Near(_) => {
+                panic!("cannot downcast AnyUpgradeOptions::Near to Tendermint::UpgradeOptions")
             }
             #[cfg(any(test, feature = "mocks"))]
             Self::Mock(_) => {
@@ -93,6 +102,28 @@ impl AnyUpgradeOptions {
             }
             #[cfg(any(test, feature = "ics11_beefy"))]
             Self::Beefy(options) => options,
+            #[cfg(any(test, feature = "ics13_near"))]
+            Self::Near(_) => {
+                panic!("cannot downcast AnyUpgradeOptions::Near to Beefy::UpgradeOptions")
+            }
+            #[cfg(any(test, feature = "mocks"))]
+            Self::Mock(_) => {
+                panic!("cannot downcast AnyUpgradeOptions::Mock to Beefy::UpgradeOptions")
+            }
+        }
+    }
+
+    fn into_near(self) -> near_client_state::UpgradeOptions {
+        match self {
+            Self::Tendermint(_) => {
+                panic!("cannot downcast AnyUpgradeOptions::Tendermint to Beefy::UpgradeOptions")
+            }
+            #[cfg(any(test, feature = "ics11_beefy"))]
+            Self::Beefy(_) => {
+                panic!("cannot downcast AnyUpgradeOptions::Beefy to Tendermint::UpgradeOptions")
+            }
+            #[cfg(any(test, feature = "ics13_near"))]
+            Self::Near(opts) => opts,
             #[cfg(any(test, feature = "mocks"))]
             Self::Mock(_) => {
                 panic!("cannot downcast AnyUpgradeOptions::Mock to Tendermint::UpgradeOptions")
@@ -108,9 +139,9 @@ pub enum AnyClientState {
     #[cfg(any(test, feature = "ics11_beefy"))]
     #[serde(skip)]
     Beefy(beefy_client_state::ClientState),
-    #[cfg(any(test, feature = "ics11_beefy"))]
+    #[cfg(any(test, feature = "ics13_near"))]
     #[serde(skip)]
-    Near(beefy_client_state::ClientState),
+    Near(near_client_state::NearClientState),
     #[cfg(any(test, feature = "mocks"))]
     Mock(MockClientState),
 }
@@ -121,7 +152,7 @@ impl AnyClientState {
             Self::Tendermint(tm_state) => tm_state.latest_height(),
             #[cfg(any(test, feature = "ics11_beefy"))]
             Self::Beefy(bf_state) => bf_state.latest_height(),
-            #[cfg(any(test, feature = "ics11_beefy"))]
+            #[cfg(any(test, feature = "ics13_near"))]
             Self::Near(_) => todo!(),
             #[cfg(any(test, feature = "mocks"))]
             Self::Mock(mock_state) => mock_state.latest_height(),
@@ -133,7 +164,7 @@ impl AnyClientState {
             Self::Tendermint(tm_state) => tm_state.frozen_height(),
             #[cfg(any(test, feature = "ics11_beefy"))]
             Self::Beefy(bf_state) => bf_state.frozen_height(),
-            #[cfg(any(test, feature = "ics11_beefy"))]
+            #[cfg(any(test, feature = "ics13_near"))]
             Self::Near(_) => todo!(),
             #[cfg(any(test, feature = "mocks"))]
             Self::Mock(mock_state) => mock_state.frozen_height(),
@@ -145,7 +176,7 @@ impl AnyClientState {
             AnyClientState::Tendermint(state) => Some(state.trust_level),
             #[cfg(any(test, feature = "ics11_beefy"))]
             AnyClientState::Beefy(_) => None,
-            #[cfg(any(test, feature = "ics11_beefy"))]
+            #[cfg(any(test, feature = "ics13_near"))]
             Self::Near(_) => todo!(),
             #[cfg(any(test, feature = "mocks"))]
             AnyClientState::Mock(_) => None,
@@ -157,7 +188,7 @@ impl AnyClientState {
             AnyClientState::Tendermint(state) => state.max_clock_drift,
             #[cfg(any(test, feature = "ics11_beefy"))]
             AnyClientState::Beefy(_) => Duration::new(0, 0),
-            #[cfg(any(test, feature = "ics11_beefy"))]
+            #[cfg(any(test, feature = "ics13_near"))]
             Self::Near(_) => todo!(),
             #[cfg(any(test, feature = "mocks"))]
             AnyClientState::Mock(_) => Duration::new(0, 0),
@@ -169,7 +200,7 @@ impl AnyClientState {
             Self::Tendermint(state) => state.client_type(),
             #[cfg(any(test, feature = "ics11_beefy"))]
             Self::Beefy(state) => state.client_type(),
-            #[cfg(any(test, feature = "ics11_beefy"))]
+            #[cfg(any(test, feature = "ics13_near"))]
             Self::Near(_) => todo!(),
             #[cfg(any(test, feature = "mocks"))]
             Self::Mock(state) => state.client_type(),
@@ -181,7 +212,7 @@ impl AnyClientState {
             AnyClientState::Tendermint(tm_state) => tm_state.refresh_time(),
             #[cfg(any(test, feature = "ics11_beefy"))]
             AnyClientState::Beefy(_) => None,
-            #[cfg(any(test, feature = "ics11_beefy"))]
+            #[cfg(any(test, feature = "ics13_near"))]
             Self::Near(_) => None,
             #[cfg(any(test, feature = "mocks"))]
             AnyClientState::Mock(mock_state) => mock_state.refresh_time(),
@@ -193,7 +224,7 @@ impl AnyClientState {
             AnyClientState::Tendermint(tm_state) => tm_state.expired(elapsed_since_latest),
             #[cfg(any(test, feature = "ics11_beefy"))]
             AnyClientState::Beefy(bf_state) => bf_state.expired(elapsed_since_latest),
-            #[cfg(any(test, feature = "ics11_beefy"))]
+            #[cfg(any(test, feature = "ics13_near"))]
             Self::Near(_) => false,
             #[cfg(any(test, feature = "mocks"))]
             AnyClientState::Mock(mock_state) => mock_state.expired(elapsed_since_latest),
@@ -243,9 +274,9 @@ impl From<AnyClientState> for Any {
                 type_url: BEEFY_CLIENT_STATE_TYPE_URL.to_string(),
                 value: value.encode_vec(),
             },
-            #[cfg(any(test, feature = "ics11_beefy"))]
+            #[cfg(any(test, feature = "ics13_near"))]
             AnyClientState::Near(_) => Any {
-                type_url: BEEFY_CLIENT_STATE_TYPE_URL.to_string(),
+                type_url: NEAR_CLIENT_STATE_TYPE_URL.to_string(),
                 value: value.encode_vec(),
             },
             #[cfg(any(test, feature = "mocks"))]
@@ -265,8 +296,8 @@ impl ClientState for AnyClientState {
             AnyClientState::Tendermint(tm_state) => tm_state.chain_id(),
             #[cfg(any(test, feature = "ics11_beefy"))]
             AnyClientState::Beefy(bf_state) => bf_state.chain_id(),
-            #[cfg(any(test, feature = "ics11_beefy"))]
-            AnyClientState::Near(_) => todo!(),
+            #[cfg(any(test, feature = "ics13_near"))]
+            AnyClientState::Near(state) => state.chain_id(),
             #[cfg(any(test, feature = "mocks"))]
             AnyClientState::Mock(mock_state) => mock_state.chain_id(),
         }
@@ -298,9 +329,9 @@ impl ClientState for AnyClientState {
             AnyClientState::Beefy(bf_state) => bf_state
                 .upgrade(upgrade_height, upgrade_options.into_beefy(), chain_id)
                 .wrap_any(),
-            #[cfg(any(test, feature = "ics11_beefy"))]
+            #[cfg(any(test, feature = "ics13_near"))]
             AnyClientState::Near(near_state) => near_state
-                .upgrade(upgrade_height, upgrade_options.into_beefy(), chain_id)
+                .upgrade(upgrade_height, upgrade_options.into_near(), chain_id)
                 .wrap_any(),
             #[cfg(any(test, feature = "mocks"))]
             AnyClientState::Mock(mock_state) => {

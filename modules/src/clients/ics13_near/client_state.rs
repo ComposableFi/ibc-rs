@@ -1,41 +1,38 @@
+use crate::core::ics02_client::client_state::AnyClientState;
 use crate::core::{
     ics02_client::{client_state::ClientState, client_type::ClientType},
     ics24_host::identifier::ChainId,
 };
-
-use super::types::{CryptoHash, LightClientBlockView, ValidatorStakeView};
 use crate::prelude::*;
+use near_lite_client::{CryptoHash, LightClientBlockView, ValidatorStakeView};
+use serde::{Deserialize, Serialize};
 
 use near_lite_client::NearBlockProducers;
 
-#[derive(Debug, Clone)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct NearClientState {
     chain_id: ChainId,
-    head: LightClientBlockView,
+    pub head: LightClientBlockView,
     current_epoch: CryptoHash,
+    pub epoch_num: u64,
+    pub prev_epoch_num: u64,
     next_epoch: CryptoHash,
-    epoch_block_producers: NearBlockProducers,
+    pub epoch_block_producers: NearBlockProducers,
     next_validators: Vec<ValidatorStakeView>,
+    pub prev_lite_block: LightClientBlockView,
 }
 
-pub struct NearUpgradeOptions {}
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct UpgradeOptions {}
 
 impl NearClientState {
-    pub fn get_epoch_block_producers(&self) -> &NearBlockProducers {
-        &self.epoch_block_producers
-    }
-
     pub fn get_head(&self) -> &LightClientBlockView {
         &self.head
     }
 }
 
 impl ClientState for NearClientState {
-    fn is_frozen(&self) -> bool {
-        self.frozen_height().is_some()
-    }
-
-    type UpgradeOptions = NearUpgradeOptions;
+    type UpgradeOptions = UpgradeOptions;
 
     fn chain_id(&self) -> ChainId {
         self.chain_id.clone()
@@ -46,12 +43,15 @@ impl ClientState for NearClientState {
     }
 
     fn latest_height(&self) -> crate::Height {
-        self.head.get_height()
+        crate::Height::new(self.prev_epoch_num, self.head.inner_lite.height)
+    }
+
+    fn is_frozen(&self) -> bool {
+        self.frozen_height().is_some()
     }
 
     fn frozen_height(&self) -> Option<crate::Height> {
-        // TODO: validate this
-        Some(self.head.get_height())
+        todo!()
     }
 
     fn upgrade(
@@ -64,7 +64,7 @@ impl ClientState for NearClientState {
         self
     }
 
-    fn wrap_any(self) -> crate::core::ics02_client::client_state::AnyClientState {
-        todo!()
+    fn wrap_any(self) -> AnyClientState {
+        AnyClientState::Near(self)
     }
 }

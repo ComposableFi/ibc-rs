@@ -1,6 +1,5 @@
-use super::types::CryptoHash;
 use flex_error::define_error;
-use near_lite_client::NearLiteClientError;
+use near_lite_client::CryptoHash;
 
 define_error! {
     #[derive(Debug, PartialEq, Eq)]
@@ -32,5 +31,7 @@ define_error! {
         | _ | { format_args!(
             "lite client error"
         )},
+        InvalidTimestamp
+        | _ | { "invalid timestamp" },
     }
 }

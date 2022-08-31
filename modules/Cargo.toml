@@ -40,6 +40,7 @@ clock = ["tendermint/clock", "time/std"]
 # Depends on the `testgen` suite for generating Tendermint light blocks.
 mocks = ["tendermint-testgen", "clock", "std", "sha3", "ripemd", "ics11_beefy"]
 ics11_beefy = ["sp-io", "sp-core", "sp-std", "beefy-primitives", "sp-runtime", "sp-trie", "pallet-mmr-primitives", "beefy-client", "beefy-client-primitives", "skip_host_consensus_verification"]
+ics13_near = ["skip_host_consensus_verification"]
 skip_host_consensus_verification = []
 
 [dependencies]
@@ -77,7 +78,7 @@ ripemd = { version = "0.1.1", optional = true }
 
 primitive-types = { version = "0.11.1", default-features = false, features = ["serde_no_std"] }
 near-lite-client = { git = "https://github.com/composableFi/near-rs", package = "near-lite-client", branch = "update-api" }
-
+near-primitives-wasm = { git = "https://github.com/composableFi/near-rs", package = "near-primitives-wasm", branch = "update-api" }
 
 [dependencies.tendermint]
 git = "https://github.com/composableFi/tendermint-rs"

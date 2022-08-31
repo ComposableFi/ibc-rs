@@ -12,6 +12,8 @@ use tendermint_proto::Protobuf;
 use crate::clients::ics07_tendermint::consensus_state;
 #[cfg(any(test, feature = "ics11_beefy"))]
 use crate::clients::ics11_beefy::consensus_state as beefy_consensus_state;
+#[cfg(any(test, feature = "ics13_near"))]
+use crate::clients::ics13_near::consensus_state as near_consensus_state;
 use crate::core::ics02_client::client_type::ClientType;
 use crate::core::ics02_client::error::Error;
 use crate::core::ics02_client::height::Height;
@@ -27,6 +29,8 @@ pub const TENDERMINT_CONSENSUS_STATE_TYPE_URL: &str =
     "/ibc.lightclients.tendermint.v1.ConsensusState";
 
 pub const BEEFY_CONSENSUS_STATE_TYPE_URL: &str = "/ibc.lightclients.beefy.v1.ConsensusState";
+
+pub const NEAR_CONSENSUS_STATE_TYPE_URL: &str = "/ibc.lightclients.near.v1.ConsensusState";
 
 pub const MOCK_CONSENSUS_STATE_TYPE_URL: &str = "/ibc.mock.ConsensusState";
 
@@ -49,6 +53,8 @@ pub enum AnyConsensusState {
     Tendermint(consensus_state::ConsensusState),
     #[cfg(any(test, feature = "ics11_beefy"))]
     Beefy(beefy_consensus_state::ConsensusState),
+    #[cfg(any(test, feature = "ics13_near"))]
+    Near(near_consensus_state::NearConsensusState),
     #[cfg(any(test, feature = "mocks"))]
     Mock(MockConsensusState),
 }
@@ -59,6 +65,8 @@ impl AnyConsensusState {
             Self::Tendermint(cs_state) => cs_state.timestamp.into(),
             #[cfg(any(test, feature = "ics11_beefy"))]
             Self::Beefy(cs_state) => cs_state.timestamp.into(),
+            #[cfg(any(test, feature = "ics13_near"))]
+            Self::Near(cs_state) => cs_state.timestamp.into(),
             #[cfg(any(test, feature = "mocks"))]
             Self::Mock(mock_state) => mock_state.timestamp(),
         }
@@ -69,6 +77,8 @@ impl AnyConsensusState {
             AnyConsensusState::Tendermint(_cs) => ClientType::Tendermint,
             #[cfg(any(test, feature = "ics11_beefy"))]
             AnyConsensusState::Beefy(_) => ClientType::Beefy,
+            #[cfg(any(test, feature = "ics13_near"))]
+            AnyConsensusState::Near(_) => ClientType::Near,
             #[cfg(any(test, feature = "mocks"))]
             AnyConsensusState::Mock(_cs) => ClientType::Mock,
         }
@@ -95,6 +105,11 @@ impl TryFrom<Any> for AnyConsensusState {
                     .map_err(Error::decode_raw_client_state)?,
             )),
 
+            #[cfg(any(test, feature = "ics13_near"))]
+            NEAR_CONSENSUS_STATE_TYPE_URL => todo!(), /* Ok(AnyConsensusState::Near(
+            near_consensus_state::NearConsensusState::decode_vec(&value.value)
+            .map_err(Error::decode_raw_client_state)?,
+            )), */
             #[cfg(any(test, feature = "mocks"))]
             MOCK_CONSENSUS_STATE_TYPE_URL => Ok(AnyConsensusState::Mock(
                 MockConsensusState::decode_vec(&value.value)
@@ -118,6 +133,11 @@ impl From<AnyConsensusState> for Any {
                 type_url: BEEFY_CONSENSUS_STATE_TYPE_URL.to_string(),
                 value: value.encode_vec(),
             },
+            #[cfg(any(test, feature = "ics13_near"))]
+            AnyConsensusState::Near(_value) => todo!(), /* Any {
+            type_url: NEAR_CONSENSUS_STATE_TYPE_URL.to_string(),
+            value: value.encode_vec(),
+            }, */
             #[cfg(any(test, feature = "mocks"))]
             AnyConsensusState::Mock(value) => Any {
                 type_url: MOCK_CONSENSUS_STATE_TYPE_URL.to_string(),
@@ -173,6 +193,8 @@ impl ConsensusState for AnyConsensusState {
             Self::Tendermint(cs_state) => cs_state.root(),
             #[cfg(any(test, feature = "ics11_beefy"))]
             Self::Beefy(cs_state) => cs_state.root(),
+            #[cfg(any(test, feature = "ics13_near"))]
+            Self::Near(cs_state) => cs_state.root(),
             #[cfg(any(test, feature = "mocks"))]
             Self::Mock(mock_state) => mock_state.root(),
         }

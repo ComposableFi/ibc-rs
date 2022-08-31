@@ -7,14 +7,8 @@ use near_lite_client::LightClientBlockView;
 
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct NearHeader {
-    inner: Vec<LightClientBlockView>,
-    batch_proof: Vec<Vec<u8>>,
-}
-
-impl NearHeader {
-    pub fn get_light_client_block_view(&self) -> &LightClientBlockView {
-        &self.inner
-    }
+    pub inner: Vec<LightClientBlockView>,
+    pub batch_proof: Vec<Vec<u8>>,
 }
 
 impl Header for NearHeader {

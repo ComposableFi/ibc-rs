@@ -1,10 +1,18 @@
 use crate::core::ics02_client::error::Error;
 use crate::prelude::*;
+use beefy_client_primitives::HostFunctions as BeefyHostFunctions;
 use core::marker::PhantomData;
+#[cfg(any(test, feature = "ics13_near"))]
+use near_primitives_wasm::HostFunctions as MaybeNearHostFunctions;
+
+#[cfg(not(any(test, feature = "ics13_near")))]
+trait MaybeNearHostFunctions {}
 
 /// This trait captures all the functions that the host chain should provide for
 /// crypto operations.
-pub trait HostFunctionsProvider: Clone + Send + Sync + Default {
+pub trait HostFunctionsProvider:
+    Clone + Send + Sync + Default + BeefyHostFunctions + MaybeNearHostFunctions
+{
     /// Keccak 256 hash function
     fn keccak_256(input: &[u8]) -> [u8; 32];
 
