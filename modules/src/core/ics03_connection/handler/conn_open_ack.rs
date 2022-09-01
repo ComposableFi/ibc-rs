@@ -1,6 +1,9 @@
 //! Protocol logic specific to processing ICS3 messages of type `MsgConnectionOpenAck`.
 
 use crate::clients::host_functions::HostFunctionsProvider;
+use crate::clients::{ClientStateOf, ConsensusStateOf, GlobalDefs};
+use crate::core::ics02_client::client_type::ClientTypes;
+use crate::core::ics02_client::context::ClientReader;
 use crate::core::ics03_connection::connection::{ConnectionEnd, Counterparty, State};
 use crate::core::ics03_connection::error::Error;
 use crate::core::ics03_connection::events::Attributes;
@@ -14,11 +17,24 @@ use crate::core::ics26_routing::context::ReaderContext;
 use crate::events::IbcEvent;
 use crate::handler::{HandlerOutput, HandlerResult};
 use crate::prelude::*;
+use core::fmt::Display;
+use ibc_proto::google::protobuf::Any;
+use tendermint_proto::Protobuf;
 
-pub(crate) fn process<HostFunctions: HostFunctionsProvider>(
-    ctx: &dyn ReaderContext,
-    msg: MsgConnectionOpenAck,
-) -> HandlerResult<ConnectionResult, Error> {
+pub(crate) fn process<G: GlobalDefs, Ctx: ReaderContext<ClientTypes = G::ClientDef>>(
+    ctx: &Ctx,
+    msg: MsgConnectionOpenAck<G::ClientDef>,
+) -> HandlerResult<ConnectionResult, Error>
+where
+    ClientStateOf<G>: Protobuf<Any>,
+    Any: From<ClientStateOf<G>>,
+    ClientStateOf<G>: TryFrom<Any>,
+    <ClientStateOf<G> as TryFrom<Any>>::Error: Display,
+    ConsensusStateOf<G>: Protobuf<Any>,
+    Any: From<ConsensusStateOf<G>>,
+    ConsensusStateOf<G>: TryFrom<Any>,
+    <ConsensusStateOf<G> as TryFrom<Any>>::Error: Display,
+{
     let mut output = HandlerOutput::builder();
 
     // Check the client's (consensus state) proof height if it consensus proof is provided
@@ -83,7 +99,7 @@ pub(crate) fn process<HostFunctions: HostFunctionsProvider>(
     ctx.validate_self_client(&client_state)
         .map_err(Error::ics02_client)?;
 
-    verify_connection_proof::<HostFunctions>(
+    verify_connection_proof::<G, Ctx>(
         ctx,
         msg.proofs.height(),
         &conn_end,
@@ -92,7 +108,7 @@ pub(crate) fn process<HostFunctions: HostFunctionsProvider>(
         msg.proofs.object_proof(),
     )?;
 
-    verify_client_proof::<HostFunctions>(
+    verify_client_proof::<G, Ctx>(
         ctx,
         msg.proofs.height(),
         &conn_end,
@@ -101,7 +117,7 @@ pub(crate) fn process<HostFunctions: HostFunctionsProvider>(
         client_proof,
     )?;
 
-    verify_consensus_proof::<HostFunctions>(ctx, msg.proofs.height(), &conn_end, &consensus_proof)?;
+    verify_consensus_proof::<G, Ctx>(ctx, msg.proofs.height(), &conn_end, &consensus_proof)?;
 
     output.log("success: connection verification passed");
 
@@ -151,7 +167,7 @@ mod tests {
         struct Test {
             name: String,
             ctx: MockContext,
-            msg: ConnectionMsg,
+            msg: ConnectionMsg<C>,
             want_pass: bool,
             match_error: Box<dyn FnOnce(error::Error)>,
         }

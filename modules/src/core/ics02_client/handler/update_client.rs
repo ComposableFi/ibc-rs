@@ -1,9 +1,12 @@
 //! Protocol logic specific to processing ICS2 messages of type `MsgUpdateAnyClient`.
+use crate::clients::{ClientStateOf, ConsensusStateOf, GlobalDefs};
 use core::fmt::Debug;
 
 use crate::clients::host_functions::HostFunctionsProvider;
+use crate::core::ics02_client::client_consensus::{AnyConsensusState, ConsensusState};
 use crate::core::ics02_client::client_def::{AnyClient, ClientDef, ConsensusUpdateResult};
 use crate::core::ics02_client::client_state::{AnyClientState, ClientState};
+use crate::core::ics02_client::client_type::ClientTypes;
 use crate::core::ics02_client::error::Error;
 use crate::core::ics02_client::events::Attributes;
 use crate::core::ics02_client::handler::ClientResult;
@@ -19,18 +22,23 @@ use crate::timestamp::Timestamp;
 /// The result following the successful processing of a `MsgUpdateAnyClient` message. Preferably
 /// this data type should be used with a qualified name `update_client::Result` to avoid ambiguity.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Result {
+pub struct Result<C: ClientTypes> {
     pub client_id: ClientId,
-    pub client_state: AnyClientState,
-    pub consensus_state: Option<ConsensusUpdateResult>,
+    pub client_state: C::ClientState,
+    pub consensus_state: Option<ConsensusUpdateResult<C>>,
     pub processed_time: Timestamp,
     pub processed_height: Height,
 }
 
-pub fn process<HostFunctions: HostFunctionsProvider>(
-    ctx: &dyn ReaderContext,
-    msg: MsgUpdateAnyClient,
-) -> HandlerResult<ClientResult, Error> {
+pub fn process<G: GlobalDefs, Ctx>(
+    ctx: &Ctx,
+    msg: MsgUpdateAnyClient<G::ClientDef>,
+) -> HandlerResult<ClientResult<Ctx>, Error>
+where
+    Ctx: ReaderContext<ClientTypes = <G as GlobalDefs>::ClientDef>,
+    ConsensusStateOf<G>: From<<Ctx as ClientTypes>::ConsensusState>,
+    ConsensusStateOf<G>: From<ConsensusStateOf<G>>,
+{
     let mut output = HandlerOutput::builder();
 
     let MsgUpdateAnyClient {
@@ -42,7 +50,7 @@ pub fn process<HostFunctions: HostFunctionsProvider>(
     // Read client type from the host chain store. The client should already exist.
     let client_type = ctx.client_type(&client_id)?;
 
-    let client_def = AnyClient::<HostFunctions>::from_client_type(client_type);
+    let client_def = <G::ClientDef as ClientDef>::from_client_type(client_type);
 
     // Read client state from the host chain store.
     let client_state = ctx.client_state(&client_id)?;
@@ -75,7 +83,7 @@ pub fn process<HostFunctions: HostFunctionsProvider>(
     }
 
     client_def
-        .verify_header(ctx, client_id.clone(), client_state.clone(), header.clone())
+        .verify_header::<Ctx>(ctx, client_id.clone(), client_state.clone(), header.clone())
         .map_err(|e| Error::header_verification_failure(e.to_string()))?;
 
     let found_misbehaviour = client_def

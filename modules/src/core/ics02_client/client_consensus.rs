@@ -41,6 +41,9 @@ pub trait ConsensusState: Clone + Debug + Send + Sync {
 
     /// Wrap into an `AnyConsensusState`
     fn wrap_any(self) -> AnyConsensusState;
+
+    /// Returns the timestamp of the state.
+    fn timestamp(&self) -> Timestamp;
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
@@ -54,16 +57,6 @@ pub enum AnyConsensusState {
 }
 
 impl AnyConsensusState {
-    pub fn timestamp(&self) -> Timestamp {
-        match self {
-            Self::Tendermint(cs_state) => cs_state.timestamp.into(),
-            #[cfg(any(test, feature = "ics11_beefy"))]
-            Self::Beefy(cs_state) => cs_state.timestamp.into(),
-            #[cfg(any(test, feature = "mocks"))]
-            Self::Mock(mock_state) => mock_state.timestamp(),
-        }
-    }
-
     pub fn client_type(&self) -> ClientType {
         match self {
             AnyConsensusState::Tendermint(_cs) => ClientType::Tendermint,
@@ -180,6 +173,16 @@ impl ConsensusState for AnyConsensusState {
 
     fn wrap_any(self) -> AnyConsensusState {
         self
+    }
+
+    fn timestamp(&self) -> Timestamp {
+        match self {
+            Self::Tendermint(cs_state) => cs_state.timestamp(),
+            #[cfg(any(test, feature = "ics11_beefy"))]
+            Self::Beefy(cs_state) => cs_state.timestamp(),
+            #[cfg(any(test, feature = "mocks"))]
+            Self::Mock(mock_state) => mock_state.timestamp(),
+        }
     }
 }
 

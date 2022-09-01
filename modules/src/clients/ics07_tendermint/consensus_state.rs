@@ -15,6 +15,7 @@ use crate::clients::ics07_tendermint::header::Header;
 use crate::core::ics02_client::client_consensus::AnyConsensusState;
 use crate::core::ics02_client::client_type::ClientType;
 use crate::core::ics23_commitment::commitment::CommitmentRoot;
+use crate::timestamp::Timestamp;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct ConsensusState {
@@ -46,6 +47,10 @@ impl crate::core::ics02_client::client_consensus::ConsensusState for ConsensusSt
 
     fn wrap_any(self) -> AnyConsensusState {
         AnyConsensusState::Tendermint(self)
+    }
+
+    fn timestamp(&self) -> Timestamp {
+        self.timestamp.into()
     }
 }
 

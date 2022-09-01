@@ -3,20 +3,21 @@
 //! "ADR 003: IBC protocol implementation" for more details.
 
 use crate::core::ics02_client::client_consensus::AnyConsensusState;
-use crate::core::ics02_client::client_def::ConsensusUpdateResult;
-use crate::core::ics02_client::client_state::AnyClientState;
-use crate::core::ics02_client::client_type::ClientType;
+use crate::core::ics02_client::client_def::{ClientDef, ConsensusUpdateResult};
+use crate::core::ics02_client::client_state::{AnyClientState, ClientState};
+use crate::core::ics02_client::client_type::{ClientType, ClientTypes};
 use crate::core::ics02_client::error::{Error, ErrorDetail};
 use crate::core::ics02_client::handler::ClientResult::{self, Create, Update, Upgrade};
 use crate::core::ics24_host::identifier::ClientId;
 use crate::timestamp::Timestamp;
 use crate::Height;
 use alloc::vec::Vec;
+use core::fmt::Debug;
 
 /// Defines the read-only part of ICS2 (client functions) context.
-pub trait ClientReader {
+pub trait ClientReader: ClientTypes {
     fn client_type(&self, client_id: &ClientId) -> Result<ClientType, Error>;
-    fn client_state(&self, client_id: &ClientId) -> Result<AnyClientState, Error>;
+    fn client_state(&self, client_id: &ClientId) -> Result<Self::ClientState, Error>;
 
     /// Retrieve the consensus state for the given client ID at the specified
     /// height.
@@ -26,7 +27,7 @@ pub trait ClientReader {
         &self,
         client_id: &ClientId,
         height: Height,
-    ) -> Result<AnyConsensusState, Error>;
+    ) -> Result<Self::ConsensusState, Error>;
 
     /// This should return the host type.
     fn host_client_type(&self) -> ClientType;
@@ -37,7 +38,7 @@ pub trait ClientReader {
         &self,
         client_id: &ClientId,
         height: Height,
-    ) -> Result<Option<AnyConsensusState>, Error> {
+    ) -> Result<Option<Self::ConsensusState>, Error> {
         match self.consensus_state(client_id, height) {
             Ok(cs) => Ok(Some(cs)),
             Err(e) => match e.detail() {
@@ -52,14 +53,14 @@ pub trait ClientReader {
         &self,
         client_id: &ClientId,
         height: Height,
-    ) -> Result<Option<AnyConsensusState>, Error>;
+    ) -> Result<Option<Self::ConsensusState>, Error>;
 
     /// Search for the highest consensus state lower than `height`.
     fn prev_consensus_state(
         &self,
         client_id: &ClientId,
         height: Height,
-    ) -> Result<Option<AnyConsensusState>, Error>;
+    ) -> Result<Option<Self::ConsensusState>, Error>;
 
     /// Returns the current height of the local chain.
     fn host_height(&self) -> Height;
@@ -73,7 +74,7 @@ pub trait ClientReader {
         &self,
         height: Height,
         proof: Option<Vec<u8>>,
-    ) -> Result<AnyConsensusState, Error>;
+    ) -> Result<Self::ConsensusState, Error>;
 
     /// Returns a natural number, counting how many clients have been created thus far.
     /// The value of this counter should increase only via method `ClientKeeper::increase_client_counter`.
@@ -81,8 +82,13 @@ pub trait ClientReader {
 }
 
 /// Defines the write-only part of ICS2 (client functions) context.
-pub trait ClientKeeper {
-    fn store_client_result(&mut self, handler_res: ClientResult) -> Result<(), Error> {
+pub trait ClientKeeper: ClientTypes
+//
+// ClientDef
+where
+    Self: Sized + Clone + Debug + Eq,
+{
+    fn store_client_result(&mut self, handler_res: ClientResult<Self>) -> Result<(), Error> {
         match handler_res {
             Create(res) => {
                 let client_id = res.client_id.clone();
@@ -192,7 +198,7 @@ pub trait ClientKeeper {
     fn store_client_state(
         &mut self,
         client_id: ClientId,
-        client_state: AnyClientState,
+        client_state: Self::ClientState,
     ) -> Result<(), Error>;
 
     /// Called upon successful client creation and update
@@ -200,7 +206,7 @@ pub trait ClientKeeper {
         &mut self,
         client_id: ClientId,
         height: Height,
-        consensus_state: AnyConsensusState,
+        consensus_state: Self::ConsensusState,
     ) -> Result<(), Error>;
 
     /// Called upon client creation.
@@ -230,5 +236,5 @@ pub trait ClientKeeper {
 
     /// validates the client parameters for a client of the running chain
     /// This function is only used to validate the client state the counterparty stores for this chain
-    fn validate_self_client(&self, client_state: &AnyClientState) -> Result<(), Error>;
+    fn validate_self_client(&self, client_state: &Self::ClientState) -> Result<(), Error>;
 }

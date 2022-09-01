@@ -1,3 +1,5 @@
+use crate::core::ics02_client::client_type::ClientTypes;
+use crate::core::ics02_client::context::ClientReader;
 use crate::core::ics04_channel::channel::State;
 use crate::core::ics04_channel::commitment::AcknowledgementCommitment;
 use crate::core::ics04_channel::error::Error;
@@ -19,8 +21,8 @@ pub struct WriteAckPacketResult {
     pub ack_commitment: AcknowledgementCommitment,
 }
 
-pub fn process(
-    ctx: &dyn ReaderContext,
+pub fn process<Ctx: ReaderContext>(
+    ctx: &Ctx,
     packet: Packet,
     ack: Vec<u8>,
 ) -> HandlerResult<PacketResult, Error> {

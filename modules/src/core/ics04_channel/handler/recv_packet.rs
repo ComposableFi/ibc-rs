@@ -1,4 +1,7 @@
 use crate::clients::host_functions::HostFunctionsProvider;
+use crate::clients::GlobalDefs;
+use crate::core::ics02_client::client_type::ClientTypes;
+use crate::core::ics02_client::context::ClientReader;
 use crate::core::ics03_connection::connection::State as ConnectionState;
 use crate::core::ics04_channel::channel::{Counterparty, Order, State};
 use crate::core::ics04_channel::error::Error;
@@ -33,8 +36,8 @@ pub enum RecvPacketResult {
     },
 }
 
-pub fn process<HostFunctions: HostFunctionsProvider>(
-    ctx: &dyn ReaderContext,
+pub fn process<G: GlobalDefs, Ctx: ReaderContext<ClientTypes = <G as GlobalDefs>::ClientDef>>(
+    ctx: &Ctx,
     msg: &MsgRecvPacket,
 ) -> HandlerResult<PacketResult, Error> {
     let mut output = HandlerOutput::builder();
@@ -83,7 +86,7 @@ pub fn process<HostFunctions: HostFunctionsProvider>(
         return Err(Error::low_packet_timestamp());
     }
 
-    verify_packet_recv_proofs::<HostFunctions>(
+    verify_packet_recv_proofs::<G, Ctx>(
         ctx,
         msg.proofs.height(),
         packet,

@@ -1,12 +1,13 @@
 //! Protocol logic specific to processing ICS2 messages of type `MsgCreateAnyClient`.
 
+use crate::clients::GlobalDefs;
 use crate::core::ics26_routing::context::ReaderContext;
 use crate::prelude::*;
 use core::fmt::Debug;
 
 use crate::core::ics02_client::client_consensus::AnyConsensusState;
-use crate::core::ics02_client::client_state::AnyClientState;
-use crate::core::ics02_client::client_type::ClientType;
+use crate::core::ics02_client::client_state::{AnyClientState, ClientState};
+use crate::core::ics02_client::client_type::{ClientType, ClientTypes};
 use crate::core::ics02_client::error::Error;
 use crate::core::ics02_client::events::Attributes;
 use crate::core::ics02_client::handler::ClientResult;
@@ -20,19 +21,23 @@ use crate::timestamp::Timestamp;
 /// The result following the successful processing of a `MsgCreateAnyClient` message. Preferably
 /// this data type should be used with a qualified name `create_client::Result` to avoid ambiguity.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Result {
+pub struct Result<C: ClientTypes> {
     pub client_id: ClientId,
     pub client_type: ClientType,
-    pub client_state: AnyClientState,
-    pub consensus_state: AnyConsensusState,
+    pub client_state: C::ClientState,
+    pub consensus_state: C::ConsensusState,
     pub processed_time: Timestamp,
     pub processed_height: Height,
 }
 
-pub fn process(
-    ctx: &dyn ReaderContext,
-    msg: MsgCreateAnyClient,
-) -> HandlerResult<ClientResult, Error> {
+pub fn process<G, Ctx>(
+    ctx: &Ctx,
+    msg: MsgCreateAnyClient<G::ClientDef>,
+) -> HandlerResult<ClientResult<Ctx>, Error>
+where
+    G: GlobalDefs,
+    Ctx: ReaderContext<ClientTypes = <G as GlobalDefs>::ClientDef> + Eq + Debug + Clone,
+{
     let mut output = HandlerOutput::builder();
 
     // Construct this client's identifier

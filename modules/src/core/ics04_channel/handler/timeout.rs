@@ -1,4 +1,8 @@
 use crate::clients::host_functions::HostFunctionsProvider;
+use crate::clients::GlobalDefs;
+use crate::core::ics02_client::client_consensus::ConsensusState;
+use crate::core::ics02_client::client_type::ClientTypes;
+use crate::core::ics02_client::context::ClientReader;
 use crate::core::ics04_channel::channel::State;
 use crate::core::ics04_channel::channel::{ChannelEnd, Counterparty, Order};
 use crate::core::ics04_channel::error::Error;
@@ -24,10 +28,11 @@ pub struct TimeoutPacketResult {
     pub channel: Option<ChannelEnd>,
 }
 
-pub fn process<HostFunctions: HostFunctionsProvider>(
-    ctx: &dyn ReaderContext,
-    msg: &MsgTimeout,
-) -> HandlerResult<PacketResult, Error> {
+pub fn process<G, Ctx>(ctx: &Ctx, msg: &MsgTimeout) -> HandlerResult<PacketResult, Error>
+where
+    G: GlobalDefs,
+    Ctx: ReaderContext<ClientTypes = <G as GlobalDefs>::ClientDef>,
+{
     let mut output = HandlerOutput::builder();
 
     let packet = &msg.packet;
@@ -105,7 +110,7 @@ pub fn process<HostFunctions: HostFunctionsProvider>(
                 msg.next_sequence_recv,
             ));
         }
-        verify_next_sequence_recv::<HostFunctions>(
+        verify_next_sequence_recv::<G, Ctx>(
             ctx,
             msg.proofs.height(),
             &connection_end,
@@ -122,7 +127,7 @@ pub fn process<HostFunctions: HostFunctionsProvider>(
             channel: Some(source_channel_end),
         })
     } else {
-        verify_packet_receipt_absence::<HostFunctions>(
+        verify_packet_receipt_absence::<G, Ctx>(
             ctx,
             msg.proofs.height(),
             &connection_end,
@@ -306,7 +311,7 @@ mod tests {
         .collect();
 
         for test in tests {
-            let res = process::<Crypto>(&test.ctx, &test.msg);
+            let res = process::<Crypto, Ctx>(&test.ctx, &test.msg);
             // Additionally check the events and the output objects in the result.
             match res {
                 Ok(proto_output) => {

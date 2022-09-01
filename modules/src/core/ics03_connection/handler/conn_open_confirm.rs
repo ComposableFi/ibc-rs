@@ -1,6 +1,9 @@
 //! Protocol logic specific to processing ICS3 messages of type `MsgConnectionOpenConfirm`.
 
 use crate::clients::host_functions::HostFunctionsProvider;
+use crate::clients::GlobalDefs;
+use crate::core::ics02_client::client_type::ClientTypes;
+use crate::core::ics02_client::context::ClientReader;
 use crate::core::ics03_connection::connection::{ConnectionEnd, Counterparty, State};
 use crate::core::ics03_connection::error::Error;
 use crate::core::ics03_connection::events::Attributes;
@@ -12,8 +15,11 @@ use crate::events::IbcEvent;
 use crate::handler::{HandlerOutput, HandlerResult};
 use crate::prelude::*;
 
-pub(crate) fn process<HostFunctions: HostFunctionsProvider>(
-    ctx: &dyn ReaderContext,
+pub(crate) fn process<
+    G: GlobalDefs,
+    Ctx: ReaderContext<ClientTypes = <G as GlobalDefs>::ClientDef>,
+>(
+    ctx: &Ctx,
     msg: MsgConnectionOpenConfirm,
 ) -> HandlerResult<ConnectionResult, Error> {
     let mut output = HandlerOutput::builder();
@@ -41,7 +47,7 @@ pub(crate) fn process<HostFunctions: HostFunctionsProvider>(
     );
 
     // 2. Pass the details to the verification function.
-    verify_connection_proof::<HostFunctions>(
+    verify_connection_proof::<G, Ctx>(
         ctx,
         msg.proofs.height(),
         &conn_end,

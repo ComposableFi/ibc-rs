@@ -8,7 +8,6 @@ use tendermint_proto::Protobuf;
 use crate::clients::ics07_tendermint::header::{decode_header, Header as TendermintHeader};
 #[cfg(any(test, feature = "ics11_beefy"))]
 use crate::clients::ics11_beefy::header::{decode_header as decode_beefy_header, BeefyHeader};
-// use crate::clients::ics13_near::header::NearHeader;
 use crate::core::ics02_client::client_type::ClientType;
 use crate::core::ics02_client::error::Error;
 #[cfg(any(test, feature = "mocks"))]
@@ -29,6 +28,9 @@ pub trait Header: Clone + core::fmt::Debug + Send + Sync {
 
     /// Wrap into an `AnyHeader`
     fn wrap_any(self) -> AnyHeader;
+
+    /// The height of the header
+    fn height(&self) -> Height;
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
@@ -82,6 +84,10 @@ impl Header for AnyHeader {
 
     fn wrap_any(self) -> AnyHeader {
         self
+    }
+
+    fn height(&self) -> Height {
+        self.height()
     }
 }
 

@@ -14,6 +14,7 @@ use crate::clients::ics11_beefy::header::ParachainHeader;
 use crate::core::ics02_client::client_consensus::AnyConsensusState;
 use crate::core::ics02_client::client_type::ClientType;
 use crate::core::ics23_commitment::commitment::CommitmentRoot;
+use crate::timestamp::Timestamp;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct ConsensusState {
@@ -71,6 +72,10 @@ impl crate::core::ics02_client::client_consensus::ConsensusState for ConsensusSt
 
     fn wrap_any(self) -> AnyConsensusState {
         AnyConsensusState::Beefy(self)
+    }
+
+    fn timestamp(&self) -> Timestamp {
+        self.timestamp.into()
     }
 }
 

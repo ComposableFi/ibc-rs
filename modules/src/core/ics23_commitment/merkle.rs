@@ -73,10 +73,7 @@ impl<H> From<MerkleProof<H>> for RawMerkleProof {
     }
 }
 
-impl<H> MerkleProof<H>
-where
-    H: HostFunctionsProvider,
-{
+impl<H: HostFunctionsProvider> MerkleProof<H> {
     pub fn verify_membership(
         &self,
         specs: &ProofSpecs,

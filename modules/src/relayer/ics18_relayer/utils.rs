@@ -1,4 +1,5 @@
-use crate::core::ics02_client::header::AnyHeader;
+use crate::core::ics02_client::client_state::ClientState;
+use crate::core::ics02_client::header::{AnyHeader, Header};
 use crate::core::ics02_client::msgs::update_client::MsgUpdateAnyClient;
 use crate::core::ics02_client::msgs::ClientMsg;
 use crate::core::ics24_host::identifier::ClientId;
@@ -10,8 +11,8 @@ use crate::relayer::ics18_relayer::error::Error;
 pub fn build_client_update_datagram<Ctx>(
     dest: &Ctx,
     client_id: &ClientId,
-    src_header: AnyHeader,
-) -> Result<ClientMsg, Error>
+    src_header: Ctx::Header,
+) -> Result<ClientMsg<Ctx>, Error>
 where
     Ctx: Ics18Context,
 {

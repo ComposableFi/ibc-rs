@@ -79,6 +79,10 @@ impl crate::core::ics02_client::header::Header for Header {
     fn wrap_any(self) -> AnyHeader {
         AnyHeader::Tendermint(self)
     }
+
+    fn height(&self) -> Height {
+        self.height()
+    }
 }
 
 impl Protobuf<RawHeader> for Header {}

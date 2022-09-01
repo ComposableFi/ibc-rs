@@ -5,7 +5,10 @@ use core::any::Any;
 use core::fmt::Debug;
 use core::{fmt, str::FromStr};
 
+use crate::core::ics02_client::client_type::ClientTypes;
+use ibc_proto::google::protobuf::Any as ProtoAny;
 use serde::{Deserialize, Serialize};
+use tendermint_proto::Protobuf;
 
 use crate::core::ics02_client::context::{ClientKeeper, ClientReader};
 use crate::core::ics03_connection::context::{ConnectionKeeper, ConnectionReader};
@@ -21,19 +24,52 @@ use crate::events::ModuleEvent;
 use crate::handler::HandlerOutputBuilder;
 use crate::signer::Signer;
 
+type ConsensusStateOf<C> = <C as ClientTypes>::ConsensusState;
+type ClientStateOf<C> = <C as ClientTypes>::ClientState;
+type HeaderStateOf<C> = <C as ClientTypes>::Header;
+
 /// This trait captures all the functional dependencies of needed in light client implementations
-pub trait ReaderContext: ClientKeeper + ClientReader + ConnectionReader + ChannelReader {}
+pub trait ReaderContext:
+    ClientKeeper<
+        ConsensusState = ConsensusStateOf<Self::ClientTypes>,
+        ClientState = ClientStateOf<Self::ClientTypes>,
+        Header = HeaderStateOf<Self::ClientTypes>,
+    > + ClientReader<
+        ConsensusState = ConsensusStateOf<Self::ClientTypes>,
+        ClientState = ClientStateOf<Self::ClientTypes>,
+        Header = HeaderStateOf<Self::ClientTypes>,
+    > + ConnectionReader
+    + ChannelReader
+// ClientStateOf<G>: Protobuf<Any>,
+// Any: From<ClientStateOf<G>>,
+// ClientStateOf<G>: TryFrom<Any>,
+// <ClientStateOf<G> as TryFrom<Any>>::Error: Display,
+// ConsensusStateOf<G>: Protobuf<Any>,
+// Any: From<ConsensusStateOf<G>>,
+// ConsensusStateOf<G>: TryFrom<Any>,
+// <ConsensusStateOf<G> as TryFrom<Any>>::Error: Display,
+// ClientStateOf<Self::ClientTypes>: Protobuf<ProtoAny>,
+// ProtoAny: From<ClientStateOf<Self::ClientTypes>>,
+// ClientStateOf<Self::ClientTypes>: TryFrom<ProtoAny>,
+// <ClientStateOf<Self::ClientTypes> as TryFrom<ProtoAny>>::Error: fmt::Display,
+// ConsensusStateOf<Self::ClientTypes>: Protobuf<ProtoAny>,
+// ProtoAny: From<ConsensusStateOf<Self::ClientTypes>>,
+// ConsensusStateOf<Self::ClientTypes>: TryFrom<ProtoAny>,
+// <ConsensusStateOf<Self::ClientTypes> as TryFrom<ProtoAny>>::Error: fmt::Display,
+{
+    type ClientTypes: ClientTypes;
+}
 
 /// This trait captures all the functional dependencies (i.e., context) which the ICS26 module
 /// requires to be able to dispatch and process IBC messages. In other words, this is the
 /// representation of a chain from the perspective of the IBC module of that chain.
 pub trait Ics26Context:
-    ClientReader
-    + ClientKeeper
-    + ConnectionReader
-    + ConnectionKeeper
+    // ClientReader
+    // + ClientKeeper
+    // + ConnectionReader
+    ConnectionKeeper
     + ChannelKeeper
-    + ChannelReader
+    // + ChannelReader
     + PortReader
     + ReaderContext
 {

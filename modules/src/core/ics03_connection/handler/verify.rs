@@ -1,9 +1,12 @@
 //! ICS3 verification functions, common across all four handlers of ICS3.
 use crate::clients::host_functions::HostFunctionsProvider;
+use crate::clients::{ClientStateOf, ConsensusStateOf, GlobalDefs};
 use crate::core::ics02_client::client_consensus::ConsensusState;
 use crate::core::ics02_client::client_state::{AnyClientState, ClientState};
 #[cfg(feature = "ics11_beefy")]
 use crate::core::ics02_client::client_type::ClientType;
+use crate::core::ics02_client::client_type::ClientTypes;
+use crate::core::ics02_client::context::ClientReader;
 use crate::core::ics02_client::{client_def::AnyClient, client_def::ClientDef};
 use crate::core::ics03_connection::connection::ConnectionEnd;
 use crate::core::ics03_connection::error::Error;
@@ -15,8 +18,11 @@ use crate::Height;
 use alloc::format;
 #[cfg(feature = "ics11_beefy")]
 use codec::{Decode, Encode};
+use core::fmt::Display;
+use ibc_proto::google::protobuf::Any;
 #[cfg(feature = "ics11_beefy")]
 use sp_std::vec::Vec;
+use tendermint_proto::Protobuf;
 
 #[cfg(feature = "ics11_beefy")]
 /// Connection proof type, used in relayer
@@ -29,8 +35,11 @@ pub struct ConnectionProof {
 /// Verifies the authenticity and semantic correctness of a commitment `proof`. The commitment
 /// claims to prove that an object of type connection exists on the source chain (i.e., the chain
 /// which created this proof). This object must match the state of `expected_conn`.
-pub fn verify_connection_proof<HostFunctions: HostFunctionsProvider>(
-    ctx: &dyn ReaderContext,
+pub fn verify_connection_proof<
+    G: GlobalDefs,
+    Ctx: ReaderContext<ClientTypes = <G as GlobalDefs>::ClientDef>,
+>(
+    ctx: &Ctx,
     height: Height,
     connection_end: &ConnectionEnd,
     expected_conn: &ConnectionEnd,
@@ -59,7 +68,7 @@ pub fn verify_connection_proof<HostFunctions: HostFunctionsProvider>(
         .connection_id()
         .ok_or_else(Error::invalid_counterparty)?;
 
-    let client_def = AnyClient::<HostFunctions>::from_client_type(client_state.client_type());
+    let client_def = <G as GlobalDefs>::ClientDef::from_client_type(client_state.client_type());
 
     // Verify the proof for the connection state against the expected connection end.
     client_def
@@ -84,14 +93,20 @@ pub fn verify_connection_proof<HostFunctions: HostFunctionsProvider>(
 /// complete verification: that the client state the counterparty stores is valid (i.e., not frozen,
 /// at the same revision as the current chain, with matching chain identifiers, etc) and that the
 /// `proof` is correct.
-pub fn verify_client_proof<HostFunctions: HostFunctionsProvider>(
-    ctx: &dyn ReaderContext,
+pub fn verify_client_proof<G: GlobalDefs, Ctx: ReaderContext<ClientTypes = G::ClientDef>>(
+    ctx: &Ctx,
     height: Height,
     connection_end: &ConnectionEnd,
-    expected_client_state: AnyClientState,
+    expected_client_state: Ctx::ClientState,
     proof_height: Height,
     proof: &CommitmentProofBytes,
-) -> Result<(), Error> {
+) -> Result<(), Error>
+where
+    ClientStateOf<G>: Protobuf<Any>,
+    Any: From<ClientStateOf<G>>,
+    ClientStateOf<G>: TryFrom<Any>,
+    <ClientStateOf<G> as TryFrom<Any>>::Error: Display,
+{
     // Fetch the local client state (IBC client running on the host chain).
     let client_state = ctx
         .client_state(connection_end.client_id())
@@ -105,7 +120,7 @@ pub fn verify_client_proof<HostFunctions: HostFunctionsProvider>(
         .consensus_state(connection_end.client_id(), proof_height)
         .map_err(|e| Error::consensus_state_verification_failure(proof_height, e))?;
 
-    let client_def = AnyClient::<HostFunctions>::from_client_type(client_state.client_type());
+    let client_def = <G as GlobalDefs>::ClientDef::from_client_type(client_state.client_type());
 
     client_def
         .verify_client_full_state(
@@ -123,12 +138,18 @@ pub fn verify_client_proof<HostFunctions: HostFunctionsProvider>(
         })
 }
 
-pub fn verify_consensus_proof<HostFunctions: HostFunctionsProvider>(
-    ctx: &dyn ReaderContext,
+pub fn verify_consensus_proof<G: GlobalDefs, Ctx: ReaderContext<ClientTypes = G::ClientDef>>(
+    ctx: &Ctx,
     height: Height,
     connection_end: &ConnectionEnd,
     proof: &ConsensusProof,
-) -> Result<(), Error> {
+) -> Result<(), Error>
+where
+    ConsensusStateOf<G>: Protobuf<Any>,
+    Any: From<ConsensusStateOf<G>>,
+    ConsensusStateOf<G>: TryFrom<Any>,
+    <ConsensusStateOf<G> as TryFrom<Any>>::Error: Display,
+{
     // Fetch the client state (IBC client on the local chain).
     let client_state = ctx
         .client_state(connection_end.client_id())
@@ -142,7 +163,7 @@ pub fn verify_consensus_proof<HostFunctions: HostFunctionsProvider>(
         .consensus_state(connection_end.client_id(), height)
         .map_err(|e| Error::consensus_state_verification_failure(height, e))?;
 
-    let client = AnyClient::<HostFunctions>::from_client_type(client_state.client_type());
+    let client = <G as GlobalDefs>::ClientDef::from_client_type(client_state.client_type());
 
     let (consensus_proof, expected_consensus) = match ctx.host_client_type() {
         #[cfg(feature = "ics11_beefy")]
@@ -189,8 +210,8 @@ pub fn verify_consensus_proof<HostFunctions: HostFunctionsProvider>(
 
 /// Checks that `claimed_height` is within normal bounds, i.e., fresh enough so that the chain has
 /// not pruned it yet, but not newer than the current (actual) height of the local chain.
-pub fn check_client_consensus_height(
-    ctx: &dyn ReaderContext,
+pub fn check_client_consensus_height<Ctx: ReaderContext>(
+    ctx: &Ctx,
     claimed_height: Height,
 ) -> Result<(), Error> {
     if claimed_height > ctx.host_height() {

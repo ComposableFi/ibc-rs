@@ -1,8 +1,15 @@
 use crate::prelude::*;
+use core::fmt::{Debug, Display};
 
 use ibc_proto::google::protobuf::Any;
 
+use crate::core::ics02_client::client_type::ClientTypes;
+use crate::core::ics02_client::msgs::create_client::MsgCreateAnyClient;
+use crate::core::ics02_client::msgs::update_client::MsgUpdateAnyClient;
+use crate::core::ics02_client::msgs::upgrade_client::MsgUpgradeAnyClient;
 use crate::core::ics02_client::msgs::{create_client, update_client, upgrade_client, ClientMsg};
+use crate::core::ics03_connection::msgs::conn_open_ack::MsgConnectionOpenAck;
+use crate::core::ics03_connection::msgs::conn_open_try::MsgConnectionOpenTry;
 use crate::core::ics03_connection::msgs::{
     conn_open_ack, conn_open_confirm, conn_open_init, conn_open_try, ConnectionMsg,
 };
@@ -11,18 +18,49 @@ use crate::core::ics04_channel::msgs::{
     chan_open_init, chan_open_try, recv_packet, timeout, timeout_on_close, ChannelMsg, PacketMsg,
 };
 use crate::core::ics26_routing::error::Error;
+use derivative::Derivative;
+use ibc_proto::ibc::core::client::v1::{MsgCreateClient, MsgUpdateClient, MsgUpgradeClient};
+use ibc_proto::ibc::core::connection;
 use tendermint_proto::Protobuf;
 
 /// Enumeration of all messages that the local ICS26 module is capable of routing.
 #[derive(Clone, Debug)]
-pub enum Ics26Envelope {
-    Ics2Msg(ClientMsg),
-    Ics3Msg(ConnectionMsg),
+pub enum Ics26Envelope<C>
+where
+    C: ClientTypes + Eq + Clone + Debug,
+{
+    Ics2Msg(ClientMsg<C>),
+    Ics3Msg(ConnectionMsg<C>),
     Ics4ChannelMsg(ChannelMsg),
     Ics4PacketMsg(PacketMsg),
 }
 
-impl TryFrom<Any> for Ics26Envelope {
+impl<C> TryFrom<Any> for Ics26Envelope<C>
+where
+    C: ClientTypes + Clone + Debug + PartialEq + Eq,
+    // C::ClientState: From<Any>,
+    // C::ConsensusState: From<Any>,
+    // C::Header: From<Any>,
+    Any: From<C::ClientState>,
+    Any: From<C::ConsensusState>,
+    Any: From<C::Header>,
+    MsgCreateAnyClient<C>: TryFrom<MsgCreateClient>,
+    <MsgCreateAnyClient<C> as TryFrom<MsgCreateClient>>::Error: Display,
+    MsgCreateAnyClient<C>: Protobuf<MsgCreateClient>,
+    MsgUpdateAnyClient<C>: TryFrom<MsgUpdateClient>,
+    <MsgUpdateAnyClient<C> as TryFrom<MsgUpdateClient>>::Error: Display,
+    MsgUpdateAnyClient<C>: Protobuf<MsgUpdateClient>,
+    MsgUpgradeAnyClient<C>: TryFrom<MsgUpgradeClient>,
+    <MsgUpgradeAnyClient<C> as TryFrom<MsgUpgradeClient>>::Error: Display,
+    MsgUpgradeAnyClient<C>: Protobuf<MsgUpgradeClient>,
+    MsgConnectionOpenTry<C>: TryFrom<connection::v1::MsgConnectionOpenAck>,
+    <MsgConnectionOpenTry<C> as TryFrom<connection::v1::MsgConnectionOpenAck>>::Error: Display,
+    MsgConnectionOpenTry<C>: Protobuf<connection::v1::MsgConnectionOpenAck>,
+    connection::v1::MsgConnectionOpenAck: From<MsgConnectionOpenTry<C>>,
+    MsgConnectionOpenAck<C>: TryFrom<connection::v1::MsgConnectionOpenAck>,
+    <MsgConnectionOpenAck<C> as TryFrom<connection::v1::MsgConnectionOpenAck>>::Error: Display,
+    MsgConnectionOpenAck<C>: Protobuf<connection::v1::MsgConnectionOpenAck>,
+{
     type Error = Error;
 
     fn try_from(any_msg: Any) -> Result<Self, Self::Error> {
@@ -30,18 +68,19 @@ impl TryFrom<Any> for Ics26Envelope {
             // ICS2 messages
             create_client::TYPE_URL => {
                 // Pop out the message and then wrap it in the corresponding type.
-                let domain_msg = create_client::MsgCreateAnyClient::decode_vec(&any_msg.value)
+                let domain_msg = MsgCreateAnyClient::<C>::decode_vec(&any_msg.value)
                     .map_err(Error::malformed_message_bytes)?;
                 Ok(Ics26Envelope::Ics2Msg(ClientMsg::CreateClient(domain_msg)))
             }
             update_client::TYPE_URL => {
-                let domain_msg = update_client::MsgUpdateAnyClient::decode_vec(&any_msg.value)
+                let domain_msg = MsgUpdateAnyClient::<C>::decode_vec(&any_msg.value)
                     .map_err(Error::malformed_message_bytes)?;
                 Ok(Ics26Envelope::Ics2Msg(ClientMsg::UpdateClient(domain_msg)))
             }
             upgrade_client::TYPE_URL => {
-                let domain_msg = upgrade_client::MsgUpgradeAnyClient::decode_vec(&any_msg.value)
-                    .map_err(Error::malformed_message_bytes)?;
+                let domain_msg =
+                    upgrade_client::MsgUpgradeAnyClient::<C>::decode_vec(&any_msg.value)
+                        .map_err(Error::malformed_message_bytes)?;
                 Ok(Ics26Envelope::Ics2Msg(ClientMsg::UpgradeClient(domain_msg)))
             }
 
@@ -54,14 +93,14 @@ impl TryFrom<Any> for Ics26Envelope {
                 )))
             }
             conn_open_try::TYPE_URL => {
-                let domain_msg = conn_open_try::MsgConnectionOpenTry::decode_vec(&any_msg.value)
+                let domain_msg = MsgConnectionOpenTry::<C>::decode_vec(&any_msg.value)
                     .map_err(Error::malformed_message_bytes)?;
                 Ok(Ics26Envelope::Ics3Msg(ConnectionMsg::ConnectionOpenTry(
                     Box::new(domain_msg),
                 )))
             }
             conn_open_ack::TYPE_URL => {
-                let domain_msg = conn_open_ack::MsgConnectionOpenAck::decode_vec(&any_msg.value)
+                let domain_msg = MsgConnectionOpenAck::<C>::decode_vec(&any_msg.value)
                     .map_err(Error::malformed_message_bytes)?;
                 Ok(Ics26Envelope::Ics3Msg(ConnectionMsg::ConnectionOpenAck(
                     Box::new(domain_msg),

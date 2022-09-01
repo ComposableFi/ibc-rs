@@ -4,25 +4,40 @@ use beefy_primitives::mmr::BeefyNextAuthoritySet;
 use codec::{Decode, Encode};
 use core::convert::TryFrom;
 use core::fmt;
+use core::fmt::{Debug, Display, Formatter};
 use core::str::FromStr;
 use core::time::Duration;
 use serde::{Deserialize, Serialize};
 use sp_core::H256;
 use sp_runtime::SaturatedConversion;
+use std::marker::PhantomData;
 use tendermint_proto::Protobuf;
 
+use crate::clients::host_functions::HostFunctionsProvider;
+use crate::clients::ics11_beefy::client_def::BeefyClient;
+use crate::clients::ics11_beefy::consensus_state::ConsensusState;
+use crate::clients::{ClientStateOf, ConsensusStateOf, GlobalDefs};
+use crate::core::ics02_client::error::Error as Ics02Error;
 use ibc_proto::ibc::lightclients::beefy::v1::{BeefyAuthoritySet, ClientState as RawClientState};
 
 use crate::clients::ics11_beefy::error::Error;
 use crate::clients::ics11_beefy::header::BeefyHeader;
 use crate::core::ics02_client::client_state::AnyClientState;
-use crate::core::ics02_client::client_type::ClientType;
+use crate::core::ics02_client::client_type::{ClientType, ClientTypes};
 use crate::core::ics24_host::identifier::ChainId;
 use crate::timestamp::Timestamp;
 use crate::Height;
+use derivative::Derivative;
+use ibc_proto::google::protobuf::Any;
 
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct ClientState {
+#[derive(Derivative)]
+#[derivative(
+    PartialEq(bound = ""),
+    Eq(bound = ""),
+    Clone(bound = ""),
+    Debug(bound = "")
+)]
+pub struct ClientState<G> {
     /// The chain id
     pub chain_id: ChainId,
     /// Relay chain
@@ -44,11 +59,12 @@ pub struct ClientState {
     pub authority: BeefyNextAuthoritySet<H256>,
     /// authorities for the next round
     pub next_authority_set: BeefyNextAuthoritySet<H256>,
+    pub _phantom: PhantomData<G>,
 }
 
-impl Protobuf<RawClientState> for ClientState {}
+impl<G> Protobuf<RawClientState> for ClientState<G> {}
 
-impl ClientState {
+impl<G> ClientState<G> {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         relay_chain: RelayChain,
@@ -59,7 +75,7 @@ impl ClientState {
         latest_beefy_height: u32,
         authority_set: BeefyNextAuthoritySet<H256>,
         next_authority_set: BeefyNextAuthoritySet<H256>,
-    ) -> Result<ClientState, Error> {
+    ) -> Result<ClientState<G>, Error> {
         if beefy_activation_block > latest_beefy_height {
             return Err(Error::validation(
                 "ClientState beefy activation block cannot be greater than latest_beefy_height"
@@ -86,6 +102,7 @@ impl ClientState {
             relay_chain,
             latest_para_height,
             para_id,
+            _phantom: Default::default(),
         })
     }
 
@@ -187,37 +204,33 @@ impl ClientState {
             _ => Ok(()),
         }
     }
-
-    /// Check if the state is expired when `elapsed` time has passed since the latest consensus
-    /// state timestamp
-    pub fn expired(&self, elapsed: Duration) -> bool {
-        elapsed > self.relay_chain.trusting_period()
-    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct UpgradeOptions;
 
-impl crate::core::ics02_client::client_state::ClientState for ClientState {
-    type UpgradeOptions = UpgradeOptions;
-
-    fn chain_id(&self) -> ChainId {
-        self.chain_id.clone()
-    }
-
-    fn client_type(&self) -> ClientType {
-        ClientType::Beefy
-    }
-
-    fn latest_height(&self) -> Height {
+impl<G> ClientState<G> {
+    pub fn latest_height(&self) -> Height {
         Height::new(self.para_id.into(), self.latest_para_height.into())
     }
 
-    fn frozen_height(&self) -> Option<Height> {
+    pub fn chain_id(&self) -> ChainId {
+        self.chain_id.clone()
+    }
+
+    pub fn client_type(&self) -> ClientType {
+        ClientType::Beefy
+    }
+
+    pub fn client_def(&self) -> BeefyClient<G> {
+        todo!()
+    }
+
+    pub fn frozen_height(&self) -> Option<Height> {
         self.frozen_height
     }
 
-    fn upgrade(
+    pub fn upgrade(
         mut self,
         upgrade_height: Height,
         _upgrade_options: UpgradeOptions,
@@ -230,12 +243,68 @@ impl crate::core::ics02_client::client_state::ClientState for ClientState {
         self
     }
 
-    fn wrap_any(self) -> AnyClientState {
-        AnyClientState::Beefy(self)
+    /// Check if the state is expired when `elapsed` time has passed since the latest consensus
+    /// state timestamp
+    pub fn expired(&self, elapsed: Duration) -> bool {
+        elapsed > self.relay_chain.trusting_period()
     }
 }
 
-impl TryFrom<RawClientState> for ClientState {
+impl<G> crate::core::ics02_client::client_state::ClientState for ClientState<G>
+where
+    G: GlobalDefs,
+
+    ConsensusState: TryFrom<ConsensusStateOf<G>, Error = Ics02Error>,
+    ConsensusStateOf<G>: From<ConsensusState>,
+
+    ConsensusStateOf<G>: Protobuf<Any>,
+    ConsensusStateOf<G>: TryFrom<Any>,
+    <ConsensusStateOf<G> as TryFrom<Any>>::Error: Display,
+    Any: From<ConsensusStateOf<G>>,
+
+    ClientStateOf<G>: Protobuf<Any>,
+    ClientStateOf<G>: TryFrom<Any>,
+    <ClientStateOf<G> as TryFrom<Any>>::Error: Display,
+    Any: From<ClientStateOf<G>>,
+{
+    type UpgradeOptions = UpgradeOptions;
+    type ClientDef = BeefyClient<G>;
+
+    fn chain_id(&self) -> ChainId {
+        self.chain_id()
+    }
+
+    fn client_type(&self) -> ClientType {
+        self.client_type()
+    }
+
+    fn client_def(&self) -> Self::ClientDef {
+        self.client_def()
+    }
+
+    fn latest_height(&self) -> Height {
+        self.latest_height()
+    }
+
+    fn frozen_height(&self) -> Option<Height> {
+        self.frozen_height()
+    }
+
+    fn upgrade(
+        mut self,
+        upgrade_height: Height,
+        upgrade_options: UpgradeOptions,
+        chain_id: ChainId,
+    ) -> Self {
+        self.upgrade(upgrade_height, upgrade_options, chain_id)
+    }
+
+    fn expired(&self, elapsed: Duration) -> bool {
+        self.expired(elapsed)
+    }
+}
+
+impl<G> TryFrom<RawClientState> for ClientState<G> {
     type Error = Error;
 
     fn try_from(raw: RawClientState) -> Result<Self, Self::Error> {
@@ -285,12 +354,13 @@ impl TryFrom<RawClientState> for ClientState {
             relay_chain,
             latest_para_height: raw.latest_para_height,
             para_id: raw.para_id,
+            _phantom: Default::default(),
         })
     }
 }
 
-impl From<ClientState> for RawClientState {
-    fn from(client_state: ClientState) -> Self {
+impl<G> From<ClientState<G>> for RawClientState {
+    fn from(client_state: ClientState<G>) -> Self {
         RawClientState {
             mmr_root_hash: client_state.mmr_root_hash.encode(),
             latest_beefy_height: client_state.latest_beefy_height,
@@ -329,8 +399,8 @@ impl Default for RelayChain {
     }
 }
 
-impl fmt::Display for RelayChain {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl Display for RelayChain {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.as_str())
     }
 }

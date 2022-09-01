@@ -1,14 +1,18 @@
 //! Definition of domain type msg `MsgUpgradeAnyClient`.
 
 use crate::prelude::*;
+use core::fmt::Display;
 
 use core::str::FromStr;
+use ibc_proto::google::protobuf::Any;
 use tendermint_proto::Protobuf;
 
-use ibc_proto::ibc::core::client::v1::MsgUpgradeClient as RawMsgUpgradeClient;
+use crate::core::ics02_client;
+use ibc_proto::ibc::core::client::v1::{MsgUpgradeClient as RawMsgUpgradeClient, MsgUpgradeClient};
 
 use crate::core::ics02_client::client_consensus::AnyConsensusState;
 use crate::core::ics02_client::client_state::AnyClientState;
+use crate::core::ics02_client::client_type::ClientTypes;
 use crate::core::ics02_client::error::Error;
 use crate::core::ics24_host::identifier::ClientId;
 use crate::signer::Signer;
@@ -18,19 +22,19 @@ pub(crate) const TYPE_URL: &str = "/ibc.core.client.v1.MsgUpgradeClient";
 
 /// A type of message that triggers the upgrade of an on-chain (IBC) client.
 #[derive(Clone, Debug, PartialEq)]
-pub struct MsgUpgradeAnyClient {
+pub struct MsgUpgradeAnyClient<C: ClientTypes> {
     pub client_id: ClientId,
-    pub client_state: AnyClientState,
-    pub consensus_state: AnyConsensusState,
+    pub client_state: C::ClientState,
+    pub consensus_state: C::ConsensusState,
     pub proof_upgrade_client: Vec<u8>,
     pub proof_upgrade_consensus_state: Vec<u8>,
     pub signer: Signer,
 }
-impl MsgUpgradeAnyClient {
+impl<C: ClientTypes> MsgUpgradeAnyClient<C> {
     pub fn new(
         client_id: ClientId,
-        client_state: AnyClientState,
-        consensus_state: AnyConsensusState,
+        client_state: C::ClientState,
+        consensus_state: C::ConsensusState,
         proof_upgrade_client: Vec<u8>,
         proof_upgrade_consensus_state: Vec<u8>,
         signer: Signer,
@@ -46,7 +50,12 @@ impl MsgUpgradeAnyClient {
     }
 }
 
-impl Msg for MsgUpgradeAnyClient {
+impl<C> Msg for MsgUpgradeAnyClient<C>
+where
+    C: ClientTypes + Clone,
+    Any: From<C::ClientState>,
+    Any: From<C::ConsensusState>,
+{
     type ValidationError = crate::core::ics24_host::error::ValidationError;
     type Raw = RawMsgUpgradeClient;
 
@@ -59,10 +68,23 @@ impl Msg for MsgUpgradeAnyClient {
     }
 }
 
-impl Protobuf<RawMsgUpgradeClient> for MsgUpgradeAnyClient {}
+impl<C> Protobuf<RawMsgUpgradeClient> for MsgUpgradeAnyClient<C>
+where
+    C: ClientTypes + Clone,
+    Any: From<C::ClientState>,
+    Any: From<C::ConsensusState>,
+    MsgUpgradeAnyClient<C>: TryFrom<MsgUpgradeClient>,
+    <MsgUpgradeAnyClient<C> as TryFrom<MsgUpgradeClient>>::Error: Display,
+{
+}
 
-impl From<MsgUpgradeAnyClient> for RawMsgUpgradeClient {
-    fn from(dm_msg: MsgUpgradeAnyClient) -> RawMsgUpgradeClient {
+impl<C> From<MsgUpgradeAnyClient<C>> for RawMsgUpgradeClient
+where
+    C: ClientTypes,
+    Any: From<C::ClientState>,
+    Any: From<C::ConsensusState>,
+{
+    fn from(dm_msg: MsgUpgradeAnyClient<C>) -> RawMsgUpgradeClient {
         RawMsgUpgradeClient {
             client_id: dm_msg.client_id.to_string(),
             client_state: Some(dm_msg.client_state.into()),
@@ -74,7 +96,14 @@ impl From<MsgUpgradeAnyClient> for RawMsgUpgradeClient {
     }
 }
 
-impl TryFrom<RawMsgUpgradeClient> for MsgUpgradeAnyClient {
+impl<C> TryFrom<RawMsgUpgradeClient> for MsgUpgradeAnyClient<C>
+where
+    C: ClientTypes,
+    C::ClientState: TryFrom<Any>,
+    C::ConsensusState: TryFrom<Any>,
+    Error: From<<C::ClientState as TryFrom<Any>>::Error>,
+    Error: From<<C::ConsensusState as TryFrom<Any>>::Error>,
+{
     type Error = Error;
 
     fn try_from(proto_msg: RawMsgUpgradeClient) -> Result<Self, Self::Error> {
@@ -89,8 +118,8 @@ impl TryFrom<RawMsgUpgradeClient> for MsgUpgradeAnyClient {
         Ok(MsgUpgradeAnyClient {
             client_id: ClientId::from_str(&proto_msg.client_id)
                 .map_err(Error::invalid_client_identifier)?,
-            client_state: AnyClientState::try_from(raw_client_state)?,
-            consensus_state: AnyConsensusState::try_from(raw_consensus_state)?,
+            client_state: C::ClientState::try_from(raw_client_state)?,
+            consensus_state: C::ConsensusState::try_from(raw_consensus_state)?,
             proof_upgrade_client: proto_msg.proof_upgrade_client,
             proof_upgrade_consensus_state: proto_msg.proof_upgrade_consensus_state,
             signer: Signer::from_str(proto_msg.signer.as_str()).map_err(Error::signer)?,

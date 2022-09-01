@@ -1,8 +1,13 @@
 use crate::clients::host_functions::HostFunctionsProvider;
 use crate::prelude::*;
+use core::fmt::{Debug, Display};
+use tendermint_proto::Protobuf;
 
 use ibc_proto::google::protobuf::Any;
 
+use crate::clients::{ClientStateOf, ConsensusStateOf, GlobalDefs};
+use crate::core::ics02_client::client_def::ClientDef;
+use crate::core::ics02_client::client_type::ClientTypes;
 use crate::core::ics02_client::handler::dispatch as ics2_msg_dispatcher;
 use crate::core::ics03_connection::handler::dispatch as ics3_msg_dispatcher;
 use crate::core::ics04_channel::handler::{
@@ -31,23 +36,39 @@ pub struct MsgReceipt {
 /// Mimics the DeliverTx ABCI interface, but for a single message and at a slightly lower level.
 /// No need for authentication info or signature checks here.
 /// Returns a vector of all events that got generated as a byproduct of processing `message`.
-pub fn deliver<Ctx, HostFunctions>(ctx: &mut Ctx, message: Any) -> Result<MsgReceipt, Error>
+pub fn deliver<Ctx, G: GlobalDefs>(ctx: &mut Ctx, message: Any) -> Result<MsgReceipt, Error>
 where
-    Ctx: Ics26Context,
-    HostFunctions: HostFunctionsProvider,
+    Ctx: Ics26Context<ClientTypes = <G as GlobalDefs>::ClientDef>,
+    Ics26Envelope<G::ClientDef>: From<Any>,
+    Error: From<<Ics26Envelope<G::ClientDef> as TryFrom<Any>>::Error>,
+    ClientStateOf<G>: Protobuf<Any>,
+    Any: From<ClientStateOf<G>>,
+    ClientStateOf<G>: TryFrom<Any>,
+    <ClientStateOf<G> as TryFrom<Any>>::Error: Display,
+    ConsensusStateOf<G>: Protobuf<Any>,
+    Any: From<ConsensusStateOf<G>>,
+    ConsensusStateOf<G>: TryFrom<Any>,
+    <ConsensusStateOf<G> as TryFrom<Any>>::Error: Display,
+    ConsensusStateOf<G>: From<<Ctx as ClientTypes>::ConsensusState>,
+    Ctx::ConsensusState: From<ConsensusStateOf<G>>,
 {
     // Decode the proto message into a domain message, creating an ICS26 envelope.
-    let envelope = decode(message)?;
+    let envelope = decode::<G::ClientDef>(message)?;
 
     // Process the envelope, and accumulate any events that were generated.
-    let HandlerOutput { log, events, .. } = dispatch::<_, HostFunctions>(ctx, envelope)?;
+    let HandlerOutput { log, events, .. } = dispatch::<_, G>(ctx, envelope)?;
 
     Ok(MsgReceipt { events, log })
 }
 
 /// Attempts to convert a message into a [Ics26Envelope] message
-pub fn decode(message: Any) -> Result<Ics26Envelope, Error> {
-    message.try_into()
+pub fn decode<C>(message: Any) -> Result<Ics26Envelope<C>, Error>
+where
+    C: ClientTypes + Clone + Debug + PartialEq + Eq,
+    Ics26Envelope<C>: TryFrom<Any>,
+    Error: From<<Ics26Envelope<C> as TryFrom<Any>>::Error>,
+{
+    message.try_into().map_err(Into::into)
 }
 
 /// Top-level ICS dispatch function. Routes incoming IBC messages to their corresponding module.
@@ -55,18 +76,28 @@ pub fn decode(message: Any) -> Result<Ics26Envelope, Error> {
 /// and events produced after processing the input `msg`.
 /// If this method returns an error, the runtime is expected to rollback all state modifications to
 /// the `Ctx` caused by all messages from the transaction that this `msg` is a part of.
-pub fn dispatch<Ctx, HostFunctions>(
+pub fn dispatch<Ctx, G: GlobalDefs>(
     ctx: &mut Ctx,
-    msg: Ics26Envelope,
+    msg: Ics26Envelope<G::ClientDef>,
 ) -> Result<HandlerOutput<()>, Error>
 where
-    Ctx: Ics26Context,
-    HostFunctions: HostFunctionsProvider,
+    Ctx: Ics26Context<ClientTypes = <G as GlobalDefs>::ClientDef>,
+    G::ClientDef: Debug + Eq,
+    ClientStateOf<G>: Protobuf<Any>,
+    Any: From<ClientStateOf<G>>,
+    ClientStateOf<G>: TryFrom<Any>,
+    <ClientStateOf<G> as TryFrom<Any>>::Error: Display,
+    ConsensusStateOf<G>: Protobuf<Any>,
+    Any: From<ConsensusStateOf<G>>,
+    ConsensusStateOf<G>: TryFrom<Any>,
+    <ConsensusStateOf<G> as TryFrom<Any>>::Error: Display,
+    ConsensusStateOf<G>: From<<Ctx as ClientTypes>::ConsensusState>,
+    Ctx::ConsensusState: From<ConsensusStateOf<G>>,
 {
     let output = match msg {
         Ics2Msg(msg) => {
             let handler_output =
-                ics2_msg_dispatcher::<_, HostFunctions>(ctx, msg).map_err(Error::ics02_client)?;
+                ics2_msg_dispatcher::<_, G>(ctx, msg).map_err(Error::ics02_client)?;
 
             // Apply the result to the context (host chain store).
             ctx.store_client_result(handler_output.result)
@@ -79,8 +110,8 @@ where
         }
 
         Ics3Msg(msg) => {
-            let handler_output = ics3_msg_dispatcher::<_, HostFunctions>(ctx, msg)
-                .map_err(Error::ics03_connection)?;
+            let handler_output =
+                ics3_msg_dispatcher::<_, G>(ctx, msg).map_err(Error::ics03_connection)?;
 
             // Apply any results to the host chain store.
             ctx.store_connection_result(handler_output.result)
@@ -95,7 +126,7 @@ where
         Ics4ChannelMsg(msg) => {
             let module_id = ics4_validate(ctx, &msg).map_err(Error::ics04_channel)?;
             let (mut handler_builder, channel_result) =
-                ics4_msg_dispatcher::<_, HostFunctions>(ctx, &msg).map_err(Error::ics04_channel)?;
+                ics4_msg_dispatcher::<_, G>(ctx, &msg).map_err(Error::ics04_channel)?;
 
             let mut module_output = ModuleOutputBuilder::new();
             let cb_result =
@@ -113,8 +144,7 @@ where
         Ics4PacketMsg(msg) => {
             let module_id = get_module_for_packet_msg(ctx, &msg).map_err(Error::ics04_channel)?;
             let (mut handler_builder, packet_result) =
-                ics4_packet_msg_dispatcher::<_, HostFunctions>(ctx, &msg)
-                    .map_err(Error::ics04_channel)?;
+                ics4_packet_msg_dispatcher::<_, G>(ctx, &msg).map_err(Error::ics04_channel)?;
 
             if matches!(packet_result, PacketResult::Recv(RecvPacketResult::NoOp)) {
                 return Ok(handler_builder.with_result(()));

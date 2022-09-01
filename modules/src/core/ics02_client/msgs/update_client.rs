@@ -1,10 +1,13 @@
 //! Definition of domain type message `MsgUpdateAnyClient`.
 
 use crate::prelude::*;
+use core::fmt::Display;
 
+use ibc_proto::google::protobuf::Any;
 use tendermint_proto::Protobuf;
 
-use ibc_proto::ibc::core::client::v1::MsgUpdateClient as RawMsgUpdateClient;
+use crate::core::ics02_client::client_type::ClientTypes;
+use ibc_proto::ibc::core::client::v1::{MsgUpdateClient as RawMsgUpdateClient, MsgUpdateClient};
 
 use crate::core::ics02_client::error::Error;
 use crate::core::ics02_client::header::AnyHeader;
@@ -17,14 +20,17 @@ pub const TYPE_URL: &str = "/ibc.core.client.v1.MsgUpdateClient";
 
 /// A type of message that triggers the update of an on-chain (IBC) client with new headers.
 #[derive(Clone, Debug, PartialEq)] // TODO: Add Eq bound when possible
-pub struct MsgUpdateAnyClient {
+pub struct MsgUpdateAnyClient<C: ClientTypes> {
     pub client_id: ClientId,
-    pub header: AnyHeader,
+    pub header: C::Header,
     pub signer: Signer,
 }
 
-impl MsgUpdateAnyClient {
-    pub fn new(client_id: ClientId, header: AnyHeader, signer: Signer) -> Self {
+impl<C> MsgUpdateAnyClient<C>
+where
+    C: ClientTypes,
+{
+    pub fn new(client_id: ClientId, header: C::Header, signer: Signer) -> Self {
         MsgUpdateAnyClient {
             client_id,
             header,
@@ -33,7 +39,11 @@ impl MsgUpdateAnyClient {
     }
 }
 
-impl Msg for MsgUpdateAnyClient {
+impl<C> Msg for MsgUpdateAnyClient<C>
+where
+    C: ClientTypes + Clone,
+    Any: From<C::Header>,
+{
     type ValidationError = ValidationError;
     type Raw = RawMsgUpdateClient;
 
@@ -46,9 +56,21 @@ impl Msg for MsgUpdateAnyClient {
     }
 }
 
-impl Protobuf<RawMsgUpdateClient> for MsgUpdateAnyClient {}
+impl<C> Protobuf<RawMsgUpdateClient> for MsgUpdateAnyClient<C>
+where
+    C: ClientTypes + Clone,
+    Any: From<C::Header>,
+    MsgUpdateAnyClient<C>: TryFrom<MsgUpdateClient>,
+    <MsgUpdateAnyClient<C> as TryFrom<MsgUpdateClient>>::Error: Display,
+{
+}
 
-impl TryFrom<RawMsgUpdateClient> for MsgUpdateAnyClient {
+impl<C> TryFrom<RawMsgUpdateClient> for MsgUpdateAnyClient<C>
+where
+    C: ClientTypes,
+    C::Header: TryFrom<Any>,
+    Error: From<<C::Header as TryFrom<Any>>::Error>,
+{
     type Error = Error;
 
     fn try_from(raw: RawMsgUpdateClient) -> Result<Self, Self::Error> {
@@ -59,14 +81,18 @@ impl TryFrom<RawMsgUpdateClient> for MsgUpdateAnyClient {
                 .client_id
                 .parse()
                 .map_err(Error::invalid_msg_update_client_id)?,
-            header: AnyHeader::try_from(raw_header)?,
+            header: C::Header::try_from(raw_header)?,
             signer: raw.signer.parse().map_err(Error::signer)?,
         })
     }
 }
 
-impl From<MsgUpdateAnyClient> for RawMsgUpdateClient {
-    fn from(ics_msg: MsgUpdateAnyClient) -> Self {
+impl<C> From<MsgUpdateAnyClient<C>> for RawMsgUpdateClient
+where
+    C: ClientTypes,
+    Any: From<C::Header>,
+{
+    fn from(ics_msg: MsgUpdateAnyClient<C>) -> Self {
         RawMsgUpdateClient {
             client_id: ics_msg.client_id.to_string(),
             header: Some(ics_msg.header.into()),

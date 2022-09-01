@@ -1,5 +1,8 @@
 //! This module implements the processing logic for ICS2 (client abstractions and functions) msgs.
 use crate::clients::host_functions::HostFunctionsProvider;
+use crate::clients::{ClientStateOf, ConsensusStateOf, GlobalDefs};
+use crate::core::ics02_client::client_def::ClientDef;
+use crate::core::ics02_client::client_type::ClientTypes;
 use crate::core::ics02_client::error::Error;
 use crate::core::ics02_client::msgs::ClientMsg;
 use crate::core::ics26_routing::context::ReaderContext;
@@ -11,25 +14,29 @@ pub mod update_client;
 pub mod upgrade_client;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub enum ClientResult {
-    Create(create_client::Result),
-    Update(update_client::Result),
-    Upgrade(upgrade_client::Result),
+pub enum ClientResult<C>
+where
+    C: ClientTypes + Clone + Debug + PartialEq + Eq,
+{
+    Create(create_client::Result<C>),
+    Update(update_client::Result<C>),
+    Upgrade(upgrade_client::Result<C>),
 }
 
 /// General entry point for processing any message related to ICS2 (client functions) protocols.
-pub fn dispatch<Ctx, HostFunctions>(
+pub fn dispatch<Ctx, G: GlobalDefs>(
     ctx: &Ctx,
-    msg: ClientMsg,
-) -> Result<HandlerOutput<ClientResult>, Error>
+    msg: ClientMsg<G::ClientDef>,
+) -> Result<HandlerOutput<ClientResult<Ctx>>, Error>
 where
-    Ctx: ReaderContext,
-    HostFunctions: HostFunctionsProvider,
+    Ctx: ReaderContext<ClientTypes = G::ClientDef>,
+    ConsensusStateOf<G>: From<<Ctx as ClientTypes>::ConsensusState>,
+    Ctx::ConsensusState: From<ConsensusStateOf<G>>,
 {
     match msg {
-        ClientMsg::CreateClient(msg) => create_client::process(ctx, msg),
-        ClientMsg::UpdateClient(msg) => update_client::process::<HostFunctions>(ctx, msg),
-        ClientMsg::UpgradeClient(msg) => upgrade_client::process::<HostFunctions>(ctx, msg),
+        ClientMsg::CreateClient(msg) => create_client::process::<G, _>(ctx, msg),
+        ClientMsg::UpdateClient(msg) => update_client::process::<G, _>(ctx, msg),
+        ClientMsg::UpgradeClient(msg) => upgrade_client::process::<G, _>(ctx, msg),
         _ => {
             unimplemented!()
         }

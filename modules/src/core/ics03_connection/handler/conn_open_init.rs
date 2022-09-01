@@ -1,5 +1,7 @@
 //! Protocol logic specific to ICS3 messages of type `MsgConnectionOpenInit`.
 
+use crate::core::ics02_client::client_type::ClientTypes;
+use crate::core::ics02_client::context::ClientReader;
 use crate::core::ics03_connection::connection::{ConnectionEnd, State};
 use crate::core::ics03_connection::error::Error;
 use crate::core::ics03_connection::events::Attributes;
@@ -11,8 +13,8 @@ use crate::events::IbcEvent;
 use crate::handler::{HandlerOutput, HandlerResult};
 use crate::prelude::*;
 
-pub(crate) fn process(
-    ctx: &dyn ReaderContext,
+pub(crate) fn process<Ctx: ReaderContext>(
+    ctx: &Ctx,
     msg: MsgConnectionOpenInit,
 ) -> HandlerResult<ConnectionResult, Error> {
     let mut output = HandlerOutput::builder();

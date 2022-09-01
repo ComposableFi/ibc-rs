@@ -1,15 +1,20 @@
+use core::fmt::{Debug, Display};
 use core::marker::{Send, Sync};
 use core::time::Duration;
 
+use derivative::Derivative;
 use ibc_proto::google::protobuf::Any;
 use serde::{Deserialize, Serialize};
 use tendermint_proto::Protobuf;
 
-use ibc_proto::ibc::core::client::v1::IdentifiedClientState;
-
+use crate::clients::host_functions::HostFunctionsProvider;
+use crate::clients::ics07_tendermint::client_def::TendermintClient;
 use crate::clients::ics07_tendermint::client_state;
+use crate::clients::ics11_beefy::client_def::BeefyClient;
 #[cfg(any(test, feature = "ics11_beefy"))]
 use crate::clients::ics11_beefy::client_state as beefy_client_state;
+use crate::clients::GlobalDefs;
+use crate::core::ics02_client::client_def::{AnyClient, AnyGlobalDef, ClientDef};
 use crate::core::ics02_client::client_type::ClientType;
 use crate::core::ics02_client::error::Error;
 use crate::core::ics02_client::trust_threshold::TrustThreshold;
@@ -19,14 +24,18 @@ use crate::core::ics24_host::identifier::{ChainId, ClientId};
 use crate::mock::client_state::MockClientState;
 use crate::prelude::*;
 use crate::Height;
+use ibc_proto::ibc::core::client::v1::IdentifiedClientState;
 
 pub const TENDERMINT_CLIENT_STATE_TYPE_URL: &str = "/ibc.lightclients.tendermint.v1.ClientState";
 pub const BEEFY_CLIENT_STATE_TYPE_URL: &str = "/ibc.lightclients.beefy.v1.ClientState";
 pub const MOCK_CLIENT_STATE_TYPE_URL: &str = "/ibc.mock.ClientState";
 
-pub trait ClientState: Clone + core::fmt::Debug + Send + Sync {
+pub trait ClientState: Clone + Debug + Send + Sync {
     /// Client-specific options for upgrading the client
     type UpgradeOptions;
+
+    /// Client definition type (used for verification)
+    type ClientDef: ClientDef;
 
     /// Return the chain identifier which this client is serving (i.e., the client is verifying
     /// consensus states from this chain).
@@ -34,6 +43,9 @@ pub trait ClientState: Clone + core::fmt::Debug + Send + Sync {
 
     /// Type of client associated with this state (eg. Tendermint)
     fn client_type(&self) -> ClientType;
+
+    /// Returns a client definition for this client state
+    fn client_def(&self) -> Self::ClientDef;
 
     /// Latest height of consensus state
     fn latest_height(&self) -> Height;
@@ -56,8 +68,8 @@ pub trait ClientState: Clone + core::fmt::Debug + Send + Sync {
         chain_id: ChainId,
     ) -> Self;
 
-    /// Wrap into an `AnyClientState`
-    fn wrap_any(self) -> AnyClientState;
+    /// Helper function to verify the upgrade client procedure.
+    fn expired(&self, elapsed: Duration) -> bool;
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -101,21 +113,27 @@ impl AnyUpgradeOptions {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Derivative, Serialize, Deserialize)]
+#[derivative(
+    Clone(bound = ""),
+    Debug(bound = ""),
+    PartialEq(bound = ""),
+    Eq(bound = "")
+)]
 #[serde(tag = "type")]
-pub enum AnyClientState {
-    Tendermint(client_state::ClientState),
+pub enum AnyClientState<G> {
+    Tendermint(client_state::ClientState<G>),
     #[cfg(any(test, feature = "ics11_beefy"))]
     #[serde(skip)]
-    Beefy(beefy_client_state::ClientState),
+    Beefy(beefy_client_state::ClientState<G>),
     #[cfg(any(test, feature = "ics11_beefy"))]
     #[serde(skip)]
-    Near(beefy_client_state::ClientState),
+    Near(beefy_client_state::ClientState<G>),
     #[cfg(any(test, feature = "mocks"))]
     Mock(MockClientState),
 }
 
-impl AnyClientState {
+impl<G> AnyClientState<G> {
     pub fn latest_height(&self) -> Height {
         match self {
             Self::Tendermint(tm_state) => tm_state.latest_height(),
@@ -201,12 +219,15 @@ impl AnyClientState {
     }
 }
 
-impl Protobuf<Any> for AnyClientState {}
+impl<G> Protobuf<Any> for AnyClientState<G> {}
+// impl<H> Protobuf<Any> for AnyClientState<AnyGlobalDef<H>> {}
 
-impl TryFrom<Any> for AnyClientState {
+impl<G> TryFrom<Any> for AnyClientState<G> {
+    // impl<H> TryFrom<Any> for AnyClientState<AnyGlobalDef<H>> {
     type Error = Error;
 
     fn try_from(raw: Any) -> Result<Self, Self::Error> {
+        panic!();
         match raw.type_url.as_str() {
             "" => Err(Error::empty_client_state_response()),
 
@@ -231,8 +252,10 @@ impl TryFrom<Any> for AnyClientState {
     }
 }
 
-impl From<AnyClientState> for Any {
-    fn from(value: AnyClientState) -> Self {
+impl<G> From<AnyClientState<G>> for Any {
+    fn from(value: AnyClientState<G>) -> Self {
+        // impl<H> From<AnyClientState<AnyGlobalDef<H>>> for Any {
+        //     fn from(value: AnyClientState<AnyGlobalDef<H>>) -> Self {
         match value {
             AnyClientState::Tendermint(value) => Any {
                 type_url: TENDERMINT_CLIENT_STATE_TYPE_URL.to_string(),
@@ -257,8 +280,13 @@ impl From<AnyClientState> for Any {
     }
 }
 
-impl ClientState for AnyClientState {
+impl<G> ClientState for AnyClientState<G>
+where
+    G: GlobalDefs,
+    G::HostFunctions: Sync + Send + Clone + Debug + Eq,
+{
     type UpgradeOptions = AnyUpgradeOptions;
+    type ClientDef = AnyClient<G::HostFunctions>;
 
     fn chain_id(&self) -> ChainId {
         match self {
@@ -276,6 +304,20 @@ impl ClientState for AnyClientState {
         self.client_type()
     }
 
+    fn client_def(&self) -> Self::ClientDef {
+        match self {
+            AnyClientState::Tendermint(tm_state) => {
+                AnyClient::Tendermint(TendermintClient::default())
+            }
+            #[cfg(any(test, feature = "ics11_beefy"))]
+            AnyClientState::Beefy(bf_state) => AnyClient::Beefy(BeefyClient::default()),
+            #[cfg(any(test, feature = "ics11_beefy"))]
+            AnyClientState::Near(_) => todo!(),
+            #[cfg(any(test, feature = "mocks"))]
+            AnyClientState::Mock(mock_state) => AnyClient::Mock(mock_state.client_def()),
+        }
+    }
+
     fn latest_height(&self) -> Height {
         self.latest_height()
     }
@@ -291,38 +333,53 @@ impl ClientState for AnyClientState {
         chain_id: ChainId,
     ) -> Self {
         match self {
-            AnyClientState::Tendermint(tm_state) => tm_state
-                .upgrade(upgrade_height, upgrade_options.into_tendermint(), chain_id)
-                .wrap_any(),
+            AnyClientState::Tendermint(tm_state) => AnyClientState::Tendermint(tm_state.upgrade(
+                upgrade_height,
+                upgrade_options.into_tendermint(),
+                chain_id,
+            )),
             #[cfg(any(test, feature = "ics11_beefy"))]
-            AnyClientState::Beefy(bf_state) => bf_state
-                .upgrade(upgrade_height, upgrade_options.into_beefy(), chain_id)
-                .wrap_any(),
+            AnyClientState::Beefy(bf_state) => AnyClientState::Beefy(bf_state.upgrade(
+                upgrade_height,
+                upgrade_options.into_beefy(),
+                chain_id,
+            )),
             #[cfg(any(test, feature = "ics11_beefy"))]
-            AnyClientState::Near(near_state) => near_state
-                .upgrade(upgrade_height, upgrade_options.into_beefy(), chain_id)
-                .wrap_any(),
+            AnyClientState::Near(near_state) => AnyClientState::Near(near_state.upgrade(
+                upgrade_height,
+                upgrade_options.into_beefy(),
+                chain_id,
+            )),
             #[cfg(any(test, feature = "mocks"))]
             AnyClientState::Mock(mock_state) => {
-                mock_state.upgrade(upgrade_height, (), chain_id).wrap_any()
+                AnyClientState::Mock(mock_state.upgrade(upgrade_height, (), chain_id))
             }
         }
     }
 
-    fn wrap_any(self) -> AnyClientState {
-        self
+    fn expired(&self, elapsed: Duration) -> bool {
+        match self {
+            AnyClientState::Tendermint(tm_state) => tm_state.expired(elapsed),
+            #[cfg(any(test, feature = "ics11_beefy"))]
+            AnyClientState::Beefy(bf_state) => bf_state.expired(elapsed),
+            #[cfg(any(test, feature = "ics11_beefy"))]
+            AnyClientState::Near(_) => todo!(),
+            #[cfg(any(test, feature = "mocks"))]
+            AnyClientState::Mock(mock_state) => mock_state.expired(elapsed),
+        }
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Derivative, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derivative(Clone(bound = ""))]
 #[serde(tag = "type")]
-pub struct IdentifiedAnyClientState {
+pub struct IdentifiedAnyClientState<G> {
     pub client_id: ClientId,
-    pub client_state: AnyClientState,
+    pub client_state: AnyClientState<G>,
 }
 
-impl IdentifiedAnyClientState {
-    pub fn new(client_id: ClientId, client_state: AnyClientState) -> Self {
+impl<G> IdentifiedAnyClientState<G> {
+    pub fn new(client_id: ClientId, client_state: AnyClientState<G>) -> Self {
         IdentifiedAnyClientState {
             client_id,
             client_state,
@@ -330,9 +387,18 @@ impl IdentifiedAnyClientState {
     }
 }
 
-impl Protobuf<IdentifiedClientState> for IdentifiedAnyClientState {}
+impl<G> Protobuf<IdentifiedClientState> for IdentifiedAnyClientState<G>
+where
+    IdentifiedAnyClientState<G>: TryFrom<IdentifiedClientState>,
+    <IdentifiedAnyClientState<G> as TryFrom<IdentifiedClientState>>::Error: Display,
+{
+}
 
-impl TryFrom<IdentifiedClientState> for IdentifiedAnyClientState {
+impl<G> TryFrom<IdentifiedClientState> for IdentifiedAnyClientState<G>
+where
+    AnyClientState<G>: TryFrom<Any>,
+    Error: From<<AnyClientState<G> as TryFrom<Any>>::Error>,
+{
     type Error = Error;
 
     fn try_from(raw: IdentifiedClientState) -> Result<Self, Self::Error> {
@@ -348,8 +414,8 @@ impl TryFrom<IdentifiedClientState> for IdentifiedAnyClientState {
     }
 }
 
-impl From<IdentifiedAnyClientState> for IdentifiedClientState {
-    fn from(value: IdentifiedAnyClientState) -> Self {
+impl<G> From<IdentifiedAnyClientState<G>> for IdentifiedClientState {
+    fn from(value: IdentifiedAnyClientState<G>) -> Self {
         IdentifiedClientState {
             client_id: value.client_id.to_string(),
             client_state: Some(value.client_state.into()),

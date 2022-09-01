@@ -1,6 +1,9 @@
 use crate::clients::host_functions::HostFunctionsProvider;
+use crate::clients::GlobalDefs;
 use crate::core::ics02_client::client_consensus::ConsensusState;
 use crate::core::ics02_client::client_state::ClientState;
+use crate::core::ics02_client::client_type::ClientTypes;
+use crate::core::ics02_client::context::ClientReader;
 use crate::core::ics02_client::{client_def::AnyClient, client_def::ClientDef};
 use crate::core::ics03_connection::connection::ConnectionEnd;
 use crate::core::ics04_channel::channel::ChannelEnd;
@@ -13,14 +16,18 @@ use crate::proofs::Proofs;
 use crate::Height;
 
 /// Entry point for verifying all proofs bundled in any ICS4 message for channel protocols.
-pub fn verify_channel_proofs<HostFunctions: HostFunctionsProvider>(
-    ctx: &dyn ReaderContext,
+pub fn verify_channel_proofs<G, Ctx>(
+    ctx: &Ctx,
     height: Height,
     channel_end: &ChannelEnd,
     connection_end: &ConnectionEnd,
     expected_chan: &ChannelEnd,
     proofs: &Proofs,
-) -> Result<(), Error> {
+) -> Result<(), Error>
+where
+    G: GlobalDefs,
+    Ctx: ReaderContext<ClientTypes = <G as GlobalDefs>::ClientDef>,
+{
     // This is the client which will perform proof verification.
     let client_id = connection_end.client_id().clone();
 
@@ -35,7 +42,8 @@ pub fn verify_channel_proofs<HostFunctions: HostFunctionsProvider>(
         .consensus_state(&client_id, proofs.height())
         .map_err(|_| Error::error_invalid_consensus_state())?;
 
-    let client_def = AnyClient::<HostFunctions>::from_client_type(client_state.client_type());
+    let client_def = <G as GlobalDefs>::ClientDef::from_client_type(client_state.client_type());
+    // let client_def = AnyClient::<HostFunctions>::from_client_type(client_state.client_type());
 
     // Verify the proof for the channel state against the expected channel end.
     // A counterparty channel id of None in not possible, and is checked by validate_basic in msg.
@@ -56,8 +64,11 @@ pub fn verify_channel_proofs<HostFunctions: HostFunctionsProvider>(
 }
 
 /// Entry point for verifying all proofs bundled in a ICS4 packet recv. message.
-pub fn verify_packet_recv_proofs<HostFunctions: HostFunctionsProvider>(
-    ctx: &dyn ReaderContext,
+pub fn verify_packet_recv_proofs<
+    G: GlobalDefs,
+    Ctx: ReaderContext<ClientTypes = <G as GlobalDefs>::ClientDef>,
+>(
+    ctx: &Ctx,
     height: Height,
     packet: &Packet,
     connection_end: &ConnectionEnd,
@@ -75,7 +86,7 @@ pub fn verify_packet_recv_proofs<HostFunctions: HostFunctionsProvider>(
         .consensus_state(client_id, proofs.height())
         .map_err(|_| Error::error_invalid_consensus_state())?;
 
-    let client_def = AnyClient::<HostFunctions>::from_client_type(client_state.client_type());
+    let client_def = <G as GlobalDefs>::ClientDef::from_client_type(client_state.client_type());
 
     let commitment = ctx.packet_commitment(
         packet.data.clone(),
@@ -104,8 +115,11 @@ pub fn verify_packet_recv_proofs<HostFunctions: HostFunctionsProvider>(
 }
 
 /// Entry point for verifying all proofs bundled in an ICS4 packet ack message.
-pub fn verify_packet_acknowledgement_proofs<HostFunctions: HostFunctionsProvider>(
-    ctx: &dyn ReaderContext,
+pub fn verify_packet_acknowledgement_proofs<
+    G: GlobalDefs,
+    Ctx: ReaderContext<ClientTypes = <G as GlobalDefs>::ClientDef>,
+>(
+    ctx: &Ctx,
     height: Height,
     packet: &Packet,
     acknowledgement: Acknowledgement,
@@ -126,7 +140,7 @@ pub fn verify_packet_acknowledgement_proofs<HostFunctions: HostFunctionsProvider
 
     let ack_commitment = ctx.ack_commitment(acknowledgement);
 
-    let client_def = AnyClient::<HostFunctions>::from_client_type(client_state.client_type());
+    let client_def = <G as GlobalDefs>::ClientDef::from_client_type(client_state.client_type());
 
     // Verify the proof for the packet against the chain store.
     client_def
@@ -149,14 +163,18 @@ pub fn verify_packet_acknowledgement_proofs<HostFunctions: HostFunctionsProvider
 }
 
 /// Entry point for verifying all timeout proofs.
-pub fn verify_next_sequence_recv<HostFunctions: HostFunctionsProvider>(
-    ctx: &dyn ReaderContext,
+pub fn verify_next_sequence_recv<G, Ctx>(
+    ctx: &Ctx,
     height: Height,
     connection_end: &ConnectionEnd,
     packet: Packet,
     seq: Sequence,
     proofs: &Proofs,
-) -> Result<(), Error> {
+) -> Result<(), Error>
+where
+    G: GlobalDefs,
+    Ctx: ReaderContext<ClientTypes = <G as GlobalDefs>::ClientDef>,
+{
     let client_id = connection_end.client_id();
     let client_state = ctx.client_state(client_id).map_err(Error::ics02_client)?;
 
@@ -169,7 +187,7 @@ pub fn verify_next_sequence_recv<HostFunctions: HostFunctionsProvider>(
         .consensus_state(client_id, proofs.height())
         .map_err(|_| Error::error_invalid_consensus_state())?;
 
-    let client_def = AnyClient::<HostFunctions>::from_client_type(client_state.client_type());
+    let client_def = <G as GlobalDefs>::ClientDef::from_client_type(client_state.client_type());
 
     // Verify the proof for the packet against the chain store.
     client_def
@@ -190,13 +208,17 @@ pub fn verify_next_sequence_recv<HostFunctions: HostFunctionsProvider>(
     Ok(())
 }
 
-pub fn verify_packet_receipt_absence<HostFunctions: HostFunctionsProvider>(
-    ctx: &dyn ReaderContext,
+pub fn verify_packet_receipt_absence<G, Ctx>(
+    ctx: &Ctx,
     height: Height,
     connection_end: &ConnectionEnd,
     packet: Packet,
     proofs: &Proofs,
-) -> Result<(), Error> {
+) -> Result<(), Error>
+where
+    G: GlobalDefs,
+    Ctx: ReaderContext<ClientTypes = <G as GlobalDefs>::ClientDef>,
+{
     let client_id = connection_end.client_id();
     let client_state = ctx.client_state(client_id).map_err(Error::ics02_client)?;
 
@@ -209,7 +231,7 @@ pub fn verify_packet_receipt_absence<HostFunctions: HostFunctionsProvider>(
         .consensus_state(client_id, proofs.height())
         .map_err(|_| Error::error_invalid_consensus_state())?;
 
-    let client_def = AnyClient::<HostFunctions>::from_client_type(client_state.client_type());
+    let client_def = <G as GlobalDefs>::ClientDef::from_client_type(client_state.client_type());
 
     // Verify the proof for the packet against the chain store.
     client_def

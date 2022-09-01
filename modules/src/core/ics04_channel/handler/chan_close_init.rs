@@ -1,5 +1,7 @@
 //! Protocol logic specific to ICS4 messages of type `MsgChannelCloseInit`.
 
+use crate::core::ics02_client::client_type::ClientTypes;
+use crate::core::ics02_client::context::ClientReader;
 use crate::core::ics03_connection::connection::State as ConnectionState;
 use crate::core::ics04_channel::channel::State;
 use crate::core::ics04_channel::error::Error;
@@ -10,8 +12,8 @@ use crate::core::ics26_routing::context::ReaderContext;
 use crate::events::IbcEvent;
 use crate::handler::{HandlerOutput, HandlerResult};
 
-pub(crate) fn process(
-    ctx: &dyn ReaderContext,
+pub(crate) fn process<Ctx: ReaderContext>(
+    ctx: &Ctx,
     msg: &MsgChannelCloseInit,
 ) -> HandlerResult<ChannelResult, Error> {
     let mut output = HandlerOutput::builder();

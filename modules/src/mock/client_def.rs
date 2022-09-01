@@ -30,7 +30,7 @@ impl ClientDef for MockClient {
 
     fn update_state(
         &self,
-        _ctx: &dyn ReaderContext,
+        _ctx: &Ctx,
         _client_id: ClientId,
         client_state: Self::ClientState,
         header: Self::Header,
@@ -50,7 +50,7 @@ impl ClientDef for MockClient {
 
     fn verify_client_consensus_state(
         &self,
-        _ctx: &dyn ReaderContext,
+        _ctx: &Ctx,
         _client_state: &Self::ClientState,
         _height: Height,
         prefix: &CommitmentPrefix,
@@ -58,7 +58,7 @@ impl ClientDef for MockClient {
         _root: &CommitmentRoot,
         client_id: &ClientId,
         consensus_height: Height,
-        _expected_consensus_state: &AnyConsensusState,
+        _expected_consensus_state: &Ctx::ConsensusState,
     ) -> Result<(), Error> {
         let client_prefixed_path = Path::ClientConsensusState(ClientConsensusStatePath {
             client_id: client_id.clone(),
@@ -74,7 +74,7 @@ impl ClientDef for MockClient {
 
     fn verify_connection_state(
         &self,
-        _ctx: &dyn ReaderContext,
+        _ctx: &Ctx,
         _client_id: &ClientId,
         _client_state: &Self::ClientState,
         _height: Height,
@@ -89,7 +89,7 @@ impl ClientDef for MockClient {
 
     fn verify_channel_state(
         &self,
-        _ctx: &dyn ReaderContext,
+        _ctx: &Ctx,
         _client_id: &ClientId,
         _client_state: &Self::ClientState,
         _height: Height,
@@ -105,7 +105,7 @@ impl ClientDef for MockClient {
 
     fn verify_client_full_state(
         &self,
-        _ctx: &dyn ReaderContext,
+        _ctx: &Ctx,
         _client_state: &Self::ClientState,
         _height: Height,
         _prefix: &CommitmentPrefix,
@@ -119,7 +119,7 @@ impl ClientDef for MockClient {
 
     fn verify_packet_data(
         &self,
-        _ctx: &dyn ReaderContext,
+        _ctx: &Ctx,
         _client_id: &ClientId,
         _client_state: &Self::ClientState,
         _height: Height,
@@ -136,7 +136,7 @@ impl ClientDef for MockClient {
 
     fn verify_packet_acknowledgement(
         &self,
-        _ctx: &dyn ReaderContext,
+        _ctx: &Ctx,
         _client_id: &ClientId,
         _client_state: &Self::ClientState,
         _height: Height,
@@ -153,7 +153,7 @@ impl ClientDef for MockClient {
 
     fn verify_next_sequence_recv(
         &self,
-        _ctx: &dyn ReaderContext,
+        _ctx: &Ctx,
         _client_id: &ClientId,
         _client_state: &Self::ClientState,
         _height: Height,
@@ -169,7 +169,7 @@ impl ClientDef for MockClient {
 
     fn verify_packet_receipt_absence(
         &self,
-        _ctx: &dyn ReaderContext,
+        _ctx: &Ctx,
         _client_id: &ClientId,
         _client_state: &Self::ClientState,
         _height: Height,
@@ -198,7 +198,7 @@ impl ClientDef for MockClient {
 
     fn verify_header(
         &self,
-        _ctx: &dyn ReaderContext,
+        _ctx: &Ctx,
         _client_id: ClientId,
         _client_state: Self::ClientState,
         _header: Self::Header,
@@ -216,7 +216,7 @@ impl ClientDef for MockClient {
 
     fn check_for_misbehaviour(
         &self,
-        _ctx: &dyn ReaderContext,
+        _ctx: &Ctx,
         _client_id: ClientId,
         _client_state: Self::ClientState,
         _header: Self::Header,

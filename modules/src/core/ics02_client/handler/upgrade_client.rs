@@ -1,8 +1,10 @@
 //! Protocol logic specific to processing ICS2 messages of type `MsgUpgradeAnyClient`.
 //!
 use crate::clients::host_functions::HostFunctionsProvider;
+use crate::clients::GlobalDefs;
 use crate::core::ics02_client::client_def::{AnyClient, ClientDef, ConsensusUpdateResult};
 use crate::core::ics02_client::client_state::{AnyClientState, ClientState};
+use crate::core::ics02_client::client_type::ClientTypes;
 use crate::core::ics02_client::error::Error;
 use crate::core::ics02_client::events::Attributes;
 use crate::core::ics02_client::handler::ClientResult;
@@ -17,16 +19,20 @@ use core::fmt::Debug;
 /// The result following the successful processing of a `MsgUpgradeAnyClient` message.
 /// This data type should be used with a qualified name `upgrade_client::Result` to avoid ambiguity.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Result {
+pub struct Result<C: ClientTypes> {
     pub client_id: ClientId,
-    pub client_state: AnyClientState,
-    pub consensus_state: Option<ConsensusUpdateResult>,
+    pub client_state: C::ClientState,
+    pub consensus_state: Option<ConsensusUpdateResult<C>>,
 }
 
-pub fn process<HostFunctions: HostFunctionsProvider>(
-    ctx: &dyn ReaderContext,
-    msg: MsgUpgradeAnyClient,
-) -> HandlerResult<ClientResult, Error> {
+pub fn process<G, Ctx>(
+    ctx: &Ctx,
+    msg: MsgUpgradeAnyClient<G::ClientDef>,
+) -> HandlerResult<ClientResult<Ctx>, Error>
+where
+    G: GlobalDefs,
+    Ctx: ReaderContext<ClientTypes = G::ClientDef> + Eq + Debug + Clone,
+{
     let mut output = HandlerOutput::builder();
     let MsgUpgradeAnyClient { client_id, .. } = msg;
 
@@ -48,7 +54,9 @@ pub fn process<HostFunctions: HostFunctionsProvider>(
 
     let client_type = ctx.client_type(&client_id)?;
 
-    let client_def = AnyClient::<HostFunctions>::from_client_type(client_type);
+    let client_def = <G as GlobalDefs>::ClientDef::from_client_type(client_type);
+    // let client_def = <Ctx::ClientState as ClientState>::ClientDef::from_client_type(client_type);
+    // let client_def = AnyClient::<HostFunctions>::from_client_type(client_type);
 
     let (new_client_state, new_consensus_state) = client_def.verify_upgrade_and_update_state(
         &upgrade_client_state,

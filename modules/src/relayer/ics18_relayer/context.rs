@@ -2,6 +2,7 @@ use crate::prelude::*;
 use ibc_proto::google::protobuf::Any;
 
 use crate::core::ics02_client::client_state::AnyClientState;
+use crate::core::ics02_client::client_type::ClientTypes;
 use crate::core::ics02_client::header::AnyHeader;
 use crate::events::IbcEvent;
 
@@ -14,13 +15,13 @@ use crate::Height;
 /// Most of the functions in this represent wrappers over the ABCI interface.
 /// This trait mimics the `Chain` trait, but at a lower level of abstraction (no networking, header
 /// types, light client, RPC client, etc.)
-pub trait Ics18Context {
+pub trait Ics18Context: ClientTypes {
     /// Returns the latest height of the chain.
     fn query_latest_height(&self) -> Height;
 
     /// Returns this client state for the given `client_id` on this chain.
     /// Wrapper over the `/abci_query?path=..` endpoint.
-    fn query_client_full_state(&self, client_id: &ClientId) -> Option<AnyClientState>;
+    fn query_client_full_state(&self, client_id: &ClientId) -> Option<Self::ClientState>;
 
     /// Returns the most advanced header of this chain.
     fn query_latest_header(&self) -> Option<AnyHeader>;

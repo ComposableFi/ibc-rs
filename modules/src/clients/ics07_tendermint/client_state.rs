@@ -1,18 +1,26 @@
 use crate::prelude::*;
 
 use core::convert::{TryFrom, TryInto};
+use core::fmt::{Debug, Display};
 use core::time::Duration;
+use derivative::Derivative;
+use std::marker::PhantomData;
 
+use ibc_proto::google::protobuf::Any;
 use serde::{Deserialize, Serialize};
 use tendermint_light_client_verifier::options::Options;
 use tendermint_proto::Protobuf;
 
+use crate::clients::host_functions::{HostFunctionsManager, HostFunctionsProvider};
+use crate::clients::ics07_tendermint::client_def::TendermintClient;
+use crate::clients::ics07_tendermint::consensus_state::ConsensusState;
+use crate::clients::{ClientStateOf, ConsensusStateOf, GlobalDefs};
 use ibc_proto::ibc::lightclients::tendermint::v1::ClientState as RawClientState;
 
 use crate::clients::ics07_tendermint::error::Error;
 use crate::clients::ics07_tendermint::header::Header;
 use crate::core::ics02_client::client_state::AnyClientState;
-use crate::core::ics02_client::client_type::ClientType;
+use crate::core::ics02_client::client_type::{ClientType, ClientTypes};
 use crate::core::ics02_client::error::Error as Ics02Error;
 use crate::core::ics02_client::trust_threshold::TrustThreshold;
 use crate::core::ics23_commitment::specs::ProofSpecs;
@@ -20,8 +28,14 @@ use crate::core::ics24_host::identifier::ChainId;
 use crate::timestamp::{Timestamp, ZERO_DURATION};
 use crate::Height;
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct ClientState {
+#[derive(Derivative, Serialize, Deserialize)]
+#[derivative(
+    PartialEq(bound = ""),
+    Eq(bound = ""),
+    Debug(bound = ""),
+    Clone(bound = "")
+)]
+pub struct ClientState<G> {
     pub chain_id: ChainId,
     pub trust_level: TrustThreshold,
     pub trusting_period: Duration,
@@ -31,11 +45,12 @@ pub struct ClientState {
     pub proof_specs: ProofSpecs,
     pub upgrade_path: Vec<String>,
     pub frozen_height: Option<Height>,
+    pub _phantom: PhantomData<G>,
 }
 
-impl Protobuf<RawClientState> for ClientState {}
+impl<G> Protobuf<RawClientState> for ClientState<G> {}
 
-impl ClientState {
+impl<G> ClientState<G> {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         chain_id: ChainId,
@@ -46,7 +61,7 @@ impl ClientState {
         latest_height: Height,
         proof_specs: ProofSpecs,
         upgrade_path: Vec<String>,
-    ) -> Result<ClientState, Error> {
+    ) -> Result<ClientState<G>, Error> {
         // Basic validation of trusting period and unbonding period: each should be non-zero.
         if trusting_period <= Duration::new(0, 0) {
             return Err(Error::invalid_trusting_period(format!(
@@ -101,6 +116,7 @@ impl ClientState {
             proof_specs,
             upgrade_path,
             frozen_height: None,
+            _phantom: Default::default(),
         })
     }
 
@@ -133,6 +149,45 @@ impl ClientState {
     /// Get the refresh time to ensure the state does not expire
     pub fn refresh_time(&self) -> Option<Duration> {
         Some(2 * self.trusting_period / 3)
+    }
+
+    pub fn chain_id(&self) -> ChainId {
+        self.chain_id.clone()
+    }
+
+    pub fn client_type(&self) -> ClientType {
+        ClientType::Tendermint
+    }
+
+    pub fn client_def(&self) -> TendermintClient<G>
+    where
+        G: GlobalDefs,
+    {
+        TendermintClient::default()
+    }
+
+    pub fn frozen_height(&self) -> Option<Height> {
+        self.frozen_height
+    }
+
+    pub fn upgrade(
+        mut self,
+        upgrade_height: Height,
+        upgrade_options: UpgradeOptions,
+        chain_id: ChainId,
+    ) -> Self {
+        // Reset custom fields to zero values
+        self.trusting_period = ZERO_DURATION;
+        self.trust_level = TrustThreshold::ZERO;
+        self.frozen_height = None;
+        self.max_clock_drift = ZERO_DURATION;
+
+        // Upgrade the client state
+        self.latest_height = upgrade_height;
+        self.unbonding_period = upgrade_options.unbonding_period;
+        self.chain_id = chain_id;
+
+        self
     }
 
     /// Check if the state is expired when `elapsed` time has passed since the latest consensus
@@ -200,23 +255,46 @@ pub struct UpgradeOptions {
     pub unbonding_period: Duration,
 }
 
-impl crate::core::ics02_client::client_state::ClientState for ClientState {
+impl<G> crate::core::ics02_client::client_state::ClientState for ClientState<G>
+where
+    G: GlobalDefs + Clone,
+    ConsensusState: TryFrom<ConsensusStateOf<G>, Error = Ics02Error>,
+    ConsensusStateOf<G>: From<ConsensusState>,
+
+    ConsensusState: TryFrom<ConsensusStateOf<G>, Error = Ics02Error>,
+    ConsensusStateOf<G>: From<ConsensusState>,
+    // ConsensusStateOf<G>: From<Any>,
+    ConsensusStateOf<G>: Protobuf<Any>,
+    <ConsensusStateOf<G> as TryFrom<Any>>::Error: Display,
+    Any: From<ConsensusStateOf<G>>,
+
+    ClientStateOf<G>: TryFrom<Any>,
+    // ClientStateOf<G>: From<Any>,
+    ClientStateOf<G>: Protobuf<Any>,
+    <ClientStateOf<G> as TryFrom<Any>>::Error: Display,
+    Any: From<ClientStateOf<G>>,
+{
     type UpgradeOptions = UpgradeOptions;
+    type ClientDef = TendermintClient<G>;
 
     fn chain_id(&self) -> ChainId {
-        self.chain_id.clone()
+        self.chain_id()
     }
 
     fn client_type(&self) -> ClientType {
-        ClientType::Tendermint
+        self.client_type()
+    }
+
+    fn client_def(&self) -> Self::ClientDef {
+        self.client_def()
     }
 
     fn latest_height(&self) -> Height {
-        self.latest_height
+        self.latest_height()
     }
 
     fn frozen_height(&self) -> Option<Height> {
-        self.frozen_height
+        self.frozen_height()
     }
 
     fn upgrade(
@@ -225,26 +303,15 @@ impl crate::core::ics02_client::client_state::ClientState for ClientState {
         upgrade_options: UpgradeOptions,
         chain_id: ChainId,
     ) -> Self {
-        // Reset custom fields to zero values
-        self.trusting_period = ZERO_DURATION;
-        self.trust_level = TrustThreshold::ZERO;
-        self.frozen_height = None;
-        self.max_clock_drift = ZERO_DURATION;
-
-        // Upgrade the client state
-        self.latest_height = upgrade_height;
-        self.unbonding_period = upgrade_options.unbonding_period;
-        self.chain_id = chain_id;
-
-        self
+        self.upgrade(upgrade_height, upgrade_options, chain_id)
     }
 
-    fn wrap_any(self) -> AnyClientState {
-        AnyClientState::Tendermint(self)
+    fn expired(&self, elapsed: Duration) -> bool {
+        self.expired(elapsed)
     }
 }
 
-impl TryFrom<RawClientState> for ClientState {
+impl<G> TryFrom<RawClientState> for ClientState<G> {
     type Error = Error;
 
     fn try_from(raw: RawClientState) -> Result<Self, Self::Error> {
@@ -289,12 +356,13 @@ impl TryFrom<RawClientState> for ClientState {
             frozen_height,
             upgrade_path: raw.upgrade_path,
             proof_specs: raw.proof_specs.into(),
+            _phantom: Default::default(),
         })
     }
 }
 
-impl From<ClientState> for RawClientState {
-    fn from(value: ClientState) -> Self {
+impl<G> From<ClientState<G>> for RawClientState {
+    fn from(value: ClientState<G>) -> Self {
         RawClientState {
             chain_id: value.chain_id.to_string(),
             trust_level: Some(value.trust_level.into()),

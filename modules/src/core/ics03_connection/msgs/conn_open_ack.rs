@@ -1,9 +1,14 @@
 use crate::prelude::*;
+use core::fmt::Display;
 
+use crate::core::ics02_client;
+use ibc_proto::google::protobuf::Any;
+use ibc_proto::ibc::core::connection::v1;
 use ibc_proto::ibc::core::connection::v1::MsgConnectionOpenAck as RawMsgConnectionOpenAck;
 use tendermint_proto::Protobuf;
 
-use crate::core::ics02_client::client_state::AnyClientState;
+use crate::core::ics02_client::client_state::{AnyClientState, ClientState};
+use crate::core::ics02_client::client_type::ClientTypes;
 use crate::core::ics03_connection::error::Error;
 use crate::core::ics03_connection::version::Version;
 use crate::core::ics23_commitment::commitment::CommitmentProofBytes;
@@ -17,16 +22,16 @@ pub const TYPE_URL: &str = "/ibc.core.connection.v1.MsgConnectionOpenAck";
 
 /// Message definition `MsgConnectionOpenAck`  (i.e., `ConnOpenAck` datagram).
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct MsgConnectionOpenAck {
+pub struct MsgConnectionOpenAck<C: ClientTypes> {
     pub connection_id: ConnectionId,
     pub counterparty_connection_id: ConnectionId,
-    pub client_state: Option<AnyClientState>,
+    pub client_state: Option<C::ClientState>,
     pub proofs: Proofs,
     pub version: Version,
     pub signer: Signer,
 }
 
-impl MsgConnectionOpenAck {
+impl<C: ClientTypes> MsgConnectionOpenAck<C> {
     /// Getter for accessing the `consensus_height` field from this message. Returns the special
     /// value `Height(0)` if this field is not set.
     pub fn consensus_height(&self) -> Height {
@@ -37,7 +42,11 @@ impl MsgConnectionOpenAck {
     }
 }
 
-impl Msg for MsgConnectionOpenAck {
+impl<C> Msg for MsgConnectionOpenAck<C>
+where
+    C: ClientTypes + Clone,
+    Any: From<C::ClientState>,
+{
     type ValidationError = Error;
     type Raw = RawMsgConnectionOpenAck;
 
@@ -50,9 +59,20 @@ impl Msg for MsgConnectionOpenAck {
     }
 }
 
-impl Protobuf<RawMsgConnectionOpenAck> for MsgConnectionOpenAck {}
+impl<C> Protobuf<RawMsgConnectionOpenAck> for MsgConnectionOpenAck<C>
+where
+    C: ClientTypes + Clone,
+    Any: From<C::ClientState>,
+    MsgConnectionOpenAck<C>: TryFrom<v1::MsgConnectionOpenAck>,
+    <MsgConnectionOpenAck<C> as TryFrom<v1::MsgConnectionOpenAck>>::Error: Display,
+{
+}
 
-impl TryFrom<RawMsgConnectionOpenAck> for MsgConnectionOpenAck {
+impl<C> TryFrom<RawMsgConnectionOpenAck> for MsgConnectionOpenAck<C>
+where
+    C: ClientTypes,
+    C::ClientState: TryFrom<Any, Error = ics02_client::error::Error>,
+{
     type Error = Error;
 
     fn try_from(msg: RawMsgConnectionOpenAck) -> Result<Self, Self::Error> {
@@ -90,7 +110,7 @@ impl TryFrom<RawMsgConnectionOpenAck> for MsgConnectionOpenAck {
                 .map_err(Error::invalid_identifier)?,
             client_state: msg
                 .client_state
-                .map(AnyClientState::try_from)
+                .map(C::ClientState::try_from)
                 .transpose()
                 .map_err(Error::ics02_client)?,
             version: msg.version.ok_or_else(Error::empty_versions)?.try_into()?,
@@ -107,8 +127,12 @@ impl TryFrom<RawMsgConnectionOpenAck> for MsgConnectionOpenAck {
     }
 }
 
-impl From<MsgConnectionOpenAck> for RawMsgConnectionOpenAck {
-    fn from(ics_msg: MsgConnectionOpenAck) -> Self {
+impl<C> From<MsgConnectionOpenAck<C>> for RawMsgConnectionOpenAck
+where
+    C: ClientTypes,
+    Any: From<C::ClientState>,
+{
+    fn from(ics_msg: MsgConnectionOpenAck<C>) -> Self {
         RawMsgConnectionOpenAck {
             connection_id: ics_msg.connection_id.as_str().to_string(),
             counterparty_connection_id: ics_msg.counterparty_connection_id.as_str().to_string(),

@@ -1,6 +1,9 @@
 //! Protocol logic specific to ICS4 messages of type `MsgChannelCloseConfirm`.
 
 use crate::clients::host_functions::HostFunctionsProvider;
+use crate::clients::GlobalDefs;
+use crate::core::ics02_client::client_type::ClientTypes;
+use crate::core::ics02_client::context::ClientReader;
 use crate::core::ics03_connection::connection::State as ConnectionState;
 use crate::core::ics04_channel::channel::{ChannelEnd, Counterparty, State};
 use crate::core::ics04_channel::error::Error;
@@ -13,10 +16,14 @@ use crate::events::IbcEvent;
 use crate::handler::{HandlerOutput, HandlerResult};
 use crate::prelude::*;
 
-pub(crate) fn process<HostFunctions: HostFunctionsProvider>(
-    ctx: &dyn ReaderContext,
+pub(crate) fn process<G, Ctx>(
+    ctx: &Ctx,
     msg: &MsgChannelCloseConfirm,
-) -> HandlerResult<ChannelResult, Error> {
+) -> HandlerResult<ChannelResult, Error>
+where
+    G: GlobalDefs,
+    Ctx: ReaderContext<ClientTypes = <G as GlobalDefs>::ClientDef>,
+{
     let mut output = HandlerOutput::builder();
 
     // Retrieve the old channel end and validate it against the message.
@@ -65,7 +72,7 @@ pub(crate) fn process<HostFunctions: HostFunctionsProvider>(
         channel_end.version().clone(),
     );
 
-    verify_channel_proofs::<HostFunctions>(
+    verify_channel_proofs::<G, Ctx>(
         ctx,
         msg.proofs.height(),
         &channel_end,

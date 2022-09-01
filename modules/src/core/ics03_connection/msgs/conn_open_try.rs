@@ -1,14 +1,19 @@
 use crate::prelude::*;
+use core::fmt::{Debug, Display};
 use core::{
     convert::{TryFrom, TryInto},
     time::Duration,
 };
 
+use ibc_proto::google::protobuf::Any;
+use ibc_proto::ibc::core::connection::v1;
 use tendermint_proto::Protobuf;
 
+use crate::core::ics02_client;
 use ibc_proto::ibc::core::connection::v1::MsgConnectionOpenTry as RawMsgConnectionOpenTry;
 
 use crate::core::ics02_client::client_state::AnyClientState;
+use crate::core::ics02_client::client_type::ClientTypes;
 use crate::core::ics03_connection::connection::Counterparty;
 use crate::core::ics03_connection::error::Error;
 use crate::core::ics03_connection::version::Version;
@@ -25,9 +30,9 @@ pub const TYPE_URL: &str = "/ibc.core.connection.v1.MsgConnectionOpenTry";
 /// Message definition `MsgConnectionOpenTry`  (i.e., `ConnOpenTry` datagram).
 ///
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct MsgConnectionOpenTry {
+pub struct MsgConnectionOpenTry<C: ClientTypes + Clone + Debug + PartialEq + Eq> {
     pub client_id: ClientId,
-    pub client_state: Option<AnyClientState>,
+    pub client_state: Option<C::ClientState>,
     pub counterparty: Counterparty,
     pub counterparty_versions: Vec<Version>,
     pub proofs: Proofs,
@@ -35,7 +40,10 @@ pub struct MsgConnectionOpenTry {
     pub signer: Signer,
 }
 
-impl MsgConnectionOpenTry {
+impl<C> MsgConnectionOpenTry<C>
+where
+    C: ClientTypes + Clone + Debug + PartialEq + Eq,
+{
     /// Getter for accessing the `consensus_height` field from this message. Returns the special
     /// value `0` if this field is not set.
     pub fn consensus_height(&self) -> Height {
@@ -46,7 +54,11 @@ impl MsgConnectionOpenTry {
     }
 }
 
-impl Msg for MsgConnectionOpenTry {
+impl<C> Msg for MsgConnectionOpenTry<C>
+where
+    C: ClientTypes + Clone + Debug + PartialEq + Eq,
+    Any: From<C::ClientState>,
+{
     type ValidationError = Error;
     type Raw = RawMsgConnectionOpenTry;
 
@@ -59,9 +71,21 @@ impl Msg for MsgConnectionOpenTry {
     }
 }
 
-impl Protobuf<RawMsgConnectionOpenTry> for MsgConnectionOpenTry {}
+impl<C> Protobuf<RawMsgConnectionOpenTry> for MsgConnectionOpenTry<C>
+where
+    C: ClientTypes + Clone + Debug + PartialEq + Eq,
+    Any: From<C::ClientState>,
+    MsgConnectionOpenTry<C>: TryFrom<v1::MsgConnectionOpenTry>,
+    <MsgConnectionOpenTry<C> as TryFrom<v1::MsgConnectionOpenTry>>::Error: Display,
+{
+}
 
-impl TryFrom<RawMsgConnectionOpenTry> for MsgConnectionOpenTry {
+impl<C> TryFrom<RawMsgConnectionOpenTry> for MsgConnectionOpenTry<C>
+where
+    C: ClientTypes + Clone + Debug + PartialEq + Eq,
+    // C::ClientState: From<Any>,
+    C::ClientState: TryFrom<Any, Error = ics02_client::error::Error>,
+{
     type Error = Error;
 
     fn try_from(msg: RawMsgConnectionOpenTry) -> Result<Self, Self::Error> {
@@ -102,7 +126,7 @@ impl TryFrom<RawMsgConnectionOpenTry> for MsgConnectionOpenTry {
             client_id: msg.client_id.parse().map_err(Error::invalid_identifier)?,
             client_state: msg
                 .client_state
-                .map(AnyClientState::try_from)
+                .map(C::ClientState::try_from)
                 .transpose()
                 .map_err(Error::ics02_client)?,
             counterparty: msg
@@ -124,8 +148,12 @@ impl TryFrom<RawMsgConnectionOpenTry> for MsgConnectionOpenTry {
     }
 }
 
-impl From<MsgConnectionOpenTry> for RawMsgConnectionOpenTry {
-    fn from(ics_msg: MsgConnectionOpenTry) -> Self {
+impl<C> From<MsgConnectionOpenTry<C>> for RawMsgConnectionOpenTry
+where
+    C: ClientTypes + Clone + Debug + PartialEq + Eq,
+    Any: From<C::ClientState>,
+{
+    fn from(ics_msg: MsgConnectionOpenTry<C>) -> Self {
         RawMsgConnectionOpenTry {
             client_id: ics_msg.client_id.as_str().to_string(),
             client_state: ics_msg
@@ -175,9 +203,9 @@ pub mod test_util {
     use crate::test_utils::{get_dummy_bech32_account, get_dummy_proof};
 
     /// Testing-specific helper methods.
-    impl MsgConnectionOpenTry {
+    impl<C: ClientTypes> MsgConnectionOpenTry<C> {
         /// Setter for `client_id`.
-        pub fn with_client_id(self, client_id: ClientId) -> MsgConnectionOpenTry {
+        pub fn with_client_id(self, client_id: ClientId) -> MsgConnectionOpenTry<C> {
             MsgConnectionOpenTry { client_id, ..self }
         }
     }

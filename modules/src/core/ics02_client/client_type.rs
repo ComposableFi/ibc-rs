@@ -1,8 +1,22 @@
+use crate::core::ics02_client::client_consensus::ConsensusState;
+use crate::core::ics02_client::client_def::ClientDef;
+use crate::core::ics02_client::client_state::ClientState;
+use crate::core::ics02_client::header::Header;
 use crate::prelude::*;
 use core::fmt;
+use core::fmt::Debug;
+use ibc_proto::google::protobuf::Any;
 use serde_derive::{Deserialize, Serialize};
+use tendermint_proto::Protobuf;
 
 use super::error::Error;
+
+/// Client types other traits depend on (client configuration).
+pub trait ClientTypes {
+    type Header: Header;
+    type ClientState: ClientState + Eq; // + Protobuf<Any> + TryFrom<Any>;
+    type ConsensusState: ConsensusState + Eq;
+}
 
 /// Type of the client, depending on the specific consensus algorithm.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]

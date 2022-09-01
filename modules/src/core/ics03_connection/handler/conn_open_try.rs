@@ -1,6 +1,9 @@
 //! Protocol logic specific to processing ICS3 messages of type `MsgConnectionOpenTry`.
 
 use crate::clients::host_functions::HostFunctionsProvider;
+use crate::clients::{ClientStateOf, ConsensusStateOf, GlobalDefs};
+use crate::core::ics02_client::client_type::ClientTypes;
+use crate::core::ics02_client::context::ClientReader;
 use crate::core::ics03_connection::connection::{ConnectionEnd, Counterparty, State};
 use crate::core::ics03_connection::error::Error;
 use crate::core::ics03_connection::events::Attributes;
@@ -15,11 +18,24 @@ use crate::core::ics26_routing::context::ReaderContext;
 use crate::events::IbcEvent;
 use crate::handler::{HandlerOutput, HandlerResult};
 use crate::prelude::*;
+use core::fmt::Display;
+use ibc_proto::google::protobuf::Any;
+use tendermint_proto::Protobuf;
 
-pub(crate) fn process<HostFunctions: HostFunctionsProvider>(
-    ctx: &dyn ReaderContext,
-    msg: MsgConnectionOpenTry,
-) -> HandlerResult<ConnectionResult, Error> {
+pub(crate) fn process<G: GlobalDefs, Ctx: ReaderContext<ClientTypes = G::ClientDef>>(
+    ctx: &Ctx,
+    msg: MsgConnectionOpenTry<G::ClientDef>,
+) -> HandlerResult<ConnectionResult, Error>
+where
+    ClientStateOf<G>: Protobuf<Any>,
+    Any: From<ClientStateOf<G>>,
+    ClientStateOf<G>: TryFrom<Any>,
+    <ClientStateOf<G> as TryFrom<Any>>::Error: Display,
+    ConsensusStateOf<G>: Protobuf<Any>,
+    Any: From<ConsensusStateOf<G>>,
+    ConsensusStateOf<G>: TryFrom<Any>,
+    <ConsensusStateOf<G> as TryFrom<Any>>::Error: Display,
+{
     let mut output = HandlerOutput::builder();
 
     // Check that consensus height if provided (for client proof) in message is not too advanced nor too old.
@@ -72,7 +88,7 @@ pub(crate) fn process<HostFunctions: HostFunctionsProvider>(
     ctx.validate_self_client(&client_state)
         .map_err(Error::ics02_client)?;
 
-    verify_connection_proof::<HostFunctions>(
+    verify_connection_proof::<G, _>(
         ctx,
         msg.proofs.height(),
         &new_connection_end,
@@ -81,7 +97,7 @@ pub(crate) fn process<HostFunctions: HostFunctionsProvider>(
         msg.proofs.object_proof(),
     )?;
 
-    verify_client_proof::<HostFunctions>(
+    verify_client_proof::<G, _>(
         ctx,
         msg.proofs.height(),
         &new_connection_end,
@@ -90,7 +106,7 @@ pub(crate) fn process<HostFunctions: HostFunctionsProvider>(
         client_proof,
     )?;
 
-    verify_consensus_proof::<HostFunctions>(
+    verify_consensus_proof::<G, _>(
         ctx,
         msg.proofs.height(),
         &new_connection_end,

@@ -1,4 +1,7 @@
 use crate::clients::host_functions::HostFunctionsProvider;
+use crate::clients::GlobalDefs;
+use crate::core::ics02_client::client_type::ClientTypes;
+use crate::core::ics02_client::context::ClientReader;
 use crate::core::ics03_connection::connection::State as ConnectionState;
 use crate::core::ics04_channel::channel::State;
 use crate::core::ics04_channel::channel::{Counterparty, Order};
@@ -22,8 +25,8 @@ pub struct AckPacketResult {
     pub seq_number: Option<Sequence>,
 }
 
-pub fn process<HostFunctions: HostFunctionsProvider>(
-    ctx: &dyn ReaderContext,
+pub fn process<G: GlobalDefs, Ctx: ReaderContext<ClientTypes = <G as GlobalDefs>::ClientDef>>(
+    ctx: &Ctx,
     msg: &MsgAcknowledgement,
 ) -> HandlerResult<PacketResult, Error> {
     let mut output = HandlerOutput::builder();
@@ -77,7 +80,7 @@ pub fn process<HostFunctions: HostFunctionsProvider>(
     }
 
     // Verify the acknowledgement proof
-    verify_packet_acknowledgement_proofs::<HostFunctions>(
+    verify_packet_acknowledgement_proofs::<G, Ctx>(
         ctx,
         msg.proofs.height(),
         packet,

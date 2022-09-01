@@ -1,6 +1,7 @@
 use crate::core::ics02_client::error::Error;
 use crate::prelude::*;
 use core::marker::PhantomData;
+use derivative::Derivative;
 
 /// This trait captures all the functions that the host chain should provide for
 /// crypto operations.
@@ -62,7 +63,14 @@ pub trait HostFunctionsProvider: Clone + Send + Sync + Default {
 /// This is a work around that allows us to have one super trait [`HostFunctionsProvider`]
 /// that encapsulates all the needed host functions by different subsytems, and then
 /// implement the needed traits through this wrapper.
-#[derive(Clone, Debug, Default)]
+#[derive(Derivative)]
+#[derivative(
+    Debug(bound = ""),
+    PartialEq(bound = ""),
+    Eq(bound = ""),
+    Clone(bound = ""),
+    Default(bound = "")
+)]
 pub struct HostFunctionsManager<T: HostFunctionsProvider>(PhantomData<T>);
 
 // implementation for beefy host functions
@@ -114,10 +122,7 @@ where
 }
 
 // implementation for ics23
-impl<H> ics23::HostFunctionsProvider for HostFunctionsManager<H>
-where
-    H: HostFunctionsProvider,
-{
+impl<H: HostFunctionsProvider> ics23::HostFunctionsProvider for HostFunctionsManager<H> {
     fn sha2_256(message: &[u8]) -> [u8; 32] {
         H::sha2_256(message)
     }

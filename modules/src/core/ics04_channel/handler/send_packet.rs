@@ -1,4 +1,7 @@
+use crate::core::ics02_client::client_consensus::ConsensusState;
 use crate::core::ics02_client::client_state::ClientState;
+use crate::core::ics02_client::client_type::ClientTypes;
+use crate::core::ics02_client::context::ClientReader;
 use crate::core::ics04_channel::channel::Counterparty;
 use crate::core::ics04_channel::channel::State;
 use crate::core::ics04_channel::commitment::PacketCommitment;
@@ -22,7 +25,10 @@ pub struct SendPacketResult {
     pub packet: Packet,
 }
 
-pub fn send_packet(ctx: &dyn ReaderContext, packet: Packet) -> HandlerResult<PacketResult, Error> {
+pub fn send_packet<Ctx: ReaderContext>(
+    ctx: &Ctx,
+    packet: Packet,
+) -> HandlerResult<PacketResult, Error> {
     let mut output = HandlerOutput::builder();
 
     let source_channel_end =
