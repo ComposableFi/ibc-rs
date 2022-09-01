@@ -1,18 +1,11 @@
 use crate::core::ics02_client::error::Error;
 use crate::prelude::*;
-use beefy_client_primitives::HostFunctions as BeefyHostFunctions;
 use core::marker::PhantomData;
-#[cfg(any(test, feature = "ics13_near"))]
-use near_primitives_wasm::HostFunctions as MaybeNearHostFunctions;
-
-#[cfg(not(any(test, feature = "ics13_near")))]
-trait MaybeNearHostFunctions {}
+use near_primitives_wasm::{PublicKey, Signature};
 
 /// This trait captures all the functions that the host chain should provide for
 /// crypto operations.
-pub trait HostFunctionsProvider:
-    Clone + Send + Sync + Default + BeefyHostFunctions + MaybeNearHostFunctions
-{
+pub trait HostFunctionsProvider: Clone + Send + Sync + Default {
     /// Keccak 256 hash function
     fn keccak_256(input: &[u8]) -> [u8; 32];
 
@@ -97,6 +90,24 @@ where
     ) -> Result<(), beefy_client_primitives::error::BeefyClientError> {
         T::verify_timestamp_extrinsic(root.as_fixed_bytes(), proof, value)
             .map_err(|_| From::from("Timestamp verification failed".to_string()))
+    }
+}
+
+#[cfg(any(test, feature = "mocks", feature = "ics13_near"))]
+impl<T> near_primitives_wasm::HostFunctions for HostFunctionsManager<T>
+where
+    T: HostFunctionsProvider,
+{
+    fn sha256(data: &[u8]) -> [u8; 32] {
+        T::sha256_digest(data)
+    }
+
+    fn verify(signature: Signature, data: impl AsRef<[u8]>, public_key: PublicKey) -> bool {
+        match signature {
+            Signature::Ed25519(signature) => {
+                T::ed25519_verify(&signature.0, data.as_ref(), &public_key.0)
+            }
+        }
     }
 }
 

@@ -272,15 +272,14 @@ impl<HostFunctions: HostFunctionsProvider> ClientDef for AnyClient<HostFunctions
             }
 
             #[cfg(any(test, feature = "ics13_near"))]
-            Self::Near(_) => {
-                // let (client_state, header) = downcast!(
-                //     client_state => AnyClientState::Beefy,
-                //     header => AnyHeader::Beefy,
-                // )
-                // .ok_or_else(|| Error::client_args_type_mismatch(ClientType::Beefy))?;
+            Self::Near(client) => {
+                let (client_state, header) = downcast!(
+                    client_state => AnyClientState::Near,
+                    header => AnyHeader::Near,
+                )
+                .ok_or_else(|| Error::client_args_type_mismatch(ClientType::Near))?;
 
-                // client.verify_header(ctx, client_id, client_state, header)
-                todo!()
+                client.verify_header(ctx, client_id, client_state, header)
             }
 
             #[cfg(any(test, feature = "mocks"))]

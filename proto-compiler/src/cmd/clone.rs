@@ -24,6 +24,10 @@ pub struct CloneCmd {
     #[argh(option, short = 'l')]
     composable_ibc_go_commit: Option<String>,
 
+    /// commit to checkout
+    #[argh(option, short = 'n')]
+    composable_near_rs_commit: Option<String>,
+
     /// where to checkout the repository
     #[argh(option, short = 'o')]
     out: PathBuf,
@@ -32,6 +36,7 @@ pub struct CloneCmd {
 pub const COSMOS_SDK_URL: &str = "https://github.com/cosmos/cosmos-sdk";
 pub const IBC_GO_URL: &str = "https://github.com/cosmos/ibc-go";
 pub const COMPOSABLE_IBC_GO_URL: &str = "https://github.com/ComposableFi/ibc-go";
+pub const COMPOSABLE_NEAR_RS_URL: &str = "https://github.com/ComposableFi/near-rs";
 
 impl CloneCmd {
     pub fn validate(&self) {
@@ -56,6 +61,12 @@ impl CloneCmd {
     pub fn composable_ibc_subdir(&self) -> PathBuf {
         let mut ibc_path = self.out.clone();
         ibc_path.push("composable/ibc/");
+        ibc_path
+    }
+
+    pub fn composable_near_subdir(&self) -> PathBuf {
+        let mut ibc_path = self.out.clone();
+        ibc_path.push("composable/near/");
         ibc_path
     }
 
@@ -164,6 +175,45 @@ impl CloneCmd {
             None => {
                 println!(
                     "[info ] No `-i`/`--ibc_go_commit` option passed. Skipping the Composable's IBC Go repo."
+                )
+            }
+        }
+
+        match &self.composable_near_rs_commit {
+            Some(near_rs_commit) => {
+                let near_path = self.composable_near_subdir();
+                let near_repo = if near_path.exists() {
+                    println!(
+                        "[info ] Found Composable NEAR-rs source at '{}'",
+                        near_path.display()
+                    );
+
+                    Repository::open(&near_path).unwrap_or_else(|e| {
+                        println!("[error] Failed to open repository: {}", e);
+                        process::exit(1)
+                    })
+                } else {
+                    Repository::clone(COMPOSABLE_NEAR_RS_URL, &near_path).unwrap_or_else(|e| {
+                        println!(
+                            "[error] Failed to clone the Composable NEAR-rs repository: {}",
+                            e
+                        );
+                        process::exit(1)
+                    })
+                };
+
+                println!("[info ] Cloned at '{}'", near_path.display());
+                checkout_commit(&near_repo, near_rs_commit).unwrap_or_else(|e| {
+                    println!(
+                        "[error] Failed to checkout Composable NEAR-rs commit {}: {}",
+                        near_rs_commit, e
+                    );
+                    process::exit(1)
+                });
+            }
+            None => {
+                println!(
+                    "[info ] No `-i`/`--composable_near_rs_commit` option passed. Skipping the Composable's NEAR-rs repo."
                 )
             }
         }

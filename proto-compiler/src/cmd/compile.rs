@@ -23,6 +23,10 @@ pub struct CompileCmd {
     /// path to the Composable IBC proto files
     beefy: Option<PathBuf>,
 
+    #[argh(option, short = 'n')]
+    /// path to the Composable NEAR-rs proto files
+    near: Option<PathBuf>,
+
     #[argh(option, short = 'o')]
     /// path to output the generated Rust sources into
     out: PathBuf,
@@ -44,6 +48,13 @@ impl CompileCmd {
                 match &self.beefy {
                     Some(ibc_path) => {
                         Self::compile_beefy_proto(ibc_path, tmp_ibc.as_ref());
+                    }
+                    _ => {}
+                }
+
+                match &self.near {
+                    Some(path) => {
+                        Self::compile_near_proto(path, tmp_ibc.as_ref());
                     }
                     _ => {}
                 }
@@ -241,6 +252,63 @@ impl CompileCmd {
         match compilation {
             Ok(_) => {
                 println!("Successfully compiled beefy proto file");
+            }
+            Err(e) => {
+                println!("Failed to compile:{:?}", e.to_string());
+                process::exit(1);
+            }
+        }
+    }
+
+    fn compile_near_proto(ibc_dir: &Path, out_dir: &Path) {
+        println!(
+            "[info ] Compiling NEAR client .proto files to Rust into '{}'...",
+            out_dir.display()
+        );
+
+        // Paths
+        let proto_paths = [
+            // ibc-go proto files
+            format!("{}/proto/ibc", ibc_dir.display()),
+        ];
+
+        let proto_includes_paths = [
+            format!("{}/proto", ibc_dir.display()),
+            format!("{}/third_party/proto", ibc_dir.display()),
+        ];
+
+        // List available proto files
+        let mut protos: Vec<PathBuf> = vec![];
+        for proto_path in &proto_paths {
+            println!("Looking for NEAR proto files in {:?}", proto_path);
+            protos.append(
+                &mut WalkDir::new(proto_path)
+                    .into_iter()
+                    .filter_map(|e| e.ok())
+                    .filter(|e| {
+                        e.file_type().is_file()
+                            && e.file_name().to_str().unwrap().starts_with("near")
+                            && e.path().extension().is_some()
+                            && e.path().extension().unwrap() == "proto"
+                    })
+                    .map(|e| e.into_path())
+                    .collect(),
+            );
+        }
+
+        println!("[info ] Compiling..");
+
+        // List available paths for dependencies
+        let includes: Vec<PathBuf> = proto_includes_paths.iter().map(PathBuf::from).collect();
+
+        let compilation = tonic_build::configure()
+            .out_dir(out_dir)
+            .compile_well_known_types(true)
+            .compile(&protos, &includes);
+
+        match compilation {
+            Ok(_) => {
+                println!("Successfully compiled NEAR proto file");
             }
             Err(e) => {
                 println!("Failed to compile:{:?}", e.to_string());

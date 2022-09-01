@@ -8,7 +8,7 @@ use tendermint_proto::Protobuf;
 use crate::clients::ics07_tendermint::header::{decode_header, Header as TendermintHeader};
 #[cfg(any(test, feature = "ics11_beefy"))]
 use crate::clients::ics11_beefy::header::{decode_header as decode_beefy_header, BeefyHeader};
-// use crate::clients::ics13_near::header::NearHeader;
+use crate::clients::ics13_near::header::{decode_header as decode_near_header, NearHeader};
 use crate::core::ics02_client::client_type::ClientType;
 use crate::core::ics02_client::error::Error;
 #[cfg(any(test, feature = "mocks"))]
@@ -38,8 +38,9 @@ pub enum AnyHeader {
     #[serde(skip)]
     #[cfg(any(test, feature = "ics11_beefy"))]
     Beefy(BeefyHeader),
-    // #[serde(skip)]
-    // Near(NearHeader),
+    #[serde(skip)]
+    #[cfg(any(test, feature = "ics13_near"))]
+    Near(NearHeader),
     #[cfg(any(test, feature = "mocks"))]
     Mock(MockHeader),
 }
@@ -50,7 +51,8 @@ impl AnyHeader {
             Self::Tendermint(header) => header.height(),
             #[cfg(any(test, feature = "ics11_beefy"))]
             Self::Beefy(_header) => Default::default(),
-            // Self::Near(_header) => Default::default(),
+            #[cfg(any(test, feature = "ics13_near"))]
+            Self::Near(_header) => Default::default(),
             #[cfg(any(test, feature = "mocks"))]
             Self::Mock(header) => header.height(),
         }
@@ -61,7 +63,8 @@ impl AnyHeader {
             Self::Tendermint(header) => header.timestamp(),
             #[cfg(any(test, feature = "ics11_beefy"))]
             Self::Beefy(_header) => Default::default(),
-            // Self::Near(_header) => Default::default(),
+            #[cfg(any(test, feature = "ics13_near"))]
+            Self::Near(_header) => Default::default(),
             #[cfg(any(test, feature = "mocks"))]
             Self::Mock(header) => header.timestamp(),
         }
@@ -74,7 +77,8 @@ impl Header for AnyHeader {
             Self::Tendermint(header) => header.client_type(),
             #[cfg(any(test, feature = "ics11_beefy"))]
             Self::Beefy(header) => header.client_type(),
-            // Self::Near(header) => header.client_type(),
+            #[cfg(any(test, feature = "ics13_near"))]
+            Self::Near(header) => header.client_type(),
             #[cfg(any(test, feature = "mocks"))]
             Self::Mock(header) => header.client_type(),
         }
@@ -117,6 +121,12 @@ impl TryFrom<Any> for AnyHeader {
                 Ok(AnyHeader::Beefy(val))
             }
 
+            #[cfg(any(test, feature = "ics13_near"))]
+            NEAR_HEADER_TYPE_URL => {
+                let val = decode_near_header(&*raw.value).map_err(Error::near)?;
+                Ok(AnyHeader::Near(val))
+            }
+
             #[cfg(any(test, feature = "mocks"))]
             MOCK_HEADER_TYPE_URL => Ok(AnyHeader::Mock(
                 MockHeader::decode_vec(&raw.value).map_err(Error::invalid_raw_header)?,
@@ -140,12 +150,11 @@ impl From<AnyHeader> for Any {
                 type_url: BEEFY_HEADER_TYPE_URL.to_string(),
                 value: header.encode_vec(),
             },
-            // AnyHeader::Near(header) => Any {
-            //     type_url: NEAR_HEADER_TYPE_URL.to_string(),
-            //     value: header
-            //         .encode_vec()
-            //         .expect("encodign to `Any` from AnyHeader::Near"),
-            // },
+            #[cfg(any(test, feature = "ics13_near"))]
+            AnyHeader::Near(header) => Any {
+                type_url: NEAR_HEADER_TYPE_URL.to_string(),
+                value: header.encode_vec(),
+            },
             #[cfg(any(test, feature = "mocks"))]
             AnyHeader::Mock(header) => Any {
                 type_url: MOCK_HEADER_TYPE_URL.to_string(),

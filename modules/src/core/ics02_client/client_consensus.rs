@@ -134,10 +134,10 @@ impl From<AnyConsensusState> for Any {
                 value: value.encode_vec(),
             },
             #[cfg(any(test, feature = "ics13_near"))]
-            AnyConsensusState::Near(_value) => todo!(), /* Any {
-            type_url: NEAR_CONSENSUS_STATE_TYPE_URL.to_string(),
-            value: value.encode_vec(),
-            }, */
+            AnyConsensusState::Near(value) => Any {
+                type_url: NEAR_CONSENSUS_STATE_TYPE_URL.to_string(),
+                value: value.encode_vec(),
+            },
             #[cfg(any(test, feature = "mocks"))]
             AnyConsensusState::Mock(value) => Any {
                 type_url: MOCK_CONSENSUS_STATE_TYPE_URL.to_string(),

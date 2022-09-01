@@ -2,7 +2,7 @@ use super::client_state::NearClientState;
 use super::consensus_state::NearConsensusState;
 use super::error::Error as NearError;
 use super::header::NearHeader;
-use crate::clients::host_functions::HostFunctionsProvider;
+use crate::clients::host_functions::{HostFunctionsManager, HostFunctionsProvider};
 use crate::core::ics02_client::client_consensus::AnyConsensusState;
 use crate::core::ics02_client::client_def::{ClientDef, ConsensusUpdateResult};
 use crate::core::ics02_client::client_state::AnyClientState;
@@ -63,7 +63,7 @@ impl<T: HostFunctionsProvider> ClientDef for NearClient<T> {
     ) -> Result<(), Error> {
         // TODO: optimize the verification, according to https://nomicon.io/ChainSpec/LightClient
         for header in header.inner {
-            validate_light_block::<T>(
+            validate_light_block::<HostFunctionsManager<T>>(
                 &client_state.head,
                 &header,
                 &client_state.epoch_block_producers,
@@ -87,7 +87,7 @@ impl<T: HostFunctionsProvider> ClientDef for NearClient<T> {
         header: Self::Header,
     ) -> Result<(Self::ClientState, ConsensusUpdateResult), Error> {
         // 1. create new client state from this header, return that.
-        // 2. as well as all the neccessary consensus states.
+        // 2. as well as all the necessary consensus states.
         //
         // []--[]--[]--[]--[]--[]--[]--[]--[]--[]
         // []--[]--[]--[]--[]--[]--[]--[]--[]--[]

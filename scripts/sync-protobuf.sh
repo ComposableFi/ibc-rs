@@ -25,15 +25,18 @@ CACHE_PATH="${XDG_CACHE_HOME:-$HOME/.cache}"
 COSMOS_SDK_GIT="${COSMOS_SDK_GIT:-$CACHE_PATH/cosmos/cosmos-sdk.git}"
 IBC_GO_GIT="${IBC_GO_GIT:-$CACHE_PATH/ibc-go.git}"
 COMPOSABLE_IBC_GO_GIT="${COMPOSABLE_IBC_GO_GIT:-$CACHE_PATH/composable/ibc-go.git}"
+COMPOSABLE_NEAR_RS_GIT="${COMPOSABLE_NEAR_RS_GIT:-$CACHE_PATH/composable/near-rs.git}"
 
 
 COSMOS_SDK_COMMIT="$(cat proto/src/COSMOS_SDK_COMMIT)"
 IBC_GO_COMMIT="$(cat proto/src/IBC_GO_COMMIT)"
 COMPOSABLE_IBC_GO_COMMIT="$(cat proto/src/COMPOSABLE_IBC_GO_COMMIT)"
+COMPOSABLE_NEAR_RS_COMMIT="$(cat proto/src/COMPOSABLE_NEAR_RS_COMMIT)"
 
 echo "COSMOS_SDK_COMMIT: $COSMOS_SDK_COMMIT"
 echo "IBC_GO_COMMIT: $IBC_GO_COMMIT"
 echo "COMPOSABLE_IBC_GO_COMMIT: $COMPOSABLE_IBC_GO_COMMIT"
+echo "COMPOSABLE_NEAR_RS_COMMIT: $COMPOSABLE_NEAR_RS_COMMIT"
 
 # Use either --sdk-commit flag for commit ID,
 # or --sdk-tag for git tag. Because we can't modify
@@ -74,6 +77,14 @@ else
 	echo "Using existing composable ibc-go bare git repository at $COMPOSABLE_IBC_GO_GIT"
 fi
 
+if [[ ! -e "$COMPOSABLE_NEAR_RS_GIT" ]]
+then
+	echo "Cloning composable near-rs source code to as bare git repository to $COMPOSABLE_NEAR_RS_GIT"
+	git clone --mirror https://github.com/ComposableFi/near-rs.git "$COMPOSABLE_NEAR_RS_GIT"
+else
+	echo "Using existing composable ibc-go bare git repository at $COMPOSABLE_NEAR_RS_GIT"
+fi
+
 # Update the repositories using git fetch. This is so that
 # we keep local copies of the repositories up to sync first.
 pushd "$COSMOS_SDK_GIT"
@@ -85,6 +96,10 @@ git fetch
 popd
 
 pushd "$COMPOSABLE_IBC_GO_GIT"
+git fetch
+popd
+
+pushd "$COMPOSABLE_NEAR_RS_GIT"
 git fetch
 popd
 
@@ -123,6 +138,17 @@ git checkout "$COMPOSABLE_IBC_GO_COMMIT"
 git checkout -b "$COMPOSABLE_IBC_GO_COMMIT"
 popd
 
+COMPOSABLE_NEAR_RS_DIR=$(mktemp -d /tmp/composable/near-rs-XXXXXXXX)
+
+pushd "$COMPOSABLE_NEAR_RS_DIR"
+git clone "$COMPOSABLE_NEAR_RS_GIT" .
+git checkout "$COMPOSABLE_NEAR_RS_COMMIT"
+git checkout -b "$COMPOSABLE_NEAR_RS_COMMIT"
+popd
+
+cp -R ~/work/ibc-go/third_party $COMPOSABLE_NEAR_RS_DIR
+cp -R ~/work/near-rs/proto $COMPOSABLE_NEAR_RS_DIR
+
 # Remove the existing generated protobuf files
 # so that the newly generated code does not
 # contain removed files.
@@ -139,10 +165,15 @@ cargo build
 # and once for no-std version with --build-tonic set to false
 
 cargo run -- compile \
-	--sdk "$COSMOS_SDK_DIR" --ibc "$IBC_GO_DIR" --beefy "$COMPOSABLE_IBC_GO_DIR" --out ../proto/src/prost
+	--sdk "$COSMOS_SDK_DIR" \
+	--ibc "$IBC_GO_DIR" \
+	--beefy "$COMPOSABLE_IBC_GO_DIR" \
+	--near "$COMPOSABLE_NEAR_RS_DIR" \
+	--out ../proto/src/prost
 
 # Remove the temporary checkouts of the repositories
 
 rm -rf "$COSMOS_SDK_DIR"
 rm -rf "$IBC_GO_DIR"
 rm -rf "$COMPOSABLE_IBC_GO_DIR"
+rm -rf "$COMPOSABLE_NEAR_RS_DIR"

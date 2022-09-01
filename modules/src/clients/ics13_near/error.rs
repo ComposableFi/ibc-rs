@@ -1,6 +1,16 @@
-use flex_error::define_error;
+use flex_error::{define_error, TraceError};
 use near_lite_client::CryptoHash;
+use near_primitives_wasm::ConversionError;
+/*
+       InvalidChainIdentifier
+           [ ValidationError ]
+           |_| { "invalid chain identifier" },
+        InvalidChainId
+            { raw_value: String }
+            [ ValidationError ]
+            |e| { format_args!("invalid chain identifier: {}", e.raw_value) },
 
+*/
 define_error! {
     #[derive(Debug, PartialEq, Eq)]
     Error {
@@ -32,6 +42,36 @@ define_error! {
             "lite client error"
         )},
         InvalidTimestamp
-        | _ | { "invalid timestamp" },
+            | _ | { "invalid timestamp" },
+        InvalidCommitmentRoot
+            |_| { "invalid commitment root" },
+        InvalidRawClientState
+            { reason: String }
+            |e| { format_args!("invalid raw client state: {}", e.reason) },
+        MissingFrozenHeight
+            |_| { "missing frozen height" },
+        InvalidRawHeight
+            { raw_height: u64 }
+            |e| { format_args!("invalid raw height: {}", e.raw_height) },
+        InvalidRawConsensusState
+            { reason: String }
+            | e | { format_args!("invalid raw client consensus state: {}", e.reason) },
+        InvalidRawHeader
+            | _ | { "invalid raw header" },
+        InvalidRawMisbehaviour
+            { reason: String }
+            | e | { format_args!("invalid raw misbehaviour: {}", e.reason) },
+        ConversionError
+            { reason: String }
+            | e | { format_args!("type conversion error: {}", e.reason) },
+       Decode
+            [ TraceError<prost::DecodeError> ]
+            | _ | { "decode error" },
+    }
+}
+
+impl From<ConversionError> for Error {
+    fn from(e: ConversionError) -> Self {
+        Error::conversion_error(e.to_string())
     }
 }
