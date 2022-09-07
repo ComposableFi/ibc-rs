@@ -1,5 +1,5 @@
 //! Protocol logic specific to processing ICS2 messages of type `MsgUpdateAnyClient`.
-use crate::clients::{ClientStateOf, ConsensusStateOf, GlobalDefs};
+use crate::clients::{ClientDefOf, ClientStateOf, ConsensusStateOf, GlobalDefs};
 use core::fmt::Debug;
 
 use crate::clients::host_functions::HostFunctionsProvider;
@@ -35,9 +35,7 @@ pub fn process<G: GlobalDefs, Ctx>(
     msg: MsgUpdateAnyClient<G::ClientDef>,
 ) -> HandlerResult<ClientResult<Ctx>, Error>
 where
-    Ctx: ReaderContext<ClientTypes = <G as GlobalDefs>::ClientDef>,
-    ConsensusStateOf<G>: From<<Ctx as ClientTypes>::ConsensusState>,
-    ConsensusStateOf<G>: From<ConsensusStateOf<G>>,
+    Ctx: ReaderContext<ClientTypes = ClientDefOf<G>>,
 {
     let mut output = HandlerOutput::builder();
 

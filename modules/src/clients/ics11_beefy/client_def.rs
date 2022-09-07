@@ -26,7 +26,7 @@ use crate::core::ics23_commitment::commitment::{
     CommitmentPrefix, CommitmentProofBytes, CommitmentRoot,
 };
 
-use crate::clients::{ClientStateOf, ConsensusStateOf, GlobalDefs};
+use crate::clients::{ClientDefOf, ClientStateOf, ConsensusStateOf, GlobalDefs};
 use crate::core::ics02_client;
 use crate::core::ics02_client::context::ClientReader;
 use crate::core::ics24_host::identifier::ConnectionId;
@@ -34,7 +34,7 @@ use crate::core::ics24_host::identifier::{ChannelId, ClientId, PortId};
 use crate::core::ics24_host::Path;
 use crate::core::ics26_routing::context::ReaderContext;
 use crate::prelude::*;
-use crate::{ctx_to_local, local_to_ctx, Height};
+use crate::Height;
 use core::marker::PhantomData;
 use ibc_proto::google::protobuf::Any;
 
@@ -97,11 +97,7 @@ where
         _client_id: ClientId,
         client_state: Self::ClientState,
         header: Self::Header,
-    ) -> Result<(), Error>
-    where
-        ConsensusStateOf<G>: From<Ctx::ConsensusState>,
-        Ctx::ConsensusState: From<ConsensusStateOf<G>>,
-    {
+    ) -> Result<(), Error> {
         let light_client_state = LightClientState {
             latest_beefy_height: client_state.latest_beefy_height,
             mmr_root_hash: client_state.mmr_root_hash,
@@ -175,16 +171,13 @@ where
         Ok(())
     }
 
-    fn update_state<Ctx: ReaderContext>(
+    fn update_state<Ctx: ReaderContext<ClientTypes = ClientDefOf<G>>>(
         &self,
         ctx: &Ctx,
         client_id: ClientId,
         client_state: Self::ClientState,
         header: Self::Header,
-    ) -> Result<(Self::ClientState, ConsensusUpdateResult<Ctx>), Error>
-    where
-        Ctx::ConsensusState: From<ConsensusStateOf<G>>,
-    {
+    ) -> Result<(Self::ClientState, ConsensusUpdateResult<Ctx>), Error> {
         let mut parachain_cs_states = vec![];
         // Extract the new client state from the verified header
         let mut client_state = client_state
@@ -211,7 +204,8 @@ where
                 }
                 parachain_cs_states.push((
                     height,
-                    local_to_ctx!(ConsensusState::from_header(header)?, ConsensusState),
+                    ConsensusStateOf::<G>::from(ConsensusState::from_header(header)?),
+                    // local_to_ctx!(ConsensusState::from_header(header)?, ConsensusState),
                 ))
             }
         }
@@ -273,9 +267,7 @@ where
         )))
     }
 
-    fn verify_client_consensus_state<
-        Ctx: ReaderContext<ClientTypes = <Self::G as GlobalDefs>::ClientDef>,
-    >(
+    fn verify_client_consensus_state<Ctx: ReaderContext<ClientTypes = ClientDefOf<Self::G>>>(
         &self,
         _ctx: &Ctx,
         client_state: &Self::ClientState,
@@ -286,13 +278,7 @@ where
         client_id: &ClientId,
         consensus_height: Height,
         expected_consensus_state: &Ctx::ConsensusState,
-    ) -> Result<(), Error>
-where
-        // ConsensusStateOf<G>: Protobuf<Any>,
-        // Any: From<ConsensusStateOf<G>>,
-        // ConsensusStateOf<G>: TryFrom<Any>,
-        // <ConsensusStateOf<G> as TryFrom<Any>>::Error: Display,
-    {
+    ) -> Result<(), Error> {
         client_state.verify_height(height)?;
         let path = ClientConsensusStatePath {
             client_id: client_id.clone(),
@@ -341,9 +327,7 @@ where
         verify_membership::<G, _>(prefix, proof, root, path, value)
     }
 
-    fn verify_client_full_state<
-        Ctx: ReaderContext<ClientTypes = <Self::G as GlobalDefs>::ClientDef>,
-    >(
+    fn verify_client_full_state<Ctx: ReaderContext<ClientTypes = ClientDefOf<Self::G>>>(
         &self,
         _ctx: &Ctx,
         client_state: &Self::ClientState,
@@ -353,13 +337,7 @@ where
         root: &CommitmentRoot,
         client_id: &ClientId,
         expected_client_state: &Ctx::ClientState,
-    ) -> Result<(), Error>
-where
-        // ClientStateOf<G>: Protobuf<Any>,
-        // Any: From<ClientStateOf<G>>,
-        // ClientStateOf<G>: TryFrom<Any>,
-        // <ClientStateOf<G> as TryFrom<Any>>::Error: Display,
-    {
+    ) -> Result<(), Error> {
         client_state.verify_height(height)?;
         let path = ClientStatePath(client_id.clone());
         let value = expected_client_state.encode_vec();
@@ -500,7 +478,6 @@ fn verify_membership<G, P>(
 ) -> Result<(), Error>
 where
     G: GlobalDefs,
-
     P: Into<Path>,
 {
     if root.as_bytes().len() != 32 {
@@ -525,7 +502,6 @@ fn verify_non_membership<G, P>(
 ) -> Result<(), Error>
 where
     G: GlobalDefs,
-
     P: Into<Path>,
 {
     if root.as_bytes().len() != 32 {

@@ -1,5 +1,5 @@
 use crate::clients::host_functions::HostFunctionsProvider;
-use crate::clients::GlobalDefs;
+use crate::clients::{ClientDefOf, GlobalDefs};
 use crate::core::ics02_client::client_consensus::ConsensusState;
 use crate::core::ics02_client::client_type::ClientTypes;
 use crate::core::ics02_client::context::ClientReader;
@@ -31,7 +31,7 @@ pub struct TimeoutPacketResult {
 pub fn process<G, Ctx>(ctx: &Ctx, msg: &MsgTimeout) -> HandlerResult<PacketResult, Error>
 where
     G: GlobalDefs,
-    Ctx: ReaderContext<ClientTypes = <G as GlobalDefs>::ClientDef>,
+    Ctx: ReaderContext<ClientTypes = ClientDefOf<G>>,
 {
     let mut output = HandlerOutput::builder();
 

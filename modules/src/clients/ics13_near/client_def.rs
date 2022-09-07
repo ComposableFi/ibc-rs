@@ -76,8 +76,6 @@ where
     ) -> Result<(), Error>
     where
         Ctx: ReaderContext,
-        ConsensusStateOf<G>: From<Ctx::ConsensusState>,
-        Ctx::ConsensusState: From<ConsensusStateOf<G>>,
     {
         // your light client, shouldn't do storage anymore, it should just do verification here.
         validate_light_block::<G>(&header, client_state)
@@ -89,10 +87,7 @@ where
         _client_id: ClientId,
         _client_state: Self::ClientState,
         _header: Self::Header,
-    ) -> Result<(Self::ClientState, ConsensusUpdateResult<Ctx>), Error>
-    where
-        Ctx::ConsensusState: From<ConsensusStateOf<G>>,
-    {
+    ) -> Result<(Self::ClientState, ConsensusUpdateResult<Ctx>), Error> {
         // 1. create new client state from this header, return that.
         // 2. as well as all the neccessary consensus states.
         //

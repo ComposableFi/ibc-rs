@@ -220,14 +220,11 @@ impl<G> AnyClientState<G> {
 }
 
 impl<G> Protobuf<Any> for AnyClientState<G> {}
-// impl<H> Protobuf<Any> for AnyClientState<AnyGlobalDef<H>> {}
 
 impl<G> TryFrom<Any> for AnyClientState<G> {
-    // impl<H> TryFrom<Any> for AnyClientState<AnyGlobalDef<H>> {
     type Error = Error;
 
     fn try_from(raw: Any) -> Result<Self, Self::Error> {
-        panic!();
         match raw.type_url.as_str() {
             "" => Err(Error::empty_client_state_response()),
 
@@ -254,8 +251,6 @@ impl<G> TryFrom<Any> for AnyClientState<G> {
 
 impl<G> From<AnyClientState<G>> for Any {
     fn from(value: AnyClientState<G>) -> Self {
-        // impl<H> From<AnyClientState<AnyGlobalDef<H>>> for Any {
-        //     fn from(value: AnyClientState<AnyGlobalDef<H>>) -> Self {
         match value {
             AnyClientState::Tendermint(value) => Any {
                 type_url: TENDERMINT_CLIENT_STATE_TYPE_URL.to_string(),

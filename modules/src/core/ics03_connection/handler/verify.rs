@@ -1,6 +1,6 @@
 //! ICS3 verification functions, common across all four handlers of ICS3.
 use crate::clients::host_functions::HostFunctionsProvider;
-use crate::clients::{ClientStateOf, ConsensusStateOf, GlobalDefs};
+use crate::clients::{ClientDefOf, ClientStateOf, ConsensusStateOf, GlobalDefs};
 use crate::core::ics02_client::client_consensus::ConsensusState;
 use crate::core::ics02_client::client_state::{AnyClientState, ClientState};
 #[cfg(feature = "ics11_beefy")]
@@ -35,10 +35,7 @@ pub struct ConnectionProof {
 /// Verifies the authenticity and semantic correctness of a commitment `proof`. The commitment
 /// claims to prove that an object of type connection exists on the source chain (i.e., the chain
 /// which created this proof). This object must match the state of `expected_conn`.
-pub fn verify_connection_proof<
-    G: GlobalDefs,
-    Ctx: ReaderContext<ClientTypes = <G as GlobalDefs>::ClientDef>,
->(
+pub fn verify_connection_proof<G: GlobalDefs, Ctx: ReaderContext<ClientTypes = ClientDefOf<G>>>(
     ctx: &Ctx,
     height: Height,
     connection_end: &ConnectionEnd,

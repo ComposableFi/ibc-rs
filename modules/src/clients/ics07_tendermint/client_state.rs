@@ -263,13 +263,11 @@ where
 
     ConsensusState: TryFrom<ConsensusStateOf<G>, Error = Ics02Error>,
     ConsensusStateOf<G>: From<ConsensusState>,
-    // ConsensusStateOf<G>: From<Any>,
     ConsensusStateOf<G>: Protobuf<Any>,
     <ConsensusStateOf<G> as TryFrom<Any>>::Error: Display,
     Any: From<ConsensusStateOf<G>>,
 
     ClientStateOf<G>: TryFrom<Any>,
-    // ClientStateOf<G>: From<Any>,
     ClientStateOf<G>: Protobuf<Any>,
     <ClientStateOf<G> as TryFrom<Any>>::Error: Display,
     Any: From<ClientStateOf<G>>,

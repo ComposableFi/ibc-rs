@@ -2,7 +2,7 @@ use core::convert::TryInto;
 use core::fmt::{Debug, Display};
 
 use crate::clients::host_functions::{HostFunctionsManager, HostFunctionsProvider};
-use crate::clients::{ClientStateOf, ConsensusStateOf, GlobalDefs};
+use crate::clients::{ClientDefOf, ClientStateOf, ConsensusStateOf, GlobalDefs};
 use derivative::Derivative;
 use ibc_proto::google::protobuf::Any;
 use ibc_proto::ibc::core::commitment::v1::MerkleProof as RawMerkleProof;
@@ -38,10 +38,10 @@ use crate::core::ics24_host::path::{
 };
 use crate::core::ics24_host::Path;
 use crate::core::ics26_routing::context::ReaderContext;
+use crate::downcast;
 use crate::prelude::*;
 use crate::timestamp::Timestamp;
-use crate::{ctx_to_local, downcast};
-use crate::{local_to_ctx, Height};
+use crate::Height;
 
 #[derive(Derivative)]
 #[derivative(
@@ -61,13 +61,11 @@ where
     ConsensusState: TryFrom<ConsensusStateOf<G>, Error = Ics02Error>,
     ConsensusStateOf<G>: From<ConsensusState>,
 
-    // ConsensusStateOf<G>: From<Any>,
     ConsensusStateOf<G>: Protobuf<Any>,
     ConsensusStateOf<G>: TryFrom<Any>,
     <ConsensusStateOf<G> as TryFrom<Any>>::Error: Display,
     Any: From<ConsensusStateOf<G>>,
 
-    // ClientStateOf<G>: From<Any>,
     ClientStateOf<G>: Protobuf<Any>,
     ClientStateOf<G>: TryFrom<Any>,
     <ClientStateOf<G> as TryFrom<Any>>::Error: Display,
@@ -104,9 +102,7 @@ where
         header: Self::Header,
     ) -> Result<(), Ics02Error>
     where
-        Ctx: ReaderContext<ClientTypes = <Self::G as GlobalDefs>::ClientDef>,
-        ConsensusStateOf<G>: From<Ctx::ConsensusState>,
-        Ctx::ConsensusState: From<ConsensusStateOf<G>>,
+        Ctx: ReaderContext<ClientTypes = ClientDefOf<Self::G>>,
     {
         if header.height().revision_number != client_state.chain_id.version() {
             return Err(Ics02Error::tendermint_handler_error(
@@ -122,7 +118,7 @@ where
 
         let _ = match ctx.maybe_consensus_state(&client_id, header.height())? {
             Some(cs) => {
-                let cs = ctx_to_local!(cs, ConsensusState)?;
+                let cs = ConsensusState::try_from(cs)?;
                 // If this consensus state matches, skip verification
                 // (optimization)
                 if cs == header_consensus_state {
@@ -193,18 +189,15 @@ where
         Ok(())
     }
 
-    fn update_state<Ctx: ReaderContext>(
+    fn update_state<Ctx: ReaderContext<ClientTypes = ClientDefOf<G>>>(
         &self,
         _ctx: &Ctx,
         _client_id: ClientId,
         client_state: Self::ClientState,
         header: Self::Header,
-    ) -> Result<(Self::ClientState, ConsensusUpdateResult<Ctx>), Ics02Error>
-    where
-        Ctx::ConsensusState: From<ConsensusStateOf<G>>,
-    {
+    ) -> Result<(Self::ClientState, ConsensusUpdateResult<Ctx>), Ics02Error> {
         let header_consensus_state = <ConsensusState as From<Header>>::from(header.clone());
-        let cs = local_to_ctx!(header_consensus_state, ConsensusState);
+        let cs = Ctx::ConsensusState::from(header_consensus_state);
         Ok((
             client_state.with_header(header),
             ConsensusUpdateResult::Single(cs),
@@ -221,16 +214,13 @@ where
             .map_err(|e| e.into())
     }
 
-    fn check_for_misbehaviour<Ctx: ReaderContext>(
+    fn check_for_misbehaviour<Ctx: ReaderContext<ClientTypes = ClientDefOf<G>>>(
         &self,
         ctx: &Ctx,
         client_id: ClientId,
         client_state: Self::ClientState,
         header: Self::Header,
-    ) -> Result<bool, Ics02Error>
-    where
-        ConsensusStateOf<G>: From<Ctx::ConsensusState>,
-    {
+    ) -> Result<bool, Ics02Error> {
         // Check if a consensus state is already installed; if so it should
         // match the untrusted header.
         let header_consensus_state = <ConsensusState as From<Header>>::from(header.clone());
@@ -238,7 +228,7 @@ where
         let existing_consensus_state =
             match ctx.maybe_consensus_state(&client_id, header.height())? {
                 Some(cs) => {
-                    let cs = ctx_to_local!(cs, ConsensusState)?;
+                    let cs = ConsensusState::try_from(cs)?;
                     // If this consensus state matches, skip verification
                     // (optimization)
                     if header_consensus_state == cs {
@@ -265,7 +255,7 @@ where
         if header.height() < client_state.latest_height() {
             let maybe_next_cs = ctx
                 .next_consensus_state(&client_id, header.height())?
-                .map(|cs| ctx_to_local!(cs, ConsensusState))
+                .map(|cs| ConsensusState::try_from(cs))
                 .transpose()?;
 
             if let Some(next_cs) = maybe_next_cs {
@@ -287,7 +277,7 @@ where
         if header.trusted_height < header.height() {
             let maybe_prev_cs = ctx
                 .prev_consensus_state(&client_id, header.height())?
-                .map(|cs| ctx_to_local!(cs, ConsensusState))
+                .map(|cs| ConsensusState::try_from(cs))
                 .transpose()?;
 
             if let Some(prev_cs) = maybe_prev_cs {
@@ -320,9 +310,7 @@ where
         ))
     }
 
-    fn verify_client_consensus_state<
-        Ctx: ReaderContext<ClientTypes = <Self::G as GlobalDefs>::ClientDef>,
-    >(
+    fn verify_client_consensus_state<Ctx: ReaderContext<ClientTypes = ClientDefOf<Self::G>>>(
         &self,
         _ctx: &Ctx,
         client_state: &Self::ClientState,
@@ -333,14 +321,7 @@ where
         client_id: &ClientId,
         consensus_height: Height,
         expected_consensus_state: &Ctx::ConsensusState,
-    ) -> Result<(), Ics02Error>
-    where
-        // ConsensusStateOf<Self::G>: From<Any>,
-        ConsensusStateOf<Self::G>: Protobuf<Any>,
-        Any: From<ConsensusStateOf<Self::G>>,
-        ConsensusStateOf<Self::G>: TryFrom<Any>,
-        <ConsensusStateOf<Self::G> as TryFrom<Any>>::Error: Display,
-    {
+    ) -> Result<(), Ics02Error> {
         client_state.verify_height(height)?;
 
         let path = ClientConsensusStatePath {
@@ -391,9 +372,7 @@ where
         verify_membership::<G, _>(client_state, prefix, proof, root, path, value)
     }
 
-    fn verify_client_full_state<
-        Ctx: ReaderContext<ClientTypes = <Self::G as GlobalDefs>::ClientDef>,
-    >(
+    fn verify_client_full_state<Ctx: ReaderContext<ClientTypes = ClientDefOf<Self::G>>>(
         &self,
         _ctx: &Ctx,
         client_state: &Self::ClientState,
@@ -403,13 +382,7 @@ where
         root: &CommitmentRoot,
         client_id: &ClientId,
         expected_client_state: &Ctx::ClientState,
-    ) -> Result<(), Ics02Error>
-where
-        // ClientStateOf<Self::G>: Protobuf<Any>,
-        //     Any: From<ClientStateOf<G>>,
-        //     ClientStateOf<G>: TryFrom<Any>,
-        //     <ClientStateOf<G> as TryFrom<Any>>::Error: Display,
-    {
+    ) -> Result<(), Ics02Error> {
         client_state.verify_height(height)?;
 
         let path = ClientStatePath(client_id.clone());
@@ -560,7 +533,6 @@ fn verify_membership<G, P>(
 ) -> Result<(), Ics02Error>
 where
     G: GlobalDefs,
-
     P: Into<Path>,
 {
     let merkle_path = apply_prefix(prefix, vec![path.into().to_string()]);
@@ -588,7 +560,6 @@ fn verify_non_membership<G, P>(
 ) -> Result<(), Ics02Error>
 where
     G: GlobalDefs,
-
     P: Into<Path>,
 {
     let merkle_path = apply_prefix(prefix, vec![path.into().to_string()]);

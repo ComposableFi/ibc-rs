@@ -1,7 +1,7 @@
 //! This module implements the processing logic for ICS4 (channel) messages.
 
 use crate::clients::host_functions::HostFunctionsProvider;
-use crate::clients::GlobalDefs;
+use crate::clients::{ClientDefOf, GlobalDefs};
 use crate::core::ics04_channel::channel::ChannelEnd;
 use crate::core::ics04_channel::error::Error;
 use crate::core::ics04_channel::msgs::ChannelMsg;
@@ -65,7 +65,7 @@ pub fn channel_dispatch<Ctx, G>(
     msg: &ChannelMsg,
 ) -> Result<(HandlerOutputBuilder<()>, ChannelResult), Error>
 where
-    Ctx: ReaderContext<ClientTypes = <G as GlobalDefs>::ClientDef>,
+    Ctx: ReaderContext<ClientTypes = ClientDefOf<G>>,
     G: GlobalDefs,
 {
     let output = match msg {
@@ -174,7 +174,7 @@ pub fn packet_dispatch<Ctx, G>(
     msg: &PacketMsg,
 ) -> Result<(HandlerOutputBuilder<()>, PacketResult), Error>
 where
-    Ctx: ReaderContext<ClientTypes = <G as GlobalDefs>::ClientDef>,
+    Ctx: ReaderContext<ClientTypes = ClientDefOf<G>>,
     G: GlobalDefs,
 {
     let output = match msg {

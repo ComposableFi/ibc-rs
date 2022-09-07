@@ -1,5 +1,5 @@
 use crate::clients::host_functions::HostFunctionsProvider;
-use crate::clients::GlobalDefs;
+use crate::clients::{ClientDefOf, GlobalDefs};
 use crate::core::ics02_client::client_type::ClientTypes;
 use crate::core::ics02_client::context::ClientReader;
 use crate::core::ics04_channel::channel::State;
@@ -17,7 +17,7 @@ use crate::events::IbcEvent;
 use crate::handler::{HandlerOutput, HandlerResult};
 use crate::prelude::*;
 
-pub fn process<G: GlobalDefs, Ctx: ReaderContext<ClientTypes = <G as GlobalDefs>::ClientDef>>(
+pub fn process<G: GlobalDefs, Ctx: ReaderContext<ClientTypes = ClientDefOf<G>>>(
     ctx: &Ctx,
     msg: &MsgTimeoutOnClose,
 ) -> HandlerResult<PacketResult, Error> {

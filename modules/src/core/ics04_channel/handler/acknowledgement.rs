@@ -1,5 +1,5 @@
 use crate::clients::host_functions::HostFunctionsProvider;
-use crate::clients::GlobalDefs;
+use crate::clients::{ClientDefOf, GlobalDefs};
 use crate::core::ics02_client::client_type::ClientTypes;
 use crate::core::ics02_client::context::ClientReader;
 use crate::core::ics03_connection::connection::State as ConnectionState;
@@ -25,7 +25,7 @@ pub struct AckPacketResult {
     pub seq_number: Option<Sequence>,
 }
 
-pub fn process<G: GlobalDefs, Ctx: ReaderContext<ClientTypes = <G as GlobalDefs>::ClientDef>>(
+pub fn process<G: GlobalDefs, Ctx: ReaderContext<ClientTypes = ClientDefOf<G>>>(
     ctx: &Ctx,
     msg: &MsgAcknowledgement,
 ) -> HandlerResult<PacketResult, Error> {

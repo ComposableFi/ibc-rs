@@ -1,6 +1,6 @@
 //! Protocol logic specific to processing ICS2 messages of type `MsgCreateAnyClient`.
 
-use crate::clients::GlobalDefs;
+use crate::clients::{ClientDefOf, GlobalDefs};
 use crate::core::ics26_routing::context::ReaderContext;
 use crate::prelude::*;
 use core::fmt::Debug;
@@ -36,7 +36,7 @@ pub fn process<G, Ctx>(
 ) -> HandlerResult<ClientResult<Ctx>, Error>
 where
     G: GlobalDefs,
-    Ctx: ReaderContext<ClientTypes = <G as GlobalDefs>::ClientDef> + Eq + Debug + Clone,
+    Ctx: ReaderContext<ClientTypes = ClientDefOf<G>> + Eq + Debug + Clone,
 {
     let mut output = HandlerOutput::builder();
 

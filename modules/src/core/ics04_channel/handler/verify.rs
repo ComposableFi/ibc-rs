@@ -1,5 +1,5 @@
 use crate::clients::host_functions::HostFunctionsProvider;
-use crate::clients::GlobalDefs;
+use crate::clients::{ClientDefOf, GlobalDefs};
 use crate::core::ics02_client::client_consensus::ConsensusState;
 use crate::core::ics02_client::client_state::ClientState;
 use crate::core::ics02_client::client_type::ClientTypes;
@@ -26,7 +26,7 @@ pub fn verify_channel_proofs<G, Ctx>(
 ) -> Result<(), Error>
 where
     G: GlobalDefs,
-    Ctx: ReaderContext<ClientTypes = <G as GlobalDefs>::ClientDef>,
+    Ctx: ReaderContext<ClientTypes = ClientDefOf<G>>,
 {
     // This is the client which will perform proof verification.
     let client_id = connection_end.client_id().clone();
@@ -66,7 +66,7 @@ where
 /// Entry point for verifying all proofs bundled in a ICS4 packet recv. message.
 pub fn verify_packet_recv_proofs<
     G: GlobalDefs,
-    Ctx: ReaderContext<ClientTypes = <G as GlobalDefs>::ClientDef>,
+    Ctx: ReaderContext<ClientTypes = ClientDefOf<G>>,
 >(
     ctx: &Ctx,
     height: Height,
@@ -117,7 +117,7 @@ pub fn verify_packet_recv_proofs<
 /// Entry point for verifying all proofs bundled in an ICS4 packet ack message.
 pub fn verify_packet_acknowledgement_proofs<
     G: GlobalDefs,
-    Ctx: ReaderContext<ClientTypes = <G as GlobalDefs>::ClientDef>,
+    Ctx: ReaderContext<ClientTypes = ClientDefOf<G>>,
 >(
     ctx: &Ctx,
     height: Height,
@@ -173,7 +173,7 @@ pub fn verify_next_sequence_recv<G, Ctx>(
 ) -> Result<(), Error>
 where
     G: GlobalDefs,
-    Ctx: ReaderContext<ClientTypes = <G as GlobalDefs>::ClientDef>,
+    Ctx: ReaderContext<ClientTypes = ClientDefOf<G>>,
 {
     let client_id = connection_end.client_id();
     let client_state = ctx.client_state(client_id).map_err(Error::ics02_client)?;
@@ -217,7 +217,7 @@ pub fn verify_packet_receipt_absence<G, Ctx>(
 ) -> Result<(), Error>
 where
     G: GlobalDefs,
-    Ctx: ReaderContext<ClientTypes = <G as GlobalDefs>::ClientDef>,
+    Ctx: ReaderContext<ClientTypes = ClientDefOf<G>>,
 {
     let client_id = connection_end.client_id();
     let client_state = ctx.client_state(client_id).map_err(Error::ics02_client)?;

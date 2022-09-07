@@ -1,7 +1,7 @@
 //! Protocol logic specific to ICS4 messages of type `MsgChannelOpenTry`.
 
 use crate::clients::host_functions::HostFunctionsProvider;
-use crate::clients::GlobalDefs;
+use crate::clients::{ClientDefOf, GlobalDefs};
 use crate::core::ics02_client::client_type::ClientTypes;
 use crate::core::ics02_client::context::ClientReader;
 use crate::core::ics03_connection::connection::State as ConnectionState;
@@ -23,7 +23,7 @@ pub(crate) fn process<G, Ctx>(
 ) -> HandlerResult<ChannelResult, Error>
 where
     G: GlobalDefs,
-    Ctx: ReaderContext<ClientTypes = <G as GlobalDefs>::ClientDef>,
+    Ctx: ReaderContext<ClientTypes = ClientDefOf<G>>,
 {
     let mut output = HandlerOutput::builder();
 

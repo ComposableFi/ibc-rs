@@ -47,19 +47,3 @@ macro_rules! downcast {
         None
     }
 }
-
-#[macro_export]
-macro_rules! local_to_ctx {
-    ($v:expr, $T:ident) => {{
-        let tmp = <<G as GlobalDefs>::ClientDef as ClientTypes>::$T::from($v);
-        Ctx::$T::from(tmp)
-    }};
-}
-
-#[macro_export]
-macro_rules! ctx_to_local {
-    ($v:expr, $T:ident) => {{
-        let tmp = <<G as GlobalDefs>::ClientDef as ClientTypes>::$T::from($v);
-        <$T as TryFrom<_>>::try_from(tmp)
-    }};
-}

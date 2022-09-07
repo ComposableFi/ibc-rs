@@ -14,7 +14,7 @@ use super::error::Error;
 /// Client types other traits depend on (client configuration).
 pub trait ClientTypes {
     type Header: Header;
-    type ClientState: ClientState + Eq; // + Protobuf<Any> + TryFrom<Any>;
+    type ClientState: ClientState + Eq;
     type ConsensusState: ConsensusState + Eq;
 }
 

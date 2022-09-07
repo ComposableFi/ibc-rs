@@ -5,7 +5,7 @@ use tendermint_proto::Protobuf;
 
 use ibc_proto::google::protobuf::Any;
 
-use crate::clients::{ClientStateOf, ConsensusStateOf, GlobalDefs};
+use crate::clients::{ClientDefOf, ClientStateOf, ConsensusStateOf, GlobalDefs};
 use crate::core::ics02_client::client_def::ClientDef;
 use crate::core::ics02_client::client_type::ClientTypes;
 use crate::core::ics02_client::handler::dispatch as ics2_msg_dispatcher;
@@ -38,7 +38,7 @@ pub struct MsgReceipt {
 /// Returns a vector of all events that got generated as a byproduct of processing `message`.
 pub fn deliver<Ctx, G: GlobalDefs>(ctx: &mut Ctx, message: Any) -> Result<MsgReceipt, Error>
 where
-    Ctx: Ics26Context<ClientTypes = <G as GlobalDefs>::ClientDef>,
+    Ctx: Ics26Context<ClientTypes = ClientDefOf<G>>,
     Ics26Envelope<G::ClientDef>: From<Any>,
     Error: From<<Ics26Envelope<G::ClientDef> as TryFrom<Any>>::Error>,
     ClientStateOf<G>: Protobuf<Any>,
@@ -49,8 +49,6 @@ where
     Any: From<ConsensusStateOf<G>>,
     ConsensusStateOf<G>: TryFrom<Any>,
     <ConsensusStateOf<G> as TryFrom<Any>>::Error: Display,
-    ConsensusStateOf<G>: From<<Ctx as ClientTypes>::ConsensusState>,
-    Ctx::ConsensusState: From<ConsensusStateOf<G>>,
 {
     // Decode the proto message into a domain message, creating an ICS26 envelope.
     let envelope = decode::<G::ClientDef>(message)?;
@@ -81,7 +79,7 @@ pub fn dispatch<Ctx, G: GlobalDefs>(
     msg: Ics26Envelope<G::ClientDef>,
 ) -> Result<HandlerOutput<()>, Error>
 where
-    Ctx: Ics26Context<ClientTypes = <G as GlobalDefs>::ClientDef>,
+    Ctx: Ics26Context<ClientTypes = ClientDefOf<G>>,
     G::ClientDef: Debug + Eq,
     ClientStateOf<G>: Protobuf<Any>,
     Any: From<ClientStateOf<G>>,
@@ -91,8 +89,6 @@ where
     Any: From<ConsensusStateOf<G>>,
     ConsensusStateOf<G>: TryFrom<Any>,
     <ConsensusStateOf<G> as TryFrom<Any>>::Error: Display,
-    ConsensusStateOf<G>: From<<Ctx as ClientTypes>::ConsensusState>,
-    Ctx::ConsensusState: From<ConsensusStateOf<G>>,
 {
     let output = match msg {
         Ics2Msg(msg) => {

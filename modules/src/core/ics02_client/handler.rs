@@ -30,8 +30,6 @@ pub fn dispatch<Ctx, G: GlobalDefs>(
 ) -> Result<HandlerOutput<ClientResult<Ctx>>, Error>
 where
     Ctx: ReaderContext<ClientTypes = G::ClientDef>,
-    ConsensusStateOf<G>: From<<Ctx as ClientTypes>::ConsensusState>,
-    Ctx::ConsensusState: From<ConsensusStateOf<G>>,
 {
     match msg {
         ClientMsg::CreateClient(msg) => create_client::process::<G, _>(ctx, msg),

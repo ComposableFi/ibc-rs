@@ -20,3 +20,4 @@ pub trait GlobalDefs: Send + Sync {
 
 pub type ConsensusStateOf<G> = <<G as GlobalDefs>::ClientDef as ClientTypes>::ConsensusState;
 pub type ClientStateOf<G> = <<G as GlobalDefs>::ClientDef as ClientTypes>::ClientState;
+pub type ClientDefOf<G> = <G as GlobalDefs>::ClientDef;

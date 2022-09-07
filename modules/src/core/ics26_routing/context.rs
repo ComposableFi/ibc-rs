@@ -40,22 +40,6 @@ pub trait ReaderContext:
         Header = HeaderStateOf<Self::ClientTypes>,
     > + ConnectionReader
     + ChannelReader
-// ClientStateOf<G>: Protobuf<Any>,
-// Any: From<ClientStateOf<G>>,
-// ClientStateOf<G>: TryFrom<Any>,
-// <ClientStateOf<G> as TryFrom<Any>>::Error: Display,
-// ConsensusStateOf<G>: Protobuf<Any>,
-// Any: From<ConsensusStateOf<G>>,
-// ConsensusStateOf<G>: TryFrom<Any>,
-// <ConsensusStateOf<G> as TryFrom<Any>>::Error: Display,
-// ClientStateOf<Self::ClientTypes>: Protobuf<ProtoAny>,
-// ProtoAny: From<ClientStateOf<Self::ClientTypes>>,
-// ClientStateOf<Self::ClientTypes>: TryFrom<ProtoAny>,
-// <ClientStateOf<Self::ClientTypes> as TryFrom<ProtoAny>>::Error: fmt::Display,
-// ConsensusStateOf<Self::ClientTypes>: Protobuf<ProtoAny>,
-// ProtoAny: From<ConsensusStateOf<Self::ClientTypes>>,
-// ConsensusStateOf<Self::ClientTypes>: TryFrom<ProtoAny>,
-// <ConsensusStateOf<Self::ClientTypes> as TryFrom<ProtoAny>>::Error: fmt::Display,
 {
     type ClientTypes: ClientTypes;
 }
@@ -63,16 +47,7 @@ pub trait ReaderContext:
 /// This trait captures all the functional dependencies (i.e., context) which the ICS26 module
 /// requires to be able to dispatch and process IBC messages. In other words, this is the
 /// representation of a chain from the perspective of the IBC module of that chain.
-pub trait Ics26Context:
-    // ClientReader
-    // + ClientKeeper
-    // + ConnectionReader
-    ConnectionKeeper
-    + ChannelKeeper
-    // + ChannelReader
-    + PortReader
-    + ReaderContext
-{
+pub trait Ics26Context: ConnectionKeeper + ChannelKeeper + PortReader + ReaderContext {
     type Router: Router;
 
     fn router(&self) -> &Self::Router;

@@ -83,8 +83,6 @@ pub trait ClientReader: ClientTypes {
 
 /// Defines the write-only part of ICS2 (client functions) context.
 pub trait ClientKeeper: ClientTypes
-//
-// ClientDef
 where
     Self: Sized + Clone + Debug + Eq,
 {
