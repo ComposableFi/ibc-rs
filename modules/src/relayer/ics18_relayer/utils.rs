@@ -1,5 +1,7 @@
+use crate::clients::{ClientStateOf, ConsensusStateOf, GlobalDefs};
 use crate::core::ics02_client::client_state::ClientState;
-use crate::core::ics02_client::header::{AnyHeader, Header};
+use crate::core::ics02_client::client_type::ClientTypes;
+use crate::core::ics02_client::header::Header;
 use crate::core::ics02_client::msgs::update_client::MsgUpdateAnyClient;
 use crate::core::ics02_client::msgs::ClientMsg;
 use crate::core::ics24_host::identifier::ClientId;
@@ -8,13 +10,18 @@ use crate::relayer::ics18_relayer::error::Error;
 
 /// Builds a `ClientMsg::UpdateClient` for a client with id `client_id` running on the `dest`
 /// context, assuming that the latest header on the source context is `src_header`.
-pub fn build_client_update_datagram<Ctx>(
+pub fn build_client_update_datagram<G: GlobalDefs, Ctx>(
+    // pub fn build_client_update_datagram<G: GlobalDefs<ClientDef = Ctx>, Ctx>(
     dest: &Ctx,
     client_id: &ClientId,
     src_header: Ctx::Header,
-) -> Result<ClientMsg<Ctx>, Error>
+) -> Result<ClientMsg<G::ClientTypes>, Error>
 where
-    Ctx: Ics18Context,
+    Ctx: Ics18Context<
+        ConsensusState = ConsensusStateOf<G>,
+        ClientState = ClientStateOf<G>,
+        Header = <G::ClientTypes as ClientTypes>::Header,
+    >,
 {
     // Check if client for ibc0 on ibc1 has been updated to latest height:
     // - query client state on destination chain
@@ -54,6 +61,7 @@ mod tests {
     use crate::core::ics02_client::header::{AnyHeader, Header};
     use crate::core::ics24_host::identifier::{ChainId, ClientId};
     use crate::core::ics26_routing::msgs::Ics26Envelope;
+    use crate::mock::client_def::TestGlobalDefs;
     use crate::mock::context::MockContext;
     use crate::mock::host::HostType;
     use crate::prelude::*;
@@ -115,8 +123,11 @@ mod tests {
                 ClientType::Mock
             );
 
-            let client_msg_b_res =
-                build_client_update_datagram(&ctx_b, &client_on_b_for_a, a_latest_header);
+            let client_msg_b_res = build_client_update_datagram::<TestGlobalDefs, _>(
+                &ctx_b,
+                &client_on_b_for_a,
+                a_latest_header,
+            );
 
             assert!(
                 client_msg_b_res.is_ok(),
@@ -172,8 +183,11 @@ mod tests {
                 ClientType::Tendermint
             );
 
-            let client_msg_a_res =
-                build_client_update_datagram(&ctx_a, &client_on_a_for_b, b_latest_header);
+            let client_msg_a_res = build_client_update_datagram::<TestGlobalDefs, _>(
+                &ctx_a,
+                &client_on_a_for_b,
+                b_latest_header,
+            );
 
             assert!(
                 client_msg_a_res.is_ok(),

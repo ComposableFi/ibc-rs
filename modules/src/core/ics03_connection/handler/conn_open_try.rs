@@ -1,8 +1,7 @@
 //! Protocol logic specific to processing ICS3 messages of type `MsgConnectionOpenTry`.
 
-use crate::clients::host_functions::HostFunctionsProvider;
 use crate::clients::{ClientStateOf, ConsensusStateOf, GlobalDefs};
-use crate::core::ics02_client::client_type::ClientTypes;
+
 use crate::core::ics02_client::context::ClientReader;
 use crate::core::ics03_connection::connection::{ConnectionEnd, Counterparty, State};
 use crate::core::ics03_connection::error::Error;
@@ -22,9 +21,9 @@ use core::fmt::Display;
 use ibc_proto::google::protobuf::Any;
 use tendermint_proto::Protobuf;
 
-pub(crate) fn process<G: GlobalDefs, Ctx: ReaderContext<ClientTypes = G::ClientDef>>(
+pub(crate) fn process<G: GlobalDefs, Ctx: ReaderContext<ClientTypes = G::ClientTypes>>(
     ctx: &Ctx,
-    msg: MsgConnectionOpenTry<G::ClientDef>,
+    msg: MsgConnectionOpenTry<G::ClientTypes>,
 ) -> HandlerResult<ConnectionResult, Error>
 where
     ClientStateOf<G>: Protobuf<Any>,
@@ -149,6 +148,8 @@ where
 mod tests {
     use crate::prelude::*;
 
+    use crate::clients::ClientTypesOf;
+    use crate::core::ics02_client::client_def::AnyGlobalDef;
     use test_log::test;
 
     use crate::core::ics02_client::context::ClientReader;
@@ -159,6 +160,7 @@ mod tests {
     use crate::core::ics03_connection::msgs::ConnectionMsg;
     use crate::core::ics24_host::identifier::ChainId;
     use crate::events::IbcEvent;
+    use crate::mock::client_def::{MockClient, TestGlobalDefs};
     use crate::mock::context::MockContext;
     use crate::mock::host::HostType;
     use crate::test_utils::Crypto;
@@ -169,7 +171,7 @@ mod tests {
         struct Test {
             name: String,
             ctx: MockContext,
-            msg: ConnectionMsg,
+            msg: ConnectionMsg<ClientTypesOf<TestGlobalDefs>>,
             want_pass: bool,
         }
 
@@ -244,7 +246,7 @@ mod tests {
         .collect();
 
         for test in tests {
-            let res = dispatch::<_, Crypto>(&test.ctx, test.msg.clone());
+            let res = dispatch::<_, TestGlobalDefs>(&test.ctx, test.msg.clone());
             // Additionally check the events and the output objects in the result.
             match res {
                 Ok(proto_output) => {

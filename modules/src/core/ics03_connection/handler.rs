@@ -1,6 +1,6 @@
 //! This module implements the processing logic for ICS3 (connection open handshake) messages.
-use crate::clients::host_functions::HostFunctionsProvider;
-use crate::clients::{ClientDefOf, ClientStateOf, ConsensusStateOf, GlobalDefs};
+
+use crate::clients::{ClientStateOf, ClientTypesOf, ConsensusStateOf, GlobalDefs};
 use crate::core::ics03_connection::connection::ConnectionEnd;
 use crate::core::ics03_connection::error::Error;
 use crate::core::ics03_connection::msgs::ConnectionMsg;
@@ -47,10 +47,10 @@ pub struct ConnectionResult {
 /// handshake protocol.
 pub fn dispatch<Ctx, G: GlobalDefs>(
     ctx: &Ctx,
-    msg: ConnectionMsg<G::ClientDef>,
+    msg: ConnectionMsg<G::ClientTypes>,
 ) -> Result<HandlerOutput<ConnectionResult>, Error>
 where
-    Ctx: ReaderContext<ClientTypes = ClientDefOf<G>> + Eq,
+    Ctx: ReaderContext<ClientTypes = ClientTypesOf<G>> + Eq,
     ClientStateOf<G>: Protobuf<Any>,
     Any: From<ClientStateOf<G>>,
     ClientStateOf<G>: TryFrom<Any>,

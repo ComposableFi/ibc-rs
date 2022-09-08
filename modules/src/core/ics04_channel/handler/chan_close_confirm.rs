@@ -1,8 +1,7 @@
 //! Protocol logic specific to ICS4 messages of type `MsgChannelCloseConfirm`.
 
-use crate::clients::host_functions::HostFunctionsProvider;
-use crate::clients::{ClientDefOf, GlobalDefs};
-use crate::core::ics02_client::client_type::ClientTypes;
+use crate::clients::{ClientTypesOf, GlobalDefs};
+
 use crate::core::ics02_client::context::ClientReader;
 use crate::core::ics03_connection::connection::State as ConnectionState;
 use crate::core::ics04_channel::channel::{ChannelEnd, Counterparty, State};
@@ -22,7 +21,7 @@ pub(crate) fn process<G, Ctx>(
 ) -> HandlerResult<ChannelResult, Error>
 where
     G: GlobalDefs,
-    Ctx: ReaderContext<ClientTypes = ClientDefOf<G>>,
+    Ctx: ReaderContext<ClientTypes = ClientTypesOf<G>>,
 {
     let mut output = HandlerOutput::builder();
 
@@ -132,6 +131,7 @@ mod tests {
     use crate::core::ics04_channel::handler::channel_dispatch;
     use crate::core::ics04_channel::Version;
     use crate::core::ics24_host::identifier::{ClientId, ConnectionId};
+    use crate::mock::client_def::TestGlobalDefs;
     use crate::test_utils::Crypto;
 
     use crate::mock::context::MockContext;
@@ -177,7 +177,7 @@ mod tests {
                 chan_end,
             );
 
-        let (handler_output_builder, _) = channel_dispatch::<_, Crypto>(
+        let (handler_output_builder, _) = channel_dispatch::<_, TestGlobalDefs>(
             &context,
             &ChannelMsg::ChannelCloseConfirm(msg_chan_close_confirm),
         )

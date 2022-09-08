@@ -1,6 +1,5 @@
-use crate::clients::host_functions::HostFunctionsProvider;
-use crate::clients::{ClientDefOf, GlobalDefs};
-use crate::core::ics02_client::client_type::ClientTypes;
+use crate::clients::{ClientTypesOf, GlobalDefs};
+
 use crate::core::ics02_client::context::ClientReader;
 use crate::core::ics03_connection::connection::State as ConnectionState;
 use crate::core::ics04_channel::channel::State;
@@ -25,7 +24,7 @@ pub struct AckPacketResult {
     pub seq_number: Option<Sequence>,
 }
 
-pub fn process<G: GlobalDefs, Ctx: ReaderContext<ClientTypes = ClientDefOf<G>>>(
+pub fn process<G: GlobalDefs, Ctx: ReaderContext<ClientTypes = ClientTypesOf<G>>>(
     ctx: &Ctx,
     msg: &MsgAcknowledgement,
 ) -> HandlerResult<PacketResult, Error> {
@@ -143,6 +142,7 @@ mod tests {
     use crate::core::ics04_channel::Version;
     use crate::core::ics24_host::identifier::{ClientId, ConnectionId};
     use crate::events::IbcEvent;
+    use crate::mock::client_def::TestGlobalDefs;
     use crate::mock::context::MockContext;
     use crate::prelude::*;
     use crate::test_utils::Crypto;
@@ -232,7 +232,7 @@ mod tests {
         .collect();
 
         for test in tests {
-            let res = process::<Crypto>(&test.ctx, &test.msg);
+            let res = process::<TestGlobalDefs, _>(&test.ctx, &test.msg);
             // Additionally check the events and the output objects in the result.
             match res {
                 Ok(proto_output) => {

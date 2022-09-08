@@ -1,6 +1,5 @@
 //! Protocol logic specific to ICS3 messages of type `MsgConnectionOpenInit`.
 
-use crate::core::ics02_client::client_type::ClientTypes;
 use crate::core::ics02_client::context::ClientReader;
 use crate::core::ics03_connection::connection::{ConnectionEnd, State};
 use crate::core::ics03_connection::error::Error;
@@ -88,6 +87,9 @@ mod tests {
     use crate::test_utils::Crypto;
     use crate::Height;
 
+    use crate::clients::ClientTypesOf;
+    use crate::core::ics02_client::client_def::{AnyClient, AnyGlobalDef};
+    use crate::mock::client_def::{MockClient, TestGlobalDefs, TestMockClient};
     use ibc_proto::ibc::core::connection::v1::Version as RawVersion;
 
     #[test]
@@ -95,7 +97,7 @@ mod tests {
         struct Test {
             name: String,
             ctx: MockContext,
-            msg: ConnectionMsg,
+            msg: ConnectionMsg<ClientTypesOf<TestGlobalDefs>>,
             expected_versions: Vec<Version>,
             want_pass: bool,
         }
@@ -154,7 +156,7 @@ mod tests {
         .collect();
 
         for test in tests {
-            let res = dispatch::<_, Crypto>(&test.ctx, test.msg.clone());
+            let res = dispatch::<_, TestGlobalDefs>(&test.ctx, test.msg.clone());
             // Additionally check the events and the output objects in the result.
             match res {
                 Ok(proto_output) => {

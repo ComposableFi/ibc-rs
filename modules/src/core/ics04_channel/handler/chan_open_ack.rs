@@ -1,7 +1,7 @@
 //! Protocol logic specific to ICS4 messages of type `MsgChannelOpenAck`.
-use crate::clients::host_functions::HostFunctionsProvider;
-use crate::clients::{ClientDefOf, GlobalDefs};
-use crate::core::ics02_client::client_type::ClientTypes;
+
+use crate::clients::{ClientTypesOf, GlobalDefs};
+
 use crate::core::ics02_client::context::ClientReader;
 use crate::core::ics03_connection::connection::State as ConnectionState;
 use crate::core::ics04_channel::channel::{ChannelEnd, Counterparty, State};
@@ -21,7 +21,7 @@ pub(crate) fn process<G, Ctx>(
 ) -> HandlerResult<ChannelResult, Error>
 where
     G: GlobalDefs,
-    Ctx: ReaderContext<ClientTypes = ClientDefOf<G>>,
+    Ctx: ReaderContext<ClientTypes = ClientTypesOf<G>>,
 {
     let mut output = HandlerOutput::builder();
 
@@ -123,6 +123,7 @@ where
 mod tests {
     use core::str::FromStr;
 
+    use crate::clients::ClientTypesOf;
     use test_log::test;
 
     use crate::core::ics02_client::context::ClientReader;
@@ -143,6 +144,7 @@ mod tests {
     use crate::core::ics04_channel::msgs::ChannelMsg;
     use crate::core::ics24_host::identifier::ConnectionId;
     use crate::events::IbcEvent;
+    use crate::mock::client_def::TestGlobalDefs;
     use crate::mock::context::MockContext;
     use crate::prelude::*;
     use crate::test_utils::Crypto;
@@ -194,10 +196,12 @@ mod tests {
             },
         );
 
-        let msg_conn_try = MsgConnectionOpenTry::try_from(get_dummy_raw_msg_conn_open_try(
-            client_consensus_state_height,
-            host_chain_height.revision_height,
-        ))
+        let msg_conn_try = MsgConnectionOpenTry::<ClientTypesOf<TestGlobalDefs>>::try_from(
+            get_dummy_raw_msg_conn_open_try(
+                client_consensus_state_height,
+                host_chain_height.revision_height,
+            ),
+        )
         .unwrap();
 
         let msg_chan_ack =
@@ -295,7 +299,7 @@ mod tests {
         .collect();
 
         for test in tests {
-            let res = channel_dispatch::<_, Crypto>(&test.ctx, &test.msg);
+            let res = channel_dispatch::<_, TestGlobalDefs>(&test.ctx, &test.msg);
             // Additionally check the events and the output objects in the result.
             match res {
                 Ok((proto_output, res)) => {

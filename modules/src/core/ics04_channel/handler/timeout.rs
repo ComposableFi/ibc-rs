@@ -1,7 +1,6 @@
-use crate::clients::host_functions::HostFunctionsProvider;
-use crate::clients::{ClientDefOf, GlobalDefs};
+use crate::clients::{ClientTypesOf, GlobalDefs};
 use crate::core::ics02_client::client_consensus::ConsensusState;
-use crate::core::ics02_client::client_type::ClientTypes;
+
 use crate::core::ics02_client::context::ClientReader;
 use crate::core::ics04_channel::channel::State;
 use crate::core::ics04_channel::channel::{ChannelEnd, Counterparty, Order};
@@ -31,7 +30,7 @@ pub struct TimeoutPacketResult {
 pub fn process<G, Ctx>(ctx: &Ctx, msg: &MsgTimeout) -> HandlerResult<PacketResult, Error>
 where
     G: GlobalDefs,
-    Ctx: ReaderContext<ClientTypes = ClientDefOf<G>>,
+    Ctx: ReaderContext<ClientTypes = ClientTypesOf<G>>,
 {
     let mut output = HandlerOutput::builder();
 
@@ -171,6 +170,7 @@ mod tests {
     use crate::core::ics04_channel::Version;
     use crate::core::ics24_host::identifier::{ChannelId, ClientId, ConnectionId, PortId};
     use crate::events::IbcEvent;
+    use crate::mock::client_def::{MockClient, TestGlobalDefs};
     use crate::mock::context::MockContext;
     use crate::prelude::*;
     use crate::test_utils::Crypto;
@@ -311,7 +311,7 @@ mod tests {
         .collect();
 
         for test in tests {
-            let res = process::<Crypto, Ctx>(&test.ctx, &test.msg);
+            let res = process::<TestGlobalDefs, _>(&test.ctx, &test.msg);
             // Additionally check the events and the output objects in the result.
             match res {
                 Ok(proto_output) => {

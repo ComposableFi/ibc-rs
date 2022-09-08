@@ -15,9 +15,11 @@ use crate::core::ics02_client::error::Error as Ics02Error;
 
 use crate::applications::transfer::context::{BankKeeper, Ics20Context, Ics20Keeper, Ics20Reader};
 use crate::applications::transfer::{error::Error as Ics20Error, PrefixedCoin};
+use crate::clients::ClientTypesOf;
 use crate::core::ics02_client::client_consensus::AnyConsensusState;
+use crate::core::ics02_client::client_def::AnyGlobalDef;
 use crate::core::ics02_client::client_state::AnyClientState;
-use crate::core::ics02_client::client_type::ClientType;
+use crate::core::ics02_client::client_type::{ClientType, ClientTypes};
 use crate::core::ics03_connection::connection::ConnectionEnd;
 use crate::core::ics03_connection::error::Error as Ics03Error;
 use crate::core::ics04_channel::channel::{ChannelEnd, Counterparty, Order};
@@ -30,7 +32,8 @@ use crate::core::ics05_port::context::PortReader;
 use crate::core::ics05_port::error::Error as PortError;
 use crate::core::ics24_host::identifier::{ChannelId, ClientId, ConnectionId, PortId};
 use crate::core::ics26_routing::context::{Module, ModuleId, ModuleOutputBuilder, ReaderContext};
-use crate::mock::context::MockIbcStore;
+use crate::mock::client_def::TestGlobalDefs;
+use crate::mock::context::{MockIbcStore, MockTypes};
 use crate::signer::Signer;
 use crate::timestamp::Timestamp;
 use crate::Height;
@@ -69,10 +72,18 @@ pub fn get_dummy_bech32_account() -> String {
     "cosmos1wxeyh7zgn4tctjzs0vtqpc6p5cxq5t2muzl7ng".to_string()
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct DummyTransferModule {
     ibc_store: Arc<Mutex<MockIbcStore>>,
 }
+
+impl PartialEq for DummyTransferModule {
+    fn eq(&self, _other: &Self) -> bool {
+        false
+    }
+}
+
+impl Eq for DummyTransferModule {}
 
 impl DummyTransferModule {
     pub fn new(ibc_store: Arc<Mutex<MockIbcStore>>) -> Self {
@@ -401,8 +412,17 @@ impl ConnectionReader for DummyTransferModule {
     }
 }
 
+impl ClientTypes for DummyTransferModule {
+    type Header = <MockTypes as ClientTypes>::Header;
+    type ClientState = <MockTypes as ClientTypes>::ClientState;
+    type ConsensusState = <MockTypes as ClientTypes>::ConsensusState;
+}
+
 impl ClientReader for DummyTransferModule {
-    fn client_state(&self, client_id: &ClientId) -> Result<AnyClientState, Ics02Error> {
+    fn client_state(
+        &self,
+        client_id: &ClientId,
+    ) -> Result<AnyClientState<TestGlobalDefs>, Ics02Error> {
         match self.ibc_store.lock().unwrap().clients.get(client_id) {
             Some(client_record) => client_record
                 .client_state
@@ -569,6 +589,8 @@ impl ChannelReader for DummyTransferModule {
 }
 
 impl ClientKeeper for DummyTransferModule {
+    type ClientTypes = MockTypes;
+
     fn store_client_type(
         &mut self,
         _client_id: ClientId,
@@ -580,7 +602,7 @@ impl ClientKeeper for DummyTransferModule {
     fn store_client_state(
         &mut self,
         _client_id: ClientId,
-        _client_state: AnyClientState,
+        _client_state: AnyClientState<TestGlobalDefs>,
     ) -> Result<(), Ics02Error> {
         todo!()
     }
@@ -616,7 +638,10 @@ impl ClientKeeper for DummyTransferModule {
         Ok(())
     }
 
-    fn validate_self_client(&self, _client_state: &AnyClientState) -> Result<(), Ics02Error> {
+    fn validate_self_client(
+        &self,
+        _client_state: &AnyClientState<TestGlobalDefs>,
+    ) -> Result<(), Ics02Error> {
         Ok(())
     }
 }
@@ -625,4 +650,6 @@ impl Ics20Context for DummyTransferModule {
     type AccountId = Signer;
 }
 
-impl ReaderContext for DummyTransferModule {}
+impl ReaderContext for DummyTransferModule {
+    type ClientTypes = ClientTypesOf<TestGlobalDefs>;
+}

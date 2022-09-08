@@ -1,7 +1,7 @@
 //! Protocol logic specific to ICS4 messages of type `MsgChannelOpenConfirm`.
-use crate::clients::host_functions::HostFunctionsProvider;
-use crate::clients::{ClientDefOf, GlobalDefs};
-use crate::core::ics02_client::client_type::ClientTypes;
+
+use crate::clients::{ClientTypesOf, GlobalDefs};
+
 use crate::core::ics02_client::context::ClientReader;
 use crate::core::ics03_connection::connection::State as ConnectionState;
 use crate::core::ics04_channel::channel::{ChannelEnd, Counterparty, State};
@@ -21,7 +21,7 @@ pub(crate) fn process<G, Ctx>(
 ) -> HandlerResult<ChannelResult, Error>
 where
     G: GlobalDefs,
-    Ctx: ReaderContext<ClientTypes = ClientDefOf<G>>,
+    Ctx: ReaderContext<ClientTypes = ClientTypesOf<G>>,
 {
     let mut output = HandlerOutput::builder();
 
@@ -135,6 +135,7 @@ mod tests {
     use crate::core::ics04_channel::Version;
     use crate::core::ics24_host::identifier::{ClientId, ConnectionId};
     use crate::events::IbcEvent;
+    use crate::mock::client_def::TestGlobalDefs;
     use crate::mock::context::MockContext;
     use crate::test_utils::Crypto;
     use crate::timestamp::ZERO_DURATION;
@@ -196,7 +197,7 @@ mod tests {
         .collect();
 
         for test in tests {
-            let res = channel_dispatch::<_, Crypto>(&test.ctx, &test.msg);
+            let res = channel_dispatch::<_, TestGlobalDefs>(&test.ctx, &test.msg);
             // Additionally check the events and the output objects in the result.
             match res {
                 Ok((proto_output, res)) => {

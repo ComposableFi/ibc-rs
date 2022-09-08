@@ -1,10 +1,9 @@
-use crate::clients::host_functions::HostFunctionsProvider;
-use crate::clients::{ClientDefOf, GlobalDefs};
+use crate::clients::{ClientTypesOf, GlobalDefs};
 use crate::core::ics02_client::client_consensus::ConsensusState;
 use crate::core::ics02_client::client_state::ClientState;
-use crate::core::ics02_client::client_type::ClientTypes;
+
+use crate::core::ics02_client::client_def::ClientDef;
 use crate::core::ics02_client::context::ClientReader;
-use crate::core::ics02_client::{client_def::AnyClient, client_def::ClientDef};
 use crate::core::ics03_connection::connection::ConnectionEnd;
 use crate::core::ics04_channel::channel::ChannelEnd;
 use crate::core::ics04_channel::error::Error;
@@ -26,7 +25,7 @@ pub fn verify_channel_proofs<G, Ctx>(
 ) -> Result<(), Error>
 where
     G: GlobalDefs,
-    Ctx: ReaderContext<ClientTypes = ClientDefOf<G>>,
+    Ctx: ReaderContext<ClientTypes = ClientTypesOf<G>>,
 {
     // This is the client which will perform proof verification.
     let client_id = connection_end.client_id().clone();
@@ -66,7 +65,7 @@ where
 /// Entry point for verifying all proofs bundled in a ICS4 packet recv. message.
 pub fn verify_packet_recv_proofs<
     G: GlobalDefs,
-    Ctx: ReaderContext<ClientTypes = ClientDefOf<G>>,
+    Ctx: ReaderContext<ClientTypes = ClientTypesOf<G>>,
 >(
     ctx: &Ctx,
     height: Height,
@@ -117,7 +116,7 @@ pub fn verify_packet_recv_proofs<
 /// Entry point for verifying all proofs bundled in an ICS4 packet ack message.
 pub fn verify_packet_acknowledgement_proofs<
     G: GlobalDefs,
-    Ctx: ReaderContext<ClientTypes = ClientDefOf<G>>,
+    Ctx: ReaderContext<ClientTypes = ClientTypesOf<G>>,
 >(
     ctx: &Ctx,
     height: Height,
@@ -173,7 +172,7 @@ pub fn verify_next_sequence_recv<G, Ctx>(
 ) -> Result<(), Error>
 where
     G: GlobalDefs,
-    Ctx: ReaderContext<ClientTypes = ClientDefOf<G>>,
+    Ctx: ReaderContext<ClientTypes = ClientTypesOf<G>>,
 {
     let client_id = connection_end.client_id();
     let client_state = ctx.client_state(client_id).map_err(Error::ics02_client)?;
@@ -217,7 +216,7 @@ pub fn verify_packet_receipt_absence<G, Ctx>(
 ) -> Result<(), Error>
 where
     G: GlobalDefs,
-    Ctx: ReaderContext<ClientTypes = ClientDefOf<G>>,
+    Ctx: ReaderContext<ClientTypes = ClientTypesOf<G>>,
 {
     let client_id = connection_end.client_id();
     let client_state = ctx.client_state(client_id).map_err(Error::ics02_client)?;

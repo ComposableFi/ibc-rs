@@ -77,6 +77,10 @@ impl Header for MockHeader {
     fn wrap_any(self) -> AnyHeader {
         AnyHeader::Mock(self)
     }
+
+    fn height(&self) -> Height {
+        self.height()
+    }
 }
 
 impl From<MockHeader> for AnyConsensusState {

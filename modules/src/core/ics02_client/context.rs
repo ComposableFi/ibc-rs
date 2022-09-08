@@ -2,9 +2,9 @@
 //! that any host chain must implement to be able to process any `ClientMsg`. See
 //! "ADR 003: IBC protocol implementation" for more details.
 
-use crate::core::ics02_client::client_consensus::AnyConsensusState;
-use crate::core::ics02_client::client_def::{ClientDef, ConsensusUpdateResult};
-use crate::core::ics02_client::client_state::{AnyClientState, ClientState};
+use crate::clients::GlobalDefs;
+use crate::core::ics02_client::client_def::ConsensusUpdateResult;
+use crate::core::ics02_client::client_state::ClientState;
 use crate::core::ics02_client::client_type::{ClientType, ClientTypes};
 use crate::core::ics02_client::error::{Error, ErrorDetail};
 use crate::core::ics02_client::handler::ClientResult::{self, Create, Update, Upgrade};
@@ -82,11 +82,19 @@ pub trait ClientReader: ClientTypes {
 }
 
 /// Defines the write-only part of ICS2 (client functions) context.
-pub trait ClientKeeper: ClientTypes
+pub trait ClientKeeper
 where
     Self: Sized + Clone + Debug + Eq,
 {
-    fn store_client_result(&mut self, handler_res: ClientResult<Self>) -> Result<(), Error> {
+    type ClientTypes: ClientTypes + Eq + Clone + Debug;
+
+    fn store_client_result<G: GlobalDefs>(
+        &mut self,
+        handler_res: ClientResult<Self::ClientTypes>,
+    ) -> Result<(), Error>
+where
+        // Self: ClientKeeper<ClientTypes = G::ClientTypes>,
+    {
         match handler_res {
             Create(res) => {
                 let client_id = res.client_id.clone();
@@ -196,7 +204,7 @@ where
     fn store_client_state(
         &mut self,
         client_id: ClientId,
-        client_state: Self::ClientState,
+        client_state: <Self::ClientTypes as ClientTypes>::ClientState,
     ) -> Result<(), Error>;
 
     /// Called upon successful client creation and update
@@ -204,7 +212,7 @@ where
         &mut self,
         client_id: ClientId,
         height: Height,
-        consensus_state: Self::ConsensusState,
+        consensus_state: <Self::ClientTypes as ClientTypes>::ConsensusState,
     ) -> Result<(), Error>;
 
     /// Called upon client creation.
@@ -234,5 +242,8 @@ where
 
     /// validates the client parameters for a client of the running chain
     /// This function is only used to validate the client state the counterparty stores for this chain
-    fn validate_self_client(&self, client_state: &Self::ClientState) -> Result<(), Error>;
+    fn validate_self_client(
+        &self,
+        client_state: &<Self::ClientTypes as ClientTypes>::ClientState,
+    ) -> Result<(), Error>;
 }

@@ -1,19 +1,16 @@
 use crate::clients::host_functions::HostFunctionsProvider;
 use crate::clients::ics07_tendermint::client_def::TendermintClient;
-use crate::clients::ics07_tendermint::client_state::ClientState as TendermintClientState;
 use crate::clients::ics07_tendermint::consensus_state::ConsensusState as TendermintConsensusState;
 #[cfg(any(test, feature = "ics11_beefy"))]
-use crate::clients::ics11_beefy::client_def::BeefyClient;
-#[cfg(any(test, feature = "ics11_beefy"))]
-use crate::clients::ics11_beefy::client_state::ClientState as BeefyClientState;
-#[cfg(any(test, feature = "ics11_beefy"))]
-use crate::clients::ics11_beefy::consensus_state::ConsensusState as BeefyConsensusState;
-use crate::clients::{ClientDefOf, ClientStateOf, ConsensusStateOf, GlobalDefs};
-use crate::core::ics02_client::client_consensus::{AnyConsensusState, ConsensusState};
-use crate::core::ics02_client::client_state::{AnyClientState, ClientState};
+use crate::clients::ics11_beefy::{
+    client_def::BeefyClient, consensus_state::ConsensusState as BeefyConsensusState,
+};
+use crate::clients::{ClientStateOf, ClientTypesOf, ConsensusStateOf, GlobalDefs};
+use crate::core::ics02_client::client_consensus::AnyConsensusState;
+use crate::core::ics02_client::client_state::AnyClientState;
 use crate::core::ics02_client::client_type::{ClientType, ClientTypes};
 use crate::core::ics02_client::error::Error;
-use crate::core::ics02_client::header::{AnyHeader, Header};
+use crate::core::ics02_client::header::AnyHeader;
 use crate::core::ics03_connection::connection::ConnectionEnd;
 use crate::core::ics04_channel::channel::ChannelEnd;
 use crate::core::ics04_channel::commitment::{AcknowledgementCommitment, PacketCommitment};
@@ -24,12 +21,14 @@ use crate::core::ics23_commitment::commitment::{
 use crate::core::ics24_host::identifier::{ChannelId, ClientId, ConnectionId, PortId};
 use crate::core::ics26_routing::context::ReaderContext;
 use crate::downcast;
+#[cfg(any(test, feature = "mocks"))]
+use crate::mock::client_state::MockConsensusState;
 use crate::prelude::*;
 use crate::Height;
-use core::fmt::{Debug, Display, Formatter};
+use core::fmt::{Debug, Display};
 use derivative::Derivative;
+
 use ibc_proto::google::protobuf::Any;
-use std::convert::Infallible;
 use std::marker::PhantomData;
 use tendermint_proto::Protobuf;
 
@@ -59,7 +58,7 @@ impl<C: ClientTypes> ConsensusUpdateResult<C> {
 pub trait ClientDef: ClientTypes + Clone {
     type G: GlobalDefs;
 
-    fn verify_header<Ctx: ReaderContext<ClientTypes = ClientDefOf<Self::G>>>(
+    fn verify_header<Ctx: ReaderContext<ClientTypes = ClientTypesOf<Self::G>>>(
         &self,
         ctx: &Ctx,
         client_id: ClientId,
@@ -67,13 +66,19 @@ pub trait ClientDef: ClientTypes + Clone {
         header: Self::Header,
     ) -> Result<(), Error>;
 
-    fn update_state<Ctx: ReaderContext<ClientTypes = ClientDefOf<Self::G>>>(
+    fn update_state<Ctx: ReaderContext<ClientTypes = ClientTypesOf<Self::G>>>(
         &self,
         ctx: &Ctx,
         client_id: ClientId,
         client_state: Self::ClientState,
         header: Self::Header,
-    ) -> Result<(Self::ClientState, ConsensusUpdateResult<Ctx>), Error>;
+    ) -> Result<
+        (
+            Self::ClientState,
+            ConsensusUpdateResult<<Ctx as ReaderContext>::ClientTypes>,
+        ),
+        Error,
+    >;
 
     fn update_state_on_misbehaviour(
         &self,
@@ -81,7 +86,7 @@ pub trait ClientDef: ClientTypes + Clone {
         header: Self::Header,
     ) -> Result<Self::ClientState, Error>;
 
-    fn check_for_misbehaviour<Ctx: ReaderContext<ClientTypes = ClientDefOf<Self::G>>>(
+    fn check_for_misbehaviour<Ctx: ReaderContext<ClientTypes = ClientTypesOf<Self::G>>>(
         &self,
         ctx: &Ctx,
         client_id: ClientId,
@@ -90,13 +95,19 @@ pub trait ClientDef: ClientTypes + Clone {
     ) -> Result<bool, Error>;
 
     /// TODO
-    fn verify_upgrade_and_update_state<Ctx: ReaderContext>(
+    fn verify_upgrade_and_update_state<Ctx: ReaderContext<ClientTypes = ClientTypesOf<Self::G>>>(
         &self,
         client_state: &Self::ClientState,
         consensus_state: &Self::ConsensusState,
         proof_upgrade_client: Vec<u8>,
         proof_upgrade_consensus_state: Vec<u8>,
-    ) -> Result<(Self::ClientState, ConsensusUpdateResult<Ctx>), Error>; // this is where the issue is
+    ) -> Result<
+        (
+            Self::ClientState,
+            ConsensusUpdateResult<<Ctx as ReaderContext>::ClientTypes>,
+        ),
+        Error,
+    >; // this is where the issue is
 
     /// Verification functions as specified in:
     /// <https://github.com/cosmos/ibc/tree/master/spec/core/ics-002-client-semantics>
@@ -106,7 +117,7 @@ pub trait ClientDef: ClientTypes + Clone {
     /// height of the counterparty chain that this proof assumes (i.e., the height at which this
     /// proof was computed).
     #[allow(clippy::too_many_arguments)]
-    fn verify_client_consensus_state<Ctx: ReaderContext<ClientTypes = ClientDefOf<Self::G>>>(
+    fn verify_client_consensus_state<Ctx: ReaderContext<ClientTypes = ClientTypesOf<Self::G>>>(
         &self,
         ctx: &Ctx,
         client_state: &Self::ClientState,
@@ -152,7 +163,7 @@ pub trait ClientDef: ClientTypes + Clone {
 
     /// Verify the client state for this chain that it is stored on the counterparty chain.
     #[allow(clippy::too_many_arguments)]
-    fn verify_client_full_state<Ctx: ReaderContext<ClientTypes = ClientDefOf<Self::G>>>(
+    fn verify_client_full_state<Ctx: ReaderContext<ClientTypes = ClientTypesOf<Self::G>>>(
         &self,
         ctx: &Ctx,
         client_state: &Self::ClientState,
@@ -235,49 +246,66 @@ pub trait ClientDef: ClientTypes + Clone {
 
 #[derive(Derivative)]
 #[derivative(
-    Clone(bound = "AnyGlobalDef<H>: Clone"),
-    Debug(bound = "AnyGlobalDef<H>: Debug"),
-    PartialEq(bound = "AnyGlobalDef<H>: PartialEq"),
-    Eq(bound = "AnyGlobalDef<H>: Eq")
+    Clone(bound = "G: Clone"),
+    Debug(bound = "G: Debug"),
+    PartialEq(bound = "G: PartialEq"),
+    Eq(bound = "G: Eq")
 )]
-pub enum AnyClient<H>
+pub enum AnyClient<G: GlobalDefs>
 where
-    H: HostFunctionsProvider + Clone + Debug + Eq,
+    G::HostFunctions: HostFunctionsProvider + Clone + Debug + Eq,
 {
-    Tendermint(TendermintClient<AnyGlobalDef<H>>),
+    Tendermint(TendermintClient<G>),
     #[cfg(any(test, feature = "ics11_beefy"))]
-    Beefy(BeefyClient<AnyGlobalDef<H>>),
+    Beefy(BeefyClient<G>),
     #[cfg(any(test, feature = "ics11_beefy"))]
-    Near(BeefyClient<AnyGlobalDef<H>>),
+    Near(BeefyClient<G>),
     #[cfg(any(test, feature = "mocks"))]
-    Mock(MockClient),
+    Mock(MockClient<G>),
 }
 
-impl<H> AnyClient<H>
+impl<G: GlobalDefs> AnyClient<G>
 where
-    H: HostFunctionsProvider + Clone + Debug + Eq + Default,
+    G::HostFunctions: HostFunctionsProvider + Clone + Debug + Eq + Default,
 {
     pub fn from_client_type(client_type: ClientType) -> Self {
         match client_type {
-            ClientType::Tendermint => {
-                Self::Tendermint(TendermintClient::<AnyGlobalDef<H>>::default())
-            }
+            ClientType::Tendermint => Self::Tendermint(TendermintClient::<G>::default()),
             #[cfg(any(test, feature = "ics11_beefy"))]
-            ClientType::Beefy => Self::Beefy(BeefyClient::<AnyGlobalDef<H>>::default()),
+            ClientType::Beefy => Self::Beefy(BeefyClient::<G>::default()),
             #[cfg(any(test, feature = "ics11_beefy"))]
-            ClientType::Near => Self::Near(BeefyClient::<AnyGlobalDef<H>>::default()),
+            ClientType::Near => Self::Near(BeefyClient::<G>::default()),
             #[cfg(any(test, feature = "mocks"))]
             ClientType::Mock => Self::Mock(MockClient::default()),
         }
     }
 }
 
-impl<H> ClientTypes for AnyClient<H>
+impl<G: GlobalDefs + Clone> ClientTypes for AnyClient<G>
 where
-    H: HostFunctionsProvider + Clone + Debug + Eq,
+    G::HostFunctions: HostFunctionsProvider + Clone + Debug + Eq,
+
+    TendermintConsensusState: TryFrom<ConsensusStateOf<G>, Error = Error>,
+    ConsensusStateOf<G>: From<TendermintConsensusState>,
+
+    BeefyConsensusState: TryFrom<ConsensusStateOf<G>, Error = Error>,
+    ConsensusStateOf<G>: From<BeefyConsensusState>,
+
+    MockConsensusState: TryFrom<ConsensusStateOf<G>, Error = Error>,
+    ConsensusStateOf<G>: From<MockConsensusState>,
+
+    ConsensusStateOf<G>: Protobuf<Any>,
+    ConsensusStateOf<G>: TryFrom<Any>,
+    <ConsensusStateOf<G> as TryFrom<Any>>::Error: Display,
+    Any: From<ConsensusStateOf<G>>,
+
+    ClientStateOf<G>: Protobuf<Any>,
+    ClientStateOf<G>: TryFrom<Any>,
+    <ClientStateOf<G> as TryFrom<Any>>::Error: Display,
+    Any: From<ClientStateOf<G>>,
 {
     type Header = AnyHeader;
-    type ClientState = AnyClientState<AnyGlobalDef<H>>;
+    type ClientState = AnyClientState<G>;
     type ConsensusState = AnyConsensusState;
 }
 
@@ -291,20 +319,45 @@ where
 )]
 pub struct AnyGlobalDef<H>(PhantomData<H>);
 
-impl<H: HostFunctionsProvider> GlobalDefs for AnyGlobalDef<H>
-where
-    H: Send + Sync + Clone + Debug + Eq,
-{
-    type HostFunctions = H;
-    type ClientDef = AnyClient<H>;
+pub mod stub_beefy {
+    pub struct Stub;
+    pub type BeefyConsensusState = Stub;
 }
+#[cfg(not(feature = "ics11_beefy"))]
+use stub_beefy::*;
+
+#[cfg(not(test))]
+pub mod stub_mock {
+    pub struct Stub;
+    pub type MockConsensusState = Stub;
+}
+use stub_mock::*;
 
 // ⚠️  Beware of the awful boilerplate below ⚠️
-impl<H> ClientDef for AnyClient<H>
+impl<G: GlobalDefs + Clone> ClientDef for AnyClient<G>
 where
-    H: HostFunctionsProvider + Clone + Debug + Eq,
+    G::HostFunctions: HostFunctionsProvider + Clone + Debug + Eq,
+
+    TendermintConsensusState: TryFrom<ConsensusStateOf<G>, Error = Error>,
+    ConsensusStateOf<G>: From<TendermintConsensusState>,
+
+    BeefyConsensusState: TryFrom<ConsensusStateOf<G>, Error = Error>,
+    ConsensusStateOf<G>: From<BeefyConsensusState>,
+
+    MockConsensusState: TryFrom<ConsensusStateOf<G>, Error = Error>,
+    ConsensusStateOf<G>: From<MockConsensusState>,
+
+    ConsensusStateOf<G>: Protobuf<Any>,
+    ConsensusStateOf<G>: TryFrom<Any>,
+    <ConsensusStateOf<G> as TryFrom<Any>>::Error: Display,
+    Any: From<ConsensusStateOf<G>>,
+
+    ClientStateOf<G>: Protobuf<Any>,
+    ClientStateOf<G>: TryFrom<Any>,
+    <ClientStateOf<G> as TryFrom<Any>>::Error: Display,
+    Any: From<ClientStateOf<G>>,
 {
-    type G = AnyGlobalDef<H>;
+    type G = G;
 
     /// Validate an incoming header
     fn verify_header<Ctx>(
@@ -315,7 +368,7 @@ where
         header: Self::Header,
     ) -> Result<(), Error>
     where
-        Ctx: ReaderContext<ClientTypes = Self>,
+        Ctx: ReaderContext<ClientTypes = ClientTypesOf<Self::G>>,
     {
         match self {
             Self::Tendermint(client) => {
@@ -370,9 +423,15 @@ where
         client_id: ClientId,
         client_state: Self::ClientState,
         header: AnyHeader,
-    ) -> Result<(Self::ClientState, ConsensusUpdateResult<Ctx>), Error>
+    ) -> Result<
+        (
+            Self::ClientState,
+            ConsensusUpdateResult<<Ctx as ReaderContext>::ClientTypes>,
+        ),
+        Error,
+    >
     where
-        Ctx: ReaderContext<ClientTypes = ClientDefOf<Self::G>>,
+        Ctx: ReaderContext<ClientTypes = ClientTypesOf<Self::G>>,
     {
         match self {
             Self::Tendermint(client) => {
@@ -474,7 +533,7 @@ where
         header: Self::Header,
     ) -> Result<bool, Error>
     where
-        Ctx: ReaderContext<ClientTypes = ClientDefOf<Self::G>>,
+        Ctx: ReaderContext<ClientTypes = ClientTypesOf<Self::G>>,
     {
         match self {
             AnyClient::Tendermint(client) => {
@@ -512,13 +571,19 @@ where
         }
     }
 
-    fn verify_upgrade_and_update_state<Ctx: ReaderContext>(
+    fn verify_upgrade_and_update_state<Ctx: ReaderContext<ClientTypes = ClientTypesOf<Self::G>>>(
         &self,
         client_state: &Self::ClientState,
         consensus_state: &Self::ConsensusState,
         proof_upgrade_client: Vec<u8>,
         proof_upgrade_consensus_state: Vec<u8>,
-    ) -> Result<(Self::ClientState, ConsensusUpdateResult<Ctx>), Error> {
+    ) -> Result<
+        (
+            Self::ClientState,
+            ConsensusUpdateResult<<Ctx as ReaderContext>::ClientTypes>,
+        ),
+        Error,
+    > {
         match self {
             Self::Tendermint(client) => {
                 let (client_state, consensus_state) = downcast!(
@@ -527,7 +592,7 @@ where
                 )
                 .ok_or_else(|| Error::client_args_type_mismatch(ClientType::Tendermint))?;
 
-                let (new_state, new_consensus) = client.verify_upgrade_and_update_state(
+                let (new_state, new_consensus) = client.verify_upgrade_and_update_state::<Ctx>(
                     client_state,
                     consensus_state,
                     proof_upgrade_client,
@@ -545,7 +610,7 @@ where
                 )
                 .ok_or_else(|| Error::client_args_type_mismatch(ClientType::Beefy))?;
 
-                let (new_state, new_consensus) = client.verify_upgrade_and_update_state(
+                let (new_state, new_consensus) = client.verify_upgrade_and_update_state::<Ctx>(
                     client_state,
                     consensus_state,
                     proof_upgrade_client,
@@ -568,7 +633,7 @@ where
                 )
                 .ok_or_else(|| Error::client_args_type_mismatch(ClientType::Mock))?;
 
-                let (new_state, new_consensus) = client.verify_upgrade_and_update_state(
+                let (new_state, new_consensus) = client.verify_upgrade_and_update_state::<Ctx>(
                     client_state,
                     consensus_state,
                     proof_upgrade_client,
@@ -580,7 +645,7 @@ where
         }
     }
 
-    fn verify_client_consensus_state<Ctx: ReaderContext<ClientTypes = ClientDefOf<Self::G>>>(
+    fn verify_client_consensus_state<Ctx: ReaderContext<ClientTypes = ClientTypesOf<Self::G>>>(
         &self,
         ctx: &Ctx,
         client_state: &Self::ClientState,
@@ -803,7 +868,7 @@ where
         }
     }
 
-    fn verify_client_full_state<Ctx: ReaderContext<ClientTypes = Self>>(
+    fn verify_client_full_state<Ctx: ReaderContext<ClientTypes = ClientTypesOf<Self::G>>>(
         &self,
         ctx: &Ctx,
         client_state: &Self::ClientState,
@@ -1207,7 +1272,7 @@ where
     }
 
     fn from_client_type(client_type: ClientType) -> Self {
-        todo!()
+        Self::from_client_type(client_type)
     }
 }
 
@@ -1228,19 +1293,25 @@ impl From<TendermintConsensusState> for AnyConsensusState {
     }
 }
 
-impl TryFrom<AnyConsensusState> for BeefyConsensusState {
-    type Error = Error;
+#[cfg(any(test, feature = "ics11_beefy"))]
+mod beefy_impls {
+    use super::*;
+    use crate::clients::ics11_beefy::consensus_state::ConsensusState as BeefyConsensusState;
 
-    fn try_from(value: AnyConsensusState) -> Result<Self, Self::Error> {
-        downcast!(
+    impl TryFrom<AnyConsensusState> for BeefyConsensusState {
+        type Error = Error;
+
+        fn try_from(value: AnyConsensusState) -> Result<Self, Self::Error> {
+            downcast!(
             value => AnyConsensusState::Beefy
-        )
-        .ok_or_else(|| Error::client_args_type_mismatch(ClientType::Beefy))
+            )
+            .ok_or_else(|| Error::client_args_type_mismatch(ClientType::Beefy))
+        }
     }
-}
 
-impl From<BeefyConsensusState> for AnyConsensusState {
-    fn from(value: BeefyConsensusState) -> Self {
-        Self::Beefy(value)
+    impl From<BeefyConsensusState> for AnyConsensusState {
+        fn from(value: BeefyConsensusState) -> Self {
+            Self::Beefy(value)
+        }
     }
 }

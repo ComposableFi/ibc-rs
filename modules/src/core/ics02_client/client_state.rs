@@ -7,24 +7,34 @@ use ibc_proto::google::protobuf::Any;
 use serde::{Deserialize, Serialize};
 use tendermint_proto::Protobuf;
 
-use crate::clients::host_functions::HostFunctionsProvider;
 use crate::clients::ics07_tendermint::client_def::TendermintClient;
 use crate::clients::ics07_tendermint::client_state;
-use crate::clients::ics11_beefy::client_def::BeefyClient;
+use crate::clients::ics07_tendermint::consensus_state::ConsensusState as TendermintConsensusState;
 #[cfg(any(test, feature = "ics11_beefy"))]
 use crate::clients::ics11_beefy::client_state as beefy_client_state;
-use crate::clients::GlobalDefs;
-use crate::core::ics02_client::client_def::{AnyClient, AnyGlobalDef, ClientDef};
+#[cfg(any(test, feature = "ics11_beefy"))]
+use crate::clients::ics11_beefy::{
+    client_def::BeefyClient, consensus_state::ConsensusState as BeefyConsensusState,
+};
+use crate::clients::{ClientStateOf, ConsensusStateOf, GlobalDefs};
+use crate::core::ics02_client::client_def::{AnyClient, ClientDef};
 use crate::core::ics02_client::client_type::ClientType;
 use crate::core::ics02_client::error::Error;
 use crate::core::ics02_client::trust_threshold::TrustThreshold;
 use crate::core::ics24_host::error::ValidationError;
 use crate::core::ics24_host::identifier::{ChainId, ClientId};
 #[cfg(any(test, feature = "mocks"))]
-use crate::mock::client_state::MockClientState;
+use crate::mock::client_def::MockClient;
+#[cfg(any(test, feature = "mocks"))]
+use crate::mock::client_state::{MockClientState, MockConsensusState};
 use crate::prelude::*;
 use crate::Height;
 use ibc_proto::ibc::core::client::v1::IdentifiedClientState;
+
+#[cfg(not(feature = "ics11_beefy"))]
+use super::client_def::stub_beefy::*;
+#[cfg(not(test))]
+use super::client_def::stub_mock::*;
 
 pub const TENDERMINT_CLIENT_STATE_TYPE_URL: &str = "/ibc.lightclients.tendermint.v1.ClientState";
 pub const BEEFY_CLIENT_STATE_TYPE_URL: &str = "/ibc.lightclients.beefy.v1.ClientState";
@@ -130,7 +140,7 @@ pub enum AnyClientState<G> {
     #[serde(skip)]
     Near(beefy_client_state::ClientState<G>),
     #[cfg(any(test, feature = "mocks"))]
-    Mock(MockClientState),
+    Mock(MockClientState<G>),
 }
 
 impl<G> AnyClientState<G> {
@@ -277,11 +287,30 @@ impl<G> From<AnyClientState<G>> for Any {
 
 impl<G> ClientState for AnyClientState<G>
 where
-    G: GlobalDefs,
+    G: GlobalDefs + Clone,
     G::HostFunctions: Sync + Send + Clone + Debug + Eq,
+
+    TendermintConsensusState: TryFrom<ConsensusStateOf<G>, Error = Error>,
+    ConsensusStateOf<G>: From<TendermintConsensusState>,
+
+    BeefyConsensusState: TryFrom<ConsensusStateOf<G>, Error = Error>,
+    ConsensusStateOf<G>: From<BeefyConsensusState>,
+
+    MockConsensusState: TryFrom<ConsensusStateOf<G>, Error = Error>,
+    ConsensusStateOf<G>: From<MockConsensusState>,
+
+    ConsensusStateOf<G>: Protobuf<Any>,
+    ConsensusStateOf<G>: TryFrom<Any>,
+    <ConsensusStateOf<G> as TryFrom<Any>>::Error: Display,
+    Any: From<ConsensusStateOf<G>>,
+
+    ClientStateOf<G>: Protobuf<Any>,
+    ClientStateOf<G>: TryFrom<Any>,
+    <ClientStateOf<G> as TryFrom<Any>>::Error: Display,
+    Any: From<ClientStateOf<G>>,
 {
     type UpgradeOptions = AnyUpgradeOptions;
-    type ClientDef = AnyClient<G::HostFunctions>;
+    type ClientDef = AnyClient<G>;
 
     fn chain_id(&self) -> ChainId {
         match self {
@@ -301,15 +330,15 @@ where
 
     fn client_def(&self) -> Self::ClientDef {
         match self {
-            AnyClientState::Tendermint(tm_state) => {
+            AnyClientState::Tendermint(_tm_state) => {
                 AnyClient::Tendermint(TendermintClient::default())
             }
             #[cfg(any(test, feature = "ics11_beefy"))]
-            AnyClientState::Beefy(bf_state) => AnyClient::Beefy(BeefyClient::default()),
+            AnyClientState::Beefy(_bf_state) => AnyClient::Beefy(BeefyClient::default()),
             #[cfg(any(test, feature = "ics11_beefy"))]
             AnyClientState::Near(_) => todo!(),
             #[cfg(any(test, feature = "mocks"))]
-            AnyClientState::Mock(mock_state) => AnyClient::Mock(mock_state.client_def()),
+            AnyClientState::Mock(mock_state) => AnyClient::Mock(MockClient::default()),
         }
     }
 

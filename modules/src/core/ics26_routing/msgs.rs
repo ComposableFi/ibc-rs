@@ -18,7 +18,7 @@ use crate::core::ics04_channel::msgs::{
     chan_open_init, chan_open_try, recv_packet, timeout, timeout_on_close, ChannelMsg, PacketMsg,
 };
 use crate::core::ics26_routing::error::Error;
-use derivative::Derivative;
+
 use ibc_proto::ibc::core::client::v1::{MsgCreateClient, MsgUpdateClient, MsgUpgradeClient};
 use ibc_proto::ibc::core::connection;
 use tendermint_proto::Protobuf;
@@ -38,9 +38,6 @@ where
 impl<C> TryFrom<Any> for Ics26Envelope<C>
 where
     C: ClientTypes + Clone + Debug + PartialEq + Eq,
-    // C::ClientState: From<Any>,
-    // C::ConsensusState: From<Any>,
-    // C::Header: From<Any>,
     Any: From<C::ClientState>,
     Any: From<C::ConsensusState>,
     Any: From<C::Header>,
@@ -53,10 +50,10 @@ where
     MsgUpgradeAnyClient<C>: TryFrom<MsgUpgradeClient>,
     <MsgUpgradeAnyClient<C> as TryFrom<MsgUpgradeClient>>::Error: Display,
     MsgUpgradeAnyClient<C>: Protobuf<MsgUpgradeClient>,
-    MsgConnectionOpenTry<C>: TryFrom<connection::v1::MsgConnectionOpenAck>,
-    <MsgConnectionOpenTry<C> as TryFrom<connection::v1::MsgConnectionOpenAck>>::Error: Display,
-    MsgConnectionOpenTry<C>: Protobuf<connection::v1::MsgConnectionOpenAck>,
-    connection::v1::MsgConnectionOpenAck: From<MsgConnectionOpenTry<C>>,
+    MsgConnectionOpenTry<C>: TryFrom<connection::v1::MsgConnectionOpenTry>,
+    <MsgConnectionOpenTry<C> as TryFrom<connection::v1::MsgConnectionOpenTry>>::Error: Display,
+    MsgConnectionOpenTry<C>: Protobuf<connection::v1::MsgConnectionOpenTry>,
+    connection::v1::MsgConnectionOpenAck: From<MsgConnectionOpenAck<C>>,
     MsgConnectionOpenAck<C>: TryFrom<connection::v1::MsgConnectionOpenAck>,
     <MsgConnectionOpenAck<C> as TryFrom<connection::v1::MsgConnectionOpenAck>>::Error: Display,
     MsgConnectionOpenAck<C>: Protobuf<connection::v1::MsgConnectionOpenAck>,

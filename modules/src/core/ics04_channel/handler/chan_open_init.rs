@@ -1,6 +1,5 @@
 //! Protocol logic specific to ICS4 messages of type `MsgChannelOpenInit`.
 
-use crate::core::ics02_client::client_type::ClientTypes;
 use crate::core::ics02_client::context::ClientReader;
 use crate::core::ics04_channel::channel::{ChannelEnd, State};
 use crate::core::ics04_channel::error::Error;
@@ -104,6 +103,7 @@ mod tests {
     use crate::core::ics04_channel::msgs::ChannelMsg;
     use crate::core::ics24_host::identifier::ConnectionId;
     use crate::events::IbcEvent;
+    use crate::mock::client_def::TestGlobalDefs;
     use crate::mock::context::MockContext;
     use crate::test_utils::Crypto;
 
@@ -152,7 +152,7 @@ mod tests {
         .collect();
 
         for test in tests {
-            let res = channel_dispatch::<_, Crypto>(&test.ctx, &test.msg);
+            let res = channel_dispatch::<_, TestGlobalDefs>(&test.ctx, &test.msg);
             // Additionally check the events and the output objects in the result.
             match res {
                 Ok((proto_output, res)) => {

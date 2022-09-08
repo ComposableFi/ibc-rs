@@ -11,7 +11,6 @@ use serde::{Deserialize, Serialize};
 use tendermint_light_client_verifier::options::Options;
 use tendermint_proto::Protobuf;
 
-use crate::clients::host_functions::{HostFunctionsManager, HostFunctionsProvider};
 use crate::clients::ics07_tendermint::client_def::TendermintClient;
 use crate::clients::ics07_tendermint::consensus_state::ConsensusState;
 use crate::clients::{ClientStateOf, ConsensusStateOf, GlobalDefs};
@@ -19,8 +18,8 @@ use ibc_proto::ibc::lightclients::tendermint::v1::ClientState as RawClientState;
 
 use crate::clients::ics07_tendermint::error::Error;
 use crate::clients::ics07_tendermint::header::Header;
-use crate::core::ics02_client::client_state::AnyClientState;
-use crate::core::ics02_client::client_type::{ClientType, ClientTypes};
+
+use crate::core::ics02_client::client_type::ClientType;
 use crate::core::ics02_client::error::Error as Ics02Error;
 use crate::core::ics02_client::trust_threshold::TrustThreshold;
 use crate::core::ics23_commitment::specs::ProofSpecs;
@@ -296,7 +295,7 @@ where
     }
 
     fn upgrade(
-        mut self,
+        self,
         upgrade_height: Height,
         upgrade_options: UpgradeOptions,
         chain_id: ChainId,
@@ -383,14 +382,18 @@ mod tests {
     use core::time::Duration;
     use test_log::test;
 
+    use crate::clients::ClientTypesOf;
     use ibc_proto::ics23::ProofSpec as Ics23ProofSpec;
     use tendermint_rpc::endpoint::abci_query::AbciQuery;
 
     use crate::clients::ics07_tendermint::client_state::ClientState;
+    use crate::core::ics02_client::client_def::AnyGlobalDef;
     use crate::core::ics02_client::trust_threshold::TrustThreshold;
     use crate::core::ics23_commitment::specs::ProofSpecs;
     use crate::core::ics24_host::identifier::ChainId;
+    use crate::mock::client_def::{MockClient, TestGlobalDefs};
     use crate::test::test_serialization_roundtrip;
+    use crate::test_utils::Crypto;
     use crate::timestamp::{Timestamp, ZERO_DURATION};
 
     #[derive(Clone, Debug, PartialEq)]
@@ -501,7 +504,7 @@ mod tests {
         for test in tests {
             let p = test.params.clone();
 
-            let cs_result = ClientState::new(
+            let cs_result = ClientState::<TestGlobalDefs>::new(
                 p.id,
                 p.trust_level,
                 p.trusting_period,
@@ -581,7 +584,7 @@ mod tests {
         ];
 
         for test in tests {
-            let res = ClientState::verify_delay_passed(
+            let res = ClientState::<TestGlobalDefs>::verify_delay_passed(
                 test.params.current_time,
                 test.params.current_height,
                 test.params.processed_time,
@@ -618,7 +621,8 @@ mod tests {
         struct Test {
             name: String,
             height: Height,
-            setup: Option<Box<dyn FnOnce(ClientState) -> ClientState>>,
+            setup:
+                Option<Box<dyn FnOnce(ClientState<TestGlobalDefs>) -> ClientState<TestGlobalDefs>>>,
             want_pass: bool,
         }
 
@@ -684,11 +688,14 @@ pub mod test_util {
     use tendermint::block::Header;
 
     use crate::clients::ics07_tendermint::client_state::ClientState;
+    use crate::core::ics02_client::client_def::AnyGlobalDef;
     use crate::core::ics02_client::client_state::AnyClientState;
     use crate::core::ics02_client::height::Height;
     use crate::core::ics24_host::identifier::ChainId;
+    use crate::mock::client_def::TestGlobalDefs;
+    use crate::test_utils::Crypto;
 
-    pub fn get_dummy_tendermint_client_state(tm_header: Header) -> AnyClientState {
+    pub fn get_dummy_tendermint_client_state(tm_header: Header) -> AnyClientState<TestGlobalDefs> {
         AnyClientState::Tendermint(
             ClientState::new(
                 ChainId::from(tm_header.chain_id.clone()),

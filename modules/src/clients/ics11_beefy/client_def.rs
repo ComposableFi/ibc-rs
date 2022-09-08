@@ -1,7 +1,7 @@
 use beefy_client_primitives::ClientState as LightClientState;
 use beefy_client_primitives::{ParachainHeader, ParachainsUpdateProof};
 use codec::{Decode, Encode};
-use core::fmt::{Debug, Display, Formatter};
+use core::fmt::{Debug, Display};
 use derivative::Derivative;
 use pallet_mmr_primitives::BatchProof;
 use sp_core::H256;
@@ -14,7 +14,7 @@ use crate::clients::ics11_beefy::error::Error as BeefyError;
 use crate::clients::ics11_beefy::header::BeefyHeader;
 use crate::core::ics02_client::client_consensus::AnyConsensusState;
 use crate::core::ics02_client::client_def::{ClientDef, ConsensusUpdateResult};
-use crate::core::ics02_client::client_state::AnyClientState;
+
 use crate::core::ics02_client::client_type::{ClientType, ClientTypes};
 use crate::core::ics02_client::error::Error;
 use crate::core::ics03_connection::connection::ConnectionEnd;
@@ -26,8 +26,8 @@ use crate::core::ics23_commitment::commitment::{
     CommitmentPrefix, CommitmentProofBytes, CommitmentRoot,
 };
 
-use crate::clients::{ClientDefOf, ClientStateOf, ConsensusStateOf, GlobalDefs};
-use crate::core::ics02_client;
+use crate::clients::{ClientStateOf, ClientTypesOf, ConsensusStateOf, GlobalDefs};
+
 use crate::core::ics02_client::context::ClientReader;
 use crate::core::ics24_host::identifier::ConnectionId;
 use crate::core::ics24_host::identifier::{ChannelId, ClientId, PortId};
@@ -171,13 +171,19 @@ where
         Ok(())
     }
 
-    fn update_state<Ctx: ReaderContext<ClientTypes = ClientDefOf<G>>>(
+    fn update_state<Ctx: ReaderContext<ClientTypes = ClientTypesOf<G>>>(
         &self,
         ctx: &Ctx,
         client_id: ClientId,
         client_state: Self::ClientState,
         header: Self::Header,
-    ) -> Result<(Self::ClientState, ConsensusUpdateResult<Ctx>), Error> {
+    ) -> Result<
+        (
+            Self::ClientState,
+            ConsensusUpdateResult<<Ctx as ReaderContext>::ClientTypes>,
+        ),
+        Error,
+    > {
         let mut parachain_cs_states = vec![];
         // Extract the new client state from the verified header
         let mut client_state = client_state
@@ -254,20 +260,26 @@ where
         Ok(false)
     }
 
-    fn verify_upgrade_and_update_state<Ctx: ReaderContext>(
+    fn verify_upgrade_and_update_state<Ctx: ReaderContext<ClientTypes = ClientTypesOf<Self::G>>>(
         &self,
         _client_state: &Self::ClientState,
         _consensus_state: &Self::ConsensusState,
         _proof_upgrade_client: Vec<u8>,
         _proof_upgrade_consensus_state: Vec<u8>,
-    ) -> Result<(Self::ClientState, ConsensusUpdateResult<Ctx>), Error> {
+    ) -> Result<
+        (
+            Self::ClientState,
+            ConsensusUpdateResult<<Ctx as ReaderContext>::ClientTypes>,
+        ),
+        Error,
+    > {
         // TODO:
         Err(Error::beefy(BeefyError::implementation_specific(
             "Not implemented".to_string(),
         )))
     }
 
-    fn verify_client_consensus_state<Ctx: ReaderContext<ClientTypes = ClientDefOf<Self::G>>>(
+    fn verify_client_consensus_state<Ctx: ReaderContext<ClientTypes = ClientTypesOf<Self::G>>>(
         &self,
         _ctx: &Ctx,
         client_state: &Self::ClientState,
@@ -327,7 +339,7 @@ where
         verify_membership::<G, _>(prefix, proof, root, path, value)
     }
 
-    fn verify_client_full_state<Ctx: ReaderContext<ClientTypes = ClientDefOf<Self::G>>>(
+    fn verify_client_full_state<Ctx: ReaderContext<ClientTypes = ClientTypesOf<Self::G>>>(
         &self,
         _ctx: &Ctx,
         client_state: &Self::ClientState,
@@ -464,7 +476,7 @@ where
         )
     }
 
-    fn from_client_type(client_type: ClientType) -> Self {
+    fn from_client_type(_client_type: ClientType) -> Self {
         todo!()
     }
 }

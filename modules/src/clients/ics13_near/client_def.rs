@@ -5,11 +5,11 @@ use super::header::NearHeader;
 use super::types::{ApprovalInner, CryptoHash, LightClientBlockView};
 use crate::clients::host_functions::HostFunctionsProvider;
 use crate::clients::{ConsensusStateOf, GlobalDefs};
-use crate::core::ics02_client::client_consensus::AnyConsensusState;
+
 use crate::core::ics02_client::client_def::{ClientDef, ConsensusUpdateResult};
-use crate::core::ics02_client::client_state::AnyClientState;
+
 use crate::core::ics02_client::client_type::{ClientType, ClientTypes};
-use crate::core::ics02_client::context::ClientReader;
+
 use crate::core::ics02_client::error::Error;
 use crate::core::ics03_connection::connection::ConnectionEnd;
 use crate::core::ics04_channel::channel::ChannelEnd;
@@ -23,7 +23,7 @@ use crate::core::ics26_routing::context::ReaderContext;
 use crate::prelude::*;
 use crate::Height;
 use borsh::BorshSerialize;
-use core::fmt::Debug;
+
 use core::marker::PhantomData;
 use derivative::Derivative;
 
@@ -87,7 +87,13 @@ where
         _client_id: ClientId,
         _client_state: Self::ClientState,
         _header: Self::Header,
-    ) -> Result<(Self::ClientState, ConsensusUpdateResult<Ctx>), Error> {
+    ) -> Result<
+        (
+            Self::ClientState,
+            ConsensusUpdateResult<<Ctx as ReaderContext>::ClientTypes>,
+        ),
+        Error,
+    > {
         // 1. create new client state from this header, return that.
         // 2. as well as all the neccessary consensus states.
         //
@@ -119,13 +125,19 @@ where
         Ok(false)
     }
 
-    fn verify_upgrade_and_update_state<Ctx: ClientReader>(
+    fn verify_upgrade_and_update_state<Ctx: ReaderContext>(
         &self,
         _client_state: &Self::ClientState,
         _consensus_state: &Self::ConsensusState,
         _proof_upgrade_client: Vec<u8>,
         _proof_upgrade_consensus_state: Vec<u8>,
-    ) -> Result<(Self::ClientState, ConsensusUpdateResult<Ctx>), Error> {
+    ) -> Result<
+        (
+            Self::ClientState,
+            ConsensusUpdateResult<<Ctx as ReaderContext>::ClientTypes>,
+        ),
+        Error,
+    > {
         todo!()
     }
 
@@ -256,7 +268,7 @@ where
         todo!()
     }
 
-    fn from_client_type(client_type: ClientType) -> Self {
+    fn from_client_type(_client_type: ClientType) -> Self {
         todo!()
     }
 }

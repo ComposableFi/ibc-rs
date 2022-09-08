@@ -1,9 +1,9 @@
 //! Protocol logic specific to processing ICS2 messages of type `MsgUpgradeAnyClient`.
 //!
-use crate::clients::host_functions::HostFunctionsProvider;
+
 use crate::clients::GlobalDefs;
-use crate::core::ics02_client::client_def::{AnyClient, ClientDef, ConsensusUpdateResult};
-use crate::core::ics02_client::client_state::{AnyClientState, ClientState};
+use crate::core::ics02_client::client_def::{ClientDef, ConsensusUpdateResult};
+use crate::core::ics02_client::client_state::ClientState;
 use crate::core::ics02_client::client_type::ClientTypes;
 use crate::core::ics02_client::error::Error;
 use crate::core::ics02_client::events::Attributes;
@@ -27,11 +27,11 @@ pub struct Result<C: ClientTypes> {
 
 pub fn process<G, Ctx>(
     ctx: &Ctx,
-    msg: MsgUpgradeAnyClient<G::ClientDef>,
-) -> HandlerResult<ClientResult<Ctx>, Error>
+    msg: MsgUpgradeAnyClient<<Ctx as ReaderContext>::ClientTypes>,
+) -> HandlerResult<ClientResult<<Ctx as ReaderContext>::ClientTypes>, Error>
 where
     G: GlobalDefs,
-    Ctx: ReaderContext<ClientTypes = G::ClientDef> + Eq + Debug + Clone,
+    Ctx: ReaderContext<ClientTypes = G::ClientTypes> + Eq + Debug + Clone,
 {
     let mut output = HandlerOutput::builder();
     let MsgUpgradeAnyClient { client_id, .. } = msg;
@@ -55,15 +55,14 @@ where
     let client_type = ctx.client_type(&client_id)?;
 
     let client_def = <G as GlobalDefs>::ClientDef::from_client_type(client_type);
-    // let client_def = <Ctx::ClientState as ClientState>::ClientDef::from_client_type(client_type);
-    // let client_def = AnyClient::<HostFunctions>::from_client_type(client_type);
 
-    let (new_client_state, new_consensus_state) = client_def.verify_upgrade_and_update_state(
-        &upgrade_client_state,
-        &msg.consensus_state,
-        msg.proof_upgrade_client.clone(),
-        msg.proof_upgrade_consensus_state,
-    )?;
+    let (new_client_state, new_consensus_state) = client_def
+        .verify_upgrade_and_update_state::<Ctx>(
+            &upgrade_client_state,
+            &msg.consensus_state,
+            msg.proof_upgrade_client.clone(),
+            msg.proof_upgrade_consensus_state,
+        )?;
 
     // Not implemented yet: https://github.com/informalsystems/ibc-rs/issues/722
     // todo!()
@@ -99,6 +98,7 @@ mod tests {
     use crate::core::ics24_host::identifier::ClientId;
     use crate::events::IbcEvent;
     use crate::handler::HandlerOutput;
+    use crate::mock::client_def::{MockClient, TestGlobalDefs};
     use crate::mock::client_state::{MockClientState, MockConsensusState};
     use crate::mock::context::MockContext;
     use crate::mock::header::MockHeader;
@@ -121,7 +121,7 @@ mod tests {
             signer,
         };
 
-        let output = dispatch::<_, Crypto>(&ctx, ClientMsg::UpgradeClient(msg.clone()));
+        let output = dispatch::<_, TestGlobalDefs>(&ctx, ClientMsg::UpgradeClient(msg.clone()));
 
         match output {
             Ok(HandlerOutput {
@@ -167,7 +167,7 @@ mod tests {
             signer,
         };
 
-        let output = dispatch::<_, Crypto>(&ctx, ClientMsg::UpgradeClient(msg.clone()));
+        let output = dispatch::<_, TestGlobalDefs>(&ctx, ClientMsg::UpgradeClient(msg.clone()));
 
         match output {
             Err(Error(ErrorDetail::ClientNotFound(e), _)) => {
@@ -195,7 +195,7 @@ mod tests {
             signer,
         };
 
-        let output = dispatch::<_, Crypto>(&ctx, ClientMsg::UpgradeClient(msg.clone()));
+        let output = dispatch::<_, TestGlobalDefs>(&ctx, ClientMsg::UpgradeClient(msg.clone()));
 
         match output {
             Err(Error(ErrorDetail::LowUpgradeHeight(e), _)) => {

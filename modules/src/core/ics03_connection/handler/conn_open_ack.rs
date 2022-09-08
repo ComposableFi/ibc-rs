@@ -1,8 +1,7 @@
 //! Protocol logic specific to processing ICS3 messages of type `MsgConnectionOpenAck`.
 
-use crate::clients::host_functions::HostFunctionsProvider;
 use crate::clients::{ClientStateOf, ConsensusStateOf, GlobalDefs};
-use crate::core::ics02_client::client_type::ClientTypes;
+
 use crate::core::ics02_client::context::ClientReader;
 use crate::core::ics03_connection::connection::{ConnectionEnd, Counterparty, State};
 use crate::core::ics03_connection::error::Error;
@@ -21,9 +20,9 @@ use core::fmt::Display;
 use ibc_proto::google::protobuf::Any;
 use tendermint_proto::Protobuf;
 
-pub(crate) fn process<G: GlobalDefs, Ctx: ReaderContext<ClientTypes = G::ClientDef>>(
+pub(crate) fn process<G: GlobalDefs, Ctx: ReaderContext<ClientTypes = G::ClientTypes>>(
     ctx: &Ctx,
-    msg: MsgConnectionOpenAck<G::ClientDef>,
+    msg: MsgConnectionOpenAck<G::ClientTypes>,
 ) -> HandlerResult<ConnectionResult, Error>
 where
     ClientStateOf<G>: Protobuf<Any>,
@@ -144,6 +143,8 @@ where
 mod tests {
     use crate::prelude::*;
 
+    use crate::clients::ClientTypesOf;
+    use crate::core::ics02_client::client_def::AnyGlobalDef;
     use core::str::FromStr;
     use test_log::test;
 
@@ -157,6 +158,7 @@ mod tests {
     use crate::core::ics23_commitment::commitment::CommitmentPrefix;
     use crate::core::ics24_host::identifier::{ChainId, ClientId};
     use crate::events::IbcEvent;
+    use crate::mock::client_def::{MockClient, TestGlobalDefs};
     use crate::mock::context::MockContext;
     use crate::mock::host::HostType;
     use crate::test_utils::Crypto;
@@ -167,13 +169,15 @@ mod tests {
         struct Test {
             name: String,
             ctx: MockContext,
-            msg: ConnectionMsg<C>,
+            msg: ConnectionMsg<ClientTypesOf<TestGlobalDefs>>,
             want_pass: bool,
             match_error: Box<dyn FnOnce(error::Error)>,
         }
 
-        let msg_ack =
-            MsgConnectionOpenAck::try_from(get_dummy_raw_msg_conn_open_ack(10, 10)).unwrap();
+        let msg_ack = MsgConnectionOpenAck::<ClientTypesOf<TestGlobalDefs>>::try_from(
+            get_dummy_raw_msg_conn_open_ack(10, 10),
+        )
+        .unwrap();
         let conn_id = msg_ack.connection_id.clone();
         let counterparty_conn_id = msg_ack.counterparty_connection_id.clone();
 
@@ -272,7 +276,7 @@ mod tests {
         ];
 
         for test in tests {
-            let res = dispatch::<_, Crypto>(&test.ctx, test.msg.clone());
+            let res = dispatch::<_, TestGlobalDefs>(&test.ctx, test.msg.clone());
             // Additionally check the events and the output objects in the result.
             match res {
                 Ok(proto_output) => {

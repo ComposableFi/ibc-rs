@@ -1,12 +1,11 @@
 //! Protocol logic specific to processing ICS2 messages of type `MsgCreateAnyClient`.
 
-use crate::clients::{ClientDefOf, GlobalDefs};
+use crate::clients::{ClientTypesOf, GlobalDefs};
 use crate::core::ics26_routing::context::ReaderContext;
 use crate::prelude::*;
 use core::fmt::Debug;
 
-use crate::core::ics02_client::client_consensus::AnyConsensusState;
-use crate::core::ics02_client::client_state::{AnyClientState, ClientState};
+use crate::core::ics02_client::client_state::ClientState;
 use crate::core::ics02_client::client_type::{ClientType, ClientTypes};
 use crate::core::ics02_client::error::Error;
 use crate::core::ics02_client::events::Attributes;
@@ -32,11 +31,11 @@ pub struct Result<C: ClientTypes> {
 
 pub fn process<G, Ctx>(
     ctx: &Ctx,
-    msg: MsgCreateAnyClient<G::ClientDef>,
-) -> HandlerResult<ClientResult<Ctx>, Error>
+    msg: MsgCreateAnyClient<G::ClientTypes>,
+) -> HandlerResult<ClientResult<<Ctx as ReaderContext>::ClientTypes>, Error>
 where
     G: GlobalDefs,
-    Ctx: ReaderContext<ClientTypes = ClientDefOf<G>> + Eq + Debug + Clone,
+    Ctx: ReaderContext<ClientTypes = ClientTypesOf<G>> + Eq + Debug + Clone,
 {
     let mut output = HandlerOutput::builder();
 
@@ -75,13 +74,14 @@ where
 mod tests {
     use crate::prelude::*;
 
+    use crate::clients::ClientTypesOf;
     use core::time::Duration;
     use test_log::test;
 
     use crate::clients::ics07_tendermint::client_state::ClientState as TendermintClientState;
     use crate::clients::ics07_tendermint::header::test_util::get_dummy_tendermint_header;
     use crate::core::ics02_client::client_consensus::AnyConsensusState;
-    use crate::core::ics02_client::client_state::ClientState;
+    use crate::core::ics02_client::client_state::{AnyClientState, ClientState};
     use crate::core::ics02_client::client_type::ClientType;
     use crate::core::ics02_client::context::ClientReader;
     use crate::core::ics02_client::handler::{dispatch, ClientResult};
@@ -92,8 +92,9 @@ mod tests {
     use crate::core::ics24_host::identifier::ClientId;
     use crate::events::IbcEvent;
     use crate::handler::HandlerOutput;
+    use crate::mock::client_def::{MockClient, TestGlobalDefs};
     use crate::mock::client_state::{MockClientState, MockConsensusState};
-    use crate::mock::context::MockContext;
+    use crate::mock::context::{MockContext, MockTypes};
     use crate::mock::header::MockHeader;
     use crate::test_utils::{get_dummy_account_id, Crypto};
     use crate::Height;
@@ -111,7 +112,7 @@ mod tests {
         )
         .unwrap();
 
-        let output = dispatch::<_, Crypto>(&ctx, ClientMsg::CreateClient(msg.clone()));
+        let output = dispatch::<_, TestGlobalDefs>(&ctx, ClientMsg::CreateClient(msg.clone()));
 
         match output {
             Ok(HandlerOutput {
@@ -150,7 +151,7 @@ mod tests {
 
         let ctx = MockContext::default().with_client(&existing_client_id, height);
 
-        let create_client_msgs: Vec<MsgCreateAnyClient> = vec![
+        let create_client_msgs: Vec<MsgCreateAnyClient<ClientTypesOf<TestGlobalDefs>>> = vec![
             MsgCreateAnyClient::new(
                 MockClientState::new(MockHeader::new(Height {
                     revision_height: 42,
@@ -203,7 +204,7 @@ mod tests {
         let expected_client_id = ClientId::new(ClientType::Mock, 0).unwrap();
 
         for msg in create_client_msgs {
-            let output = dispatch::<_, Crypto>(&ctx, ClientMsg::CreateClient(msg.clone()));
+            let output = dispatch::<_, TestGlobalDefs>(&ctx, ClientMsg::CreateClient(msg.clone()));
 
             match output {
                 Ok(HandlerOutput {
@@ -242,27 +243,28 @@ mod tests {
 
         let tm_header = get_dummy_tendermint_header();
 
-        let tm_client_state = TendermintClientState::new(
-            tm_header.chain_id.clone().into(),
-            TrustThreshold::ONE_THIRD,
-            Duration::from_secs(64000),
-            Duration::from_secs(128000),
-            Duration::from_millis(3000),
-            Height::new(0, u64::from(tm_header.height)),
-            ProofSpecs::default(),
-            vec!["".to_string()],
-        )
-        .unwrap()
-        .wrap_any();
+        let tm_client_state = AnyClientState::<TestGlobalDefs>::Tendermint(
+            TendermintClientState::new(
+                tm_header.chain_id.clone().into(),
+                TrustThreshold::ONE_THIRD,
+                Duration::from_secs(64000),
+                Duration::from_secs(128000),
+                Duration::from_millis(3000),
+                Height::new(0, u64::from(tm_header.height)),
+                ProofSpecs::default(),
+                vec!["".to_string()],
+            )
+            .unwrap(),
+        );
 
-        let msg = MsgCreateAnyClient::new(
+        let msg = MsgCreateAnyClient::<MockTypes>::new(
             tm_client_state,
             AnyConsensusState::Tendermint(tm_header.try_into().unwrap()),
             signer,
         )
         .unwrap();
 
-        let output = dispatch::<_, Crypto>(&ctx, ClientMsg::CreateClient(msg.clone()));
+        let output = dispatch::<_, TestGlobalDefs>(&ctx, ClientMsg::CreateClient(msg.clone()));
 
         match output {
             Ok(HandlerOutput {

@@ -1,11 +1,10 @@
 //! Protocol logic specific to processing ICS2 messages of type `MsgUpdateAnyClient`.
-use crate::clients::{ClientDefOf, ClientStateOf, ConsensusStateOf, GlobalDefs};
+use crate::clients::{ClientTypesOf, GlobalDefs};
 use core::fmt::Debug;
 
-use crate::clients::host_functions::HostFunctionsProvider;
-use crate::core::ics02_client::client_consensus::{AnyConsensusState, ConsensusState};
-use crate::core::ics02_client::client_def::{AnyClient, ClientDef, ConsensusUpdateResult};
-use crate::core::ics02_client::client_state::{AnyClientState, ClientState};
+use crate::core::ics02_client::client_consensus::ConsensusState;
+use crate::core::ics02_client::client_def::{ClientDef, ConsensusUpdateResult};
+use crate::core::ics02_client::client_state::ClientState;
 use crate::core::ics02_client::client_type::ClientTypes;
 use crate::core::ics02_client::error::Error;
 use crate::core::ics02_client::events::Attributes;
@@ -32,10 +31,10 @@ pub struct Result<C: ClientTypes> {
 
 pub fn process<G: GlobalDefs, Ctx>(
     ctx: &Ctx,
-    msg: MsgUpdateAnyClient<G::ClientDef>,
-) -> HandlerResult<ClientResult<Ctx>, Error>
+    msg: MsgUpdateAnyClient<G::ClientTypes>,
+) -> HandlerResult<ClientResult<<Ctx as ReaderContext>::ClientTypes>, Error>
 where
-    Ctx: ReaderContext<ClientTypes = ClientDefOf<G>>,
+    Ctx: ReaderContext<ClientTypes = ClientTypesOf<G>>,
 {
     let mut output = HandlerOutput::builder();
 
@@ -114,7 +113,7 @@ where
         .update_state(ctx, client_id.clone(), client_state, header)
         .map_err(|e| Error::header_verification_failure(e.to_string()))?;
 
-    let result = ClientResult::Update(Result {
+    let result = ClientResult::<<Ctx as ReaderContext>::ClientTypes>::Update(Result {
         client_id,
         client_state: new_client_state,
         consensus_state: Some(new_consensus_state),
@@ -148,6 +147,7 @@ mod tests {
     use crate::core::ics24_host::identifier::{ChainId, ClientId};
     use crate::events::IbcEvent;
     use crate::handler::HandlerOutput;
+    use crate::mock::client_def::{MockClient, TestGlobalDefs};
     use crate::mock::client_state::MockClientState;
     use crate::mock::context::MockContext;
     use crate::mock::header::MockHeader;
@@ -173,7 +173,7 @@ mod tests {
             signer,
         };
 
-        let output = dispatch::<_, Crypto>(&ctx, ClientMsg::UpdateClient(msg.clone()));
+        let output = dispatch::<_, TestGlobalDefs>(&ctx, ClientMsg::UpdateClient(msg.clone()));
 
         match output {
             Ok(HandlerOutput {
@@ -221,7 +221,7 @@ mod tests {
             signer,
         };
 
-        let output = dispatch::<_, Crypto>(&ctx, ClientMsg::UpdateClient(msg.clone()));
+        let output = dispatch::<_, TestGlobalDefs>(&ctx, ClientMsg::UpdateClient(msg.clone()));
 
         match output {
             Err(Error(ErrorDetail::ClientNotFound(e), _)) => {
@@ -257,7 +257,7 @@ mod tests {
                 signer: signer.clone(),
             };
 
-            let output = dispatch::<_, Crypto>(&ctx, ClientMsg::UpdateClient(msg.clone()));
+            let output = dispatch::<_, TestGlobalDefs>(&ctx, ClientMsg::UpdateClient(msg.clone()));
 
             match output {
                 Ok(HandlerOutput {
@@ -326,7 +326,7 @@ mod tests {
             signer,
         };
 
-        let output = dispatch::<_, Crypto>(&ctx, ClientMsg::UpdateClient(msg.clone()));
+        let output = dispatch::<_, TestGlobalDefs>(&ctx, ClientMsg::UpdateClient(msg.clone()));
 
         match output {
             Ok(HandlerOutput {
@@ -405,7 +405,7 @@ mod tests {
             signer,
         };
 
-        let output = dispatch::<_, Crypto>(&ctx, ClientMsg::UpdateClient(msg.clone()));
+        let output = dispatch::<_, TestGlobalDefs>(&ctx, ClientMsg::UpdateClient(msg.clone()));
 
         match output {
             Ok(HandlerOutput {
@@ -485,7 +485,7 @@ mod tests {
             signer,
         };
 
-        let output = dispatch::<_, Crypto>(&ctx, ClientMsg::UpdateClient(msg.clone()));
+        let output = dispatch::<_, TestGlobalDefs>(&ctx, ClientMsg::UpdateClient(msg.clone()));
 
         match output {
             Ok(HandlerOutput {
@@ -557,7 +557,7 @@ mod tests {
             signer,
         };
 
-        let output = dispatch::<_, Crypto>(&ctx, ClientMsg::UpdateClient(msg));
+        let output = dispatch::<_, TestGlobalDefs>(&ctx, ClientMsg::UpdateClient(msg));
 
         match output {
             Ok(_) => {
@@ -718,7 +718,8 @@ mod tests {
         };
 
         // Create the client
-        let res = dispatch::<_, Crypto>(&ctx, ClientMsg::CreateClient(create_client)).unwrap();
+        let res =
+            dispatch::<_, TestGlobalDefs>(&ctx, ClientMsg::CreateClient(create_client)).unwrap();
         ctx.store_client_result(res.result).unwrap();
         let mut subscription: Subscription<String> = client
             .rpc()
@@ -820,7 +821,7 @@ mod tests {
                 signer: signer.clone(),
             };
 
-            let res = dispatch::<_, Crypto>(&ctx, ClientMsg::UpdateClient(msg.clone()));
+            let res = dispatch::<_, TestGlobalDefs>(&ctx, ClientMsg::UpdateClient(msg.clone()));
 
             match res {
                 Ok(HandlerOutput {

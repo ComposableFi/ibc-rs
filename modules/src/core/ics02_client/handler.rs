@@ -1,7 +1,7 @@
 //! This module implements the processing logic for ICS2 (client abstractions and functions) msgs.
-use crate::clients::host_functions::HostFunctionsProvider;
-use crate::clients::{ClientStateOf, ConsensusStateOf, GlobalDefs};
-use crate::core::ics02_client::client_def::ClientDef;
+
+use crate::clients::GlobalDefs;
+
 use crate::core::ics02_client::client_type::ClientTypes;
 use crate::core::ics02_client::error::Error;
 use crate::core::ics02_client::msgs::ClientMsg;
@@ -26,10 +26,10 @@ where
 /// General entry point for processing any message related to ICS2 (client functions) protocols.
 pub fn dispatch<Ctx, G: GlobalDefs>(
     ctx: &Ctx,
-    msg: ClientMsg<G::ClientDef>,
-) -> Result<HandlerOutput<ClientResult<Ctx>>, Error>
+    msg: ClientMsg<<Ctx as ReaderContext>::ClientTypes>,
+) -> Result<HandlerOutput<ClientResult<<Ctx as ReaderContext>::ClientTypes>>, Error>
 where
-    Ctx: ReaderContext<ClientTypes = G::ClientDef>,
+    Ctx: ReaderContext<ClientTypes = G::ClientTypes>,
 {
     match msg {
         ClientMsg::CreateClient(msg) => create_client::process::<G, _>(ctx, msg),

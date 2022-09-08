@@ -1,13 +1,13 @@
 use core::convert::TryInto;
 use core::fmt::{Debug, Display};
 
-use crate::clients::host_functions::{HostFunctionsManager, HostFunctionsProvider};
-use crate::clients::{ClientDefOf, ClientStateOf, ConsensusStateOf, GlobalDefs};
+use crate::clients::host_functions::HostFunctionsManager;
+use crate::clients::{ClientStateOf, ClientTypesOf, ConsensusStateOf, GlobalDefs};
 use derivative::Derivative;
 use ibc_proto::google::protobuf::Any;
 use ibc_proto::ibc::core::commitment::v1::MerkleProof as RawMerkleProof;
 use prost::Message;
-use tendermint::Time;
+
 use tendermint_light_client_verifier::types::{TrustedBlockState, UntrustedBlockState};
 use tendermint_light_client_verifier::{ProdVerifier, Verdict, Verifier};
 use tendermint_proto::Protobuf;
@@ -16,9 +16,9 @@ use crate::clients::ics07_tendermint::client_state::ClientState;
 use crate::clients::ics07_tendermint::consensus_state::ConsensusState;
 use crate::clients::ics07_tendermint::error::Error;
 use crate::clients::ics07_tendermint::header::Header;
-use crate::core::ics02_client::client_consensus::{AnyConsensusState, ConsensusState as _};
+use crate::core::ics02_client::client_consensus::ConsensusState as _;
 use crate::core::ics02_client::client_def::{ClientDef, ConsensusUpdateResult};
-use crate::core::ics02_client::client_state::AnyClientState;
+
 use crate::core::ics02_client::client_type::{ClientType, ClientTypes};
 use crate::core::ics02_client::context::ClientReader;
 use crate::core::ics02_client::error::Error as Ics02Error;
@@ -38,7 +38,7 @@ use crate::core::ics24_host::path::{
 };
 use crate::core::ics24_host::Path;
 use crate::core::ics26_routing::context::ReaderContext;
-use crate::downcast;
+
 use crate::prelude::*;
 use crate::timestamp::Timestamp;
 use crate::Height;
@@ -102,7 +102,7 @@ where
         header: Self::Header,
     ) -> Result<(), Ics02Error>
     where
-        Ctx: ReaderContext<ClientTypes = ClientDefOf<Self::G>>,
+        Ctx: ReaderContext<ClientTypes = ClientTypesOf<Self::G>>,
     {
         if header.height().revision_number != client_state.chain_id.version() {
             return Err(Ics02Error::tendermint_handler_error(
@@ -189,13 +189,19 @@ where
         Ok(())
     }
 
-    fn update_state<Ctx: ReaderContext<ClientTypes = ClientDefOf<G>>>(
+    fn update_state<Ctx: ReaderContext<ClientTypes = ClientTypesOf<G>>>(
         &self,
         _ctx: &Ctx,
         _client_id: ClientId,
         client_state: Self::ClientState,
         header: Self::Header,
-    ) -> Result<(Self::ClientState, ConsensusUpdateResult<Ctx>), Ics02Error> {
+    ) -> Result<
+        (
+            Self::ClientState,
+            ConsensusUpdateResult<<Ctx as ReaderContext>::ClientTypes>,
+        ),
+        Ics02Error,
+    > {
         let header_consensus_state = <ConsensusState as From<Header>>::from(header.clone());
         let cs = Ctx::ConsensusState::from(header_consensus_state);
         Ok((
@@ -214,7 +220,7 @@ where
             .map_err(|e| e.into())
     }
 
-    fn check_for_misbehaviour<Ctx: ReaderContext<ClientTypes = ClientDefOf<G>>>(
+    fn check_for_misbehaviour<Ctx: ReaderContext<ClientTypes = ClientTypesOf<G>>>(
         &self,
         ctx: &Ctx,
         client_id: ClientId,
@@ -297,20 +303,26 @@ where
         Ok(false)
     }
 
-    fn verify_upgrade_and_update_state<Ctx: ReaderContext>(
+    fn verify_upgrade_and_update_state<Ctx: ReaderContext<ClientTypes = ClientTypesOf<Self::G>>>(
         &self,
         _client_state: &Self::ClientState,
         _consensus_state: &Self::ConsensusState,
         _proof_upgrade_client: Vec<u8>,
         _proof_upgrade_consensus_state: Vec<u8>,
-    ) -> Result<(Self::ClientState, ConsensusUpdateResult<Ctx>), Ics02Error> {
+    ) -> Result<
+        (
+            Self::ClientState,
+            ConsensusUpdateResult<<Ctx as ReaderContext>::ClientTypes>,
+        ),
+        Ics02Error,
+    > {
         // TODO:
         Err(Ics02Error::implementation_specific(
             "Not implemented".to_string(),
         ))
     }
 
-    fn verify_client_consensus_state<Ctx: ReaderContext<ClientTypes = ClientDefOf<Self::G>>>(
+    fn verify_client_consensus_state<Ctx: ReaderContext<ClientTypes = ClientTypesOf<Self::G>>>(
         &self,
         _ctx: &Ctx,
         client_state: &Self::ClientState,
@@ -372,7 +384,7 @@ where
         verify_membership::<G, _>(client_state, prefix, proof, root, path, value)
     }
 
-    fn verify_client_full_state<Ctx: ReaderContext<ClientTypes = ClientDefOf<Self::G>>>(
+    fn verify_client_full_state<Ctx: ReaderContext<ClientTypes = ClientTypesOf<Self::G>>>(
         &self,
         _ctx: &Ctx,
         client_state: &Self::ClientState,
@@ -518,7 +530,7 @@ where
         )
     }
 
-    fn from_client_type(client_type: ClientType) -> Self {
+    fn from_client_type(_client_type: ClientType) -> Self {
         todo!()
     }
 }

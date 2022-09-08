@@ -7,11 +7,8 @@ use core::str::FromStr;
 use ibc_proto::google::protobuf::Any;
 use tendermint_proto::Protobuf;
 
-use crate::core::ics02_client;
 use ibc_proto::ibc::core::client::v1::{MsgUpgradeClient as RawMsgUpgradeClient, MsgUpgradeClient};
 
-use crate::core::ics02_client::client_consensus::AnyConsensusState;
-use crate::core::ics02_client::client_state::AnyClientState;
 use crate::core::ics02_client::client_type::ClientTypes;
 use crate::core::ics02_client::error::Error;
 use crate::core::ics24_host::identifier::ClientId;
@@ -131,6 +128,9 @@ where
 pub mod test_util {
     use ibc_proto::ibc::core::client::v1::MsgUpgradeClient as RawMsgUpgradeClient;
 
+    use crate::core::ics02_client::client_def::{AnyClient, AnyGlobalDef};
+    use crate::mock::client_def::TestGlobalDefs;
+    use crate::test_utils::Crypto;
     use crate::{
         core::{
             ics02_client::{
@@ -148,7 +148,7 @@ pub mod test_util {
     use super::MsgUpgradeAnyClient;
 
     /// Extends the implementation with additional helper methods.
-    impl MsgUpgradeAnyClient {
+    impl MsgUpgradeAnyClient<AnyClient<TestGlobalDefs>> {
         /// Setter for `client_id`. Amenable to chaining, since it consumes the input message.
         pub fn with_client_id(self, client_id: ClientId) -> Self {
             MsgUpgradeAnyClient { client_id, ..self }
@@ -160,7 +160,10 @@ pub mod test_util {
         RawMsgUpgradeClient {
             client_id: "tendermint".parse().unwrap(),
             client_state: Some(
-                AnyClientState::Mock(MockClientState::new(MockHeader::new(height))).into(),
+                AnyClientState::<TestGlobalDefs>::Mock(MockClientState::new(MockHeader::new(
+                    height,
+                )))
+                .into(),
             ),
             consensus_state: Some(
                 AnyConsensusState::Mock(MockConsensusState::new(MockHeader::new(height))).into(),
@@ -178,6 +181,8 @@ mod tests {
     use alloc::vec::Vec;
     use ibc_proto::ibc::core::client::v1::MsgUpgradeClient as RawMsgUpgradeClient;
 
+    use crate::clients::ClientTypesOf;
+    use crate::mock::client_def::TestGlobalDefs;
     use crate::{
         core::{
             ics02_client::{
@@ -201,14 +206,15 @@ mod tests {
 
         let height = Height::new(1, 1);
 
-        let client_state = AnyClientState::Mock(MockClientState::new(MockHeader::new(height)));
+        let client_state =
+            AnyClientState::<TestGlobalDefs>::Mock(MockClientState::new(MockHeader::new(height)));
         let consensus_state =
             AnyConsensusState::Mock(MockConsensusState::new(MockHeader::new(height)));
 
         let proof = get_dummy_merkle_proof();
         let mut proof_buf = Vec::new();
         prost::Message::encode(&proof, &mut proof_buf).unwrap();
-        let msg = MsgUpgradeAnyClient::new(
+        let msg = MsgUpgradeAnyClient::<ClientTypesOf<TestGlobalDefs>>::new(
             client_id,
             client_state,
             consensus_state,
@@ -217,7 +223,8 @@ mod tests {
             signer,
         );
         let raw: RawMsgUpgradeClient = RawMsgUpgradeClient::from(msg.clone());
-        let msg_back = MsgUpgradeAnyClient::try_from(raw.clone()).unwrap();
+        let msg_back =
+            MsgUpgradeAnyClient::<ClientTypesOf<TestGlobalDefs>>::try_from(raw.clone()).unwrap();
         let raw_back: RawMsgUpgradeClient = RawMsgUpgradeClient::from(msg_back.clone());
         assert_eq!(msg, msg_back);
         assert_eq!(raw, raw_back);

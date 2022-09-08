@@ -1,13 +1,13 @@
 //! ICS3 verification functions, common across all four handlers of ICS3.
-use crate::clients::host_functions::HostFunctionsProvider;
-use crate::clients::{ClientDefOf, ClientStateOf, ConsensusStateOf, GlobalDefs};
+
+use crate::clients::{ClientStateOf, ClientTypesOf, ConsensusStateOf, GlobalDefs};
 use crate::core::ics02_client::client_consensus::ConsensusState;
-use crate::core::ics02_client::client_state::{AnyClientState, ClientState};
+use crate::core::ics02_client::client_state::ClientState;
 #[cfg(feature = "ics11_beefy")]
 use crate::core::ics02_client::client_type::ClientType;
-use crate::core::ics02_client::client_type::ClientTypes;
+
+use crate::core::ics02_client::client_def::ClientDef;
 use crate::core::ics02_client::context::ClientReader;
-use crate::core::ics02_client::{client_def::AnyClient, client_def::ClientDef};
 use crate::core::ics03_connection::connection::ConnectionEnd;
 use crate::core::ics03_connection::error::Error;
 use crate::core::ics23_commitment::commitment::CommitmentProofBytes;
@@ -35,7 +35,10 @@ pub struct ConnectionProof {
 /// Verifies the authenticity and semantic correctness of a commitment `proof`. The commitment
 /// claims to prove that an object of type connection exists on the source chain (i.e., the chain
 /// which created this proof). This object must match the state of `expected_conn`.
-pub fn verify_connection_proof<G: GlobalDefs, Ctx: ReaderContext<ClientTypes = ClientDefOf<G>>>(
+pub fn verify_connection_proof<
+    G: GlobalDefs,
+    Ctx: ReaderContext<ClientTypes = ClientTypesOf<G>>,
+>(
     ctx: &Ctx,
     height: Height,
     connection_end: &ConnectionEnd,
@@ -90,7 +93,7 @@ pub fn verify_connection_proof<G: GlobalDefs, Ctx: ReaderContext<ClientTypes = C
 /// complete verification: that the client state the counterparty stores is valid (i.e., not frozen,
 /// at the same revision as the current chain, with matching chain identifiers, etc) and that the
 /// `proof` is correct.
-pub fn verify_client_proof<G: GlobalDefs, Ctx: ReaderContext<ClientTypes = G::ClientDef>>(
+pub fn verify_client_proof<G: GlobalDefs, Ctx: ReaderContext<ClientTypes = G::ClientTypes>>(
     ctx: &Ctx,
     height: Height,
     connection_end: &ConnectionEnd,
@@ -135,7 +138,7 @@ where
         })
 }
 
-pub fn verify_consensus_proof<G: GlobalDefs, Ctx: ReaderContext<ClientTypes = G::ClientDef>>(
+pub fn verify_consensus_proof<G: GlobalDefs, Ctx: ReaderContext<ClientTypes = G::ClientTypes>>(
     ctx: &Ctx,
     height: Height,
     connection_end: &ConnectionEnd,

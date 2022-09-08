@@ -1,13 +1,13 @@
-use crate::clients::host_functions::HostFunctionsProvider;
 use crate::prelude::*;
 use core::fmt::{Debug, Display};
 use tendermint_proto::Protobuf;
 
 use ibc_proto::google::protobuf::Any;
 
-use crate::clients::{ClientDefOf, ClientStateOf, ConsensusStateOf, GlobalDefs};
-use crate::core::ics02_client::client_def::ClientDef;
+use crate::clients::{ClientStateOf, ClientTypesOf, ConsensusStateOf, GlobalDefs};
+
 use crate::core::ics02_client::client_type::ClientTypes;
+use crate::core::ics02_client::context::ClientKeeper;
 use crate::core::ics02_client::handler::dispatch as ics2_msg_dispatcher;
 use crate::core::ics03_connection::handler::dispatch as ics3_msg_dispatcher;
 use crate::core::ics04_channel::handler::{
@@ -19,7 +19,7 @@ use crate::core::ics04_channel::handler::{
     packet_dispatch as ics4_packet_msg_dispatcher,
 };
 use crate::core::ics04_channel::packet::PacketResult;
-use crate::core::ics26_routing::context::{Ics26Context, ModuleOutputBuilder};
+use crate::core::ics26_routing::context::{Ics26Context, ModuleOutputBuilder, ReaderContext};
 use crate::core::ics26_routing::error::Error;
 use crate::core::ics26_routing::msgs::Ics26Envelope::{
     self, Ics2Msg, Ics3Msg, Ics4ChannelMsg, Ics4PacketMsg,
@@ -38,9 +38,9 @@ pub struct MsgReceipt {
 /// Returns a vector of all events that got generated as a byproduct of processing `message`.
 pub fn deliver<Ctx, G: GlobalDefs>(ctx: &mut Ctx, message: Any) -> Result<MsgReceipt, Error>
 where
-    Ctx: Ics26Context<ClientTypes = ClientDefOf<G>>,
-    Ics26Envelope<G::ClientDef>: From<Any>,
-    Error: From<<Ics26Envelope<G::ClientDef> as TryFrom<Any>>::Error>,
+    Ctx: Ics26Context + ReaderContext<ClientTypes = ClientTypesOf<G>>,
+    Ics26Envelope<G::ClientTypes>: TryFrom<Any>,
+    Error: From<<Ics26Envelope<G::ClientTypes> as TryFrom<Any>>::Error>,
     ClientStateOf<G>: Protobuf<Any>,
     Any: From<ClientStateOf<G>>,
     ClientStateOf<G>: TryFrom<Any>,
@@ -51,7 +51,7 @@ where
     <ConsensusStateOf<G> as TryFrom<Any>>::Error: Display,
 {
     // Decode the proto message into a domain message, creating an ICS26 envelope.
-    let envelope = decode::<G::ClientDef>(message)?;
+    let envelope = decode::<G::ClientTypes>(message)?;
 
     // Process the envelope, and accumulate any events that were generated.
     let HandlerOutput { log, events, .. } = dispatch::<_, G>(ctx, envelope)?;
@@ -76,11 +76,33 @@ where
 /// the `Ctx` caused by all messages from the transaction that this `msg` is a part of.
 pub fn dispatch<Ctx, G: GlobalDefs>(
     ctx: &mut Ctx,
-    msg: Ics26Envelope<G::ClientDef>,
+    msg: Ics26Envelope<<Ctx as ReaderContext>::ClientTypes>,
 ) -> Result<HandlerOutput<()>, Error>
 where
-    Ctx: Ics26Context<ClientTypes = ClientDefOf<G>>,
-    G::ClientDef: Debug + Eq,
+    Ctx: Ics26Context
+        + ClientTypes<
+            ConsensusState = ConsensusStateOf<G>,
+            ClientState = ClientStateOf<G>,
+            Header = <G::ClientTypes as ClientTypes>::Header,
+        > + ClientKeeper<
+            ClientTypes = ClientTypesOf<G>,
+            // ConsensusState = ConsensusStateOf<G>,
+            // ClientState = ClientStateOf<G>,
+            // Header = <G::ClientTypes as ClientTypes>::Header,
+        > + ReaderContext<ClientTypes = ClientTypesOf<G>>,
+    // Ctx: Ics26Context + ReaderContext<ClientTypes = Ctx>,
+    // G::ClientTypes: Debug + Eq,
+    // <Ctx as ReaderContext>::ClientTypes: Debug + Eq + Clone,
+    // <<Ctx as ReaderContext>::ClientTypes as ClientTypes>::ClientState: Protobuf<Any>,
+    // Any: From<<<Ctx as ReaderContext>::ClientTypes as ClientTypes>::ClientState>,
+    // <<Ctx as ReaderContext>::ClientTypes as ClientTypes>::ClientState: TryFrom<Any>,
+    // <<<Ctx as ReaderContext>::ClientTypes as ClientTypes>::ClientState as TryFrom<Any>>::Error:
+    //     Display,
+    // <<Ctx as ReaderContext>::ClientTypes as ClientTypes>::ConsensusState: Protobuf<Any>,
+    // Any: From<<<Ctx as ReaderContext>::ClientTypes as ClientTypes>::ConsensusState>,
+    // <<Ctx as ReaderContext>::ClientTypes as ClientTypes>::ConsensusState: TryFrom<Any>,
+    // <<<Ctx as ReaderContext>::ClientTypes as ClientTypes>::ConsensusState as TryFrom<Any>>::Error:
+    //     Display,
     ClientStateOf<G>: Protobuf<Any>,
     Any: From<ClientStateOf<G>>,
     ClientStateOf<G>: TryFrom<Any>,
@@ -93,10 +115,10 @@ where
     let output = match msg {
         Ics2Msg(msg) => {
             let handler_output =
-                ics2_msg_dispatcher::<_, G>(ctx, msg).map_err(Error::ics02_client)?;
+                ics2_msg_dispatcher::<Ctx, G>(ctx, msg).map_err(Error::ics02_client)?;
 
             // Apply the result to the context (host chain store).
-            ctx.store_client_result(handler_output.result)
+            ctx.store_client_result::<G>(handler_output.result)
                 .map_err(Error::ics02_client)?;
 
             HandlerOutput::builder()
@@ -170,7 +192,9 @@ mod tests {
 
     use crate::applications::transfer::context::test::deliver as ics20_deliver;
     use crate::applications::transfer::PrefixedCoin;
+    use crate::clients::ClientTypesOf;
     use crate::core::ics02_client::client_consensus::AnyConsensusState;
+    use crate::core::ics02_client::client_def::AnyGlobalDef;
     use crate::core::ics02_client::client_state::AnyClientState;
     use crate::core::ics02_client::msgs::{
         create_client::MsgCreateAnyClient, update_client::MsgUpdateAnyClient,
@@ -208,6 +232,7 @@ mod tests {
     use crate::core::ics26_routing::handler::dispatch;
     use crate::core::ics26_routing::msgs::Ics26Envelope;
     use crate::handler::HandlerOutputBuilder;
+    use crate::mock::client_def::{MockClient, TestGlobalDefs};
     use crate::mock::client_state::{MockClientState, MockConsensusState};
     use crate::mock::context::{MockContext, MockRouterBuilder};
     use crate::mock::header::MockHeader;
@@ -223,12 +248,12 @@ mod tests {
     fn routing_module_and_keepers() {
         #[derive(Clone, Debug)]
         enum TestMsg {
-            Ics26(Ics26Envelope),
+            Ics26(Ics26Envelope<ClientTypesOf<TestGlobalDefs>>),
             Ics20(MsgTransfer<PrefixedCoin>),
         }
 
-        impl From<Ics26Envelope> for TestMsg {
-            fn from(msg: Ics26Envelope) -> Self {
+        impl From<Ics26Envelope<ClientTypesOf<TestGlobalDefs>>> for TestMsg {
+            fn from(msg: Ics26Envelope<ClientTypesOf<TestGlobalDefs>>) -> Self {
                 Self::Ics26(msg)
             }
         }
@@ -352,7 +377,7 @@ mod tests {
         let msg_recv_packet = MsgRecvPacket::try_from(get_dummy_raw_msg_recv_packet(35)).unwrap();
 
         // First, create a client..
-        let res = dispatch::<_, Crypto>(
+        let res = dispatch::<_, TestGlobalDefs>(
             &mut ctx,
             Ics26Envelope::Ics2Msg(ClientMsg::CreateClient(create_client_msg.clone())),
         );
@@ -568,7 +593,7 @@ mod tests {
 
         for test in tests {
             let res = match test.msg.clone() {
-                TestMsg::Ics26(msg) => dispatch::<_, Crypto>(&mut ctx, msg).map(|_| ()),
+                TestMsg::Ics26(msg) => dispatch::<_, TestGlobalDefs>(&mut ctx, msg).map(|_| ()),
                 TestMsg::Ics20(msg) => {
                     let transfer_module =
                         ctx.router_mut().get_route_mut(&transfer_module_id).unwrap();

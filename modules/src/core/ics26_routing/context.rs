@@ -6,9 +6,8 @@ use core::fmt::Debug;
 use core::{fmt, str::FromStr};
 
 use crate::core::ics02_client::client_type::ClientTypes;
-use ibc_proto::google::protobuf::Any as ProtoAny;
+
 use serde::{Deserialize, Serialize};
-use tendermint_proto::Protobuf;
 
 use crate::core::ics02_client::context::{ClientKeeper, ClientReader};
 use crate::core::ics03_connection::context::{ConnectionKeeper, ConnectionReader};
@@ -31,13 +30,14 @@ type HeaderStateOf<C> = <C as ClientTypes>::Header;
 /// This trait captures all the functional dependencies of needed in light client implementations
 pub trait ReaderContext:
     ClientKeeper<
-        ConsensusState = ConsensusStateOf<Self::ClientTypes>,
-        ClientState = ClientStateOf<Self::ClientTypes>,
-        Header = HeaderStateOf<Self::ClientTypes>,
+        ClientTypes = <Self as ReaderContext>::ClientTypes
+        // ConsensusState = ConsensusStateOf<Self::ClientTypes>,
+        // ClientState = ClientStateOf<Self::ClientTypes>,
+        // Header = HeaderStateOf<Self::ClientTypes>,
     > + ClientReader<
-        ConsensusState = ConsensusStateOf<Self::ClientTypes>,
-        ClientState = ClientStateOf<Self::ClientTypes>,
-        Header = HeaderStateOf<Self::ClientTypes>,
+        ConsensusState = ConsensusStateOf<<Self as ReaderContext>::ClientTypes>,
+        ClientState = ClientStateOf<<Self as ReaderContext>::ClientTypes>,
+        Header = HeaderStateOf<<Self as ReaderContext>::ClientTypes>,
     > + ConnectionReader
     + ChannelReader
 {

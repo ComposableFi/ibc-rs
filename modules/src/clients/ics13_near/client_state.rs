@@ -1,16 +1,16 @@
 use super::types::{CryptoHash, LightClientBlockView, ValidatorStakeView};
-use crate::clients::host_functions::HostFunctionsProvider;
+
 use crate::clients::ics13_near::client_def::NearClient;
 use crate::clients::ics13_near::consensus_state::ConsensusState;
 use crate::clients::{ConsensusStateOf, GlobalDefs};
-use crate::core::ics02_client::client_type::ClientTypes;
+
 use crate::core::ics02_client::error::Error;
 use crate::core::{
     ics02_client::{client_state::ClientState, client_type::ClientType},
     ics24_host::identifier::ChainId,
 };
 use crate::prelude::*;
-use core::fmt::Debug;
+
 use derivative::Derivative;
 use std::marker::PhantomData;
 use std::time::Duration;
@@ -97,7 +97,7 @@ where
         self
     }
 
-    fn expired(&self, elapsed: Duration) -> bool {
+    fn expired(&self, _elapsed: Duration) -> bool {
         todo!()
     }
 }

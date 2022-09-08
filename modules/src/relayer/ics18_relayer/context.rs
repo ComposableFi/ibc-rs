@@ -1,7 +1,6 @@
 use crate::prelude::*;
 use ibc_proto::google::protobuf::Any;
 
-use crate::core::ics02_client::client_state::AnyClientState;
 use crate::core::ics02_client::client_type::ClientTypes;
 use crate::core::ics02_client::header::AnyHeader;
 use crate::events::IbcEvent;

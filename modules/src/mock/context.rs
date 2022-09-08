@@ -10,6 +10,7 @@ use core::ops::{Add, Sub};
 use core::time::Duration;
 use std::sync::Mutex;
 
+use crate::clients::ClientTypesOf;
 use ibc_proto::google::protobuf::Any;
 use sha2::Digest;
 use tracing::debug;
@@ -18,8 +19,9 @@ use crate::clients::ics07_tendermint::client_state::test_util::get_dummy_tenderm
 use crate::clients::ics11_beefy::client_state::test_util::get_dummy_beefy_state;
 use crate::clients::ics11_beefy::consensus_state::test_util::get_dummy_beefy_consensus_state;
 use crate::core::ics02_client::client_consensus::{AnyConsensusState, AnyConsensusStateWithHeight};
+use crate::core::ics02_client::client_def::{AnyClient, AnyGlobalDef};
 use crate::core::ics02_client::client_state::AnyClientState;
-use crate::core::ics02_client::client_type::ClientType;
+use crate::core::ics02_client::client_type::{ClientType, ClientTypes};
 use crate::core::ics02_client::context::{ClientKeeper, ClientReader};
 use crate::core::ics02_client::error::Error as Ics02Error;
 use crate::core::ics02_client::header::AnyHeader;
@@ -42,6 +44,7 @@ use crate::core::ics26_routing::context::{
 use crate::core::ics26_routing::handler::{deliver, dispatch, MsgReceipt};
 use crate::core::ics26_routing::msgs::Ics26Envelope;
 use crate::events::IbcEvent;
+use crate::mock::client_def::{MockClient, TestGlobalDefs};
 use crate::mock::client_state::{MockClientRecord, MockClientState, MockConsensusState};
 use crate::mock::header::MockHeader;
 use crate::mock::host::{HostBlock, HostType};
@@ -79,6 +82,14 @@ pub struct MockContext {
     /// ICS26 router impl
     router: MockRouter,
 }
+
+impl PartialEq for MockContext {
+    fn eq(&self, _other: &Self) -> bool {
+        unimplemented!()
+    }
+}
+
+impl Eq for MockContext {}
 
 /// Returns a MockContext with bare minimum initialization: no clients, no connections and no channels are
 /// present, and the chain has Height(5). This should be used sparingly, mostly for testing the
@@ -460,8 +471,11 @@ impl MockContext {
     /// A datagram passes from the relayer to the IBC module (on host chain).
     /// Alternative method to `Ics18Context::send` that does not exercise any serialization.
     /// Used in testing the Ics18 algorithms, hence this may return a Ics18Error.
-    pub fn deliver(&mut self, msg: Ics26Envelope) -> Result<(), Ics18Error> {
-        dispatch::<_, Crypto>(self, msg).map_err(Ics18Error::transaction_failed)?;
+    pub fn deliver(
+        &mut self,
+        msg: Ics26Envelope<ClientTypesOf<TestGlobalDefs>>,
+    ) -> Result<(), Ics18Error> {
+        dispatch::<_, TestGlobalDefs>(self, msg).map_err(Ics18Error::transaction_failed)?;
         // Create a new block.
         self.advance_host_chain_height();
         Ok(())
@@ -523,7 +537,7 @@ impl MockContext {
             .collect()
     }
 
-    pub fn latest_client_states(&self, client_id: &ClientId) -> AnyClientState {
+    pub fn latest_client_states(&self, client_id: &ClientId) -> AnyClientState<TestGlobalDefs> {
         self.ibc_store.lock().unwrap().clients[client_id]
             .client_state
             .as_ref()
@@ -648,7 +662,24 @@ impl Router for MockRouter {
     }
 }
 
-impl ReaderContext for MockContext {}
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct MockTypes;
+
+impl ClientTypes for MockTypes {
+    type Header = AnyHeader; //<ClientTypesOf<TestGlobalDefs> as ClientTypes>::Header;
+    type ClientState = AnyClientState<TestGlobalDefs>; //<ClientTypesOf<TestGlobalDefs> as ClientTypes>::ClientState;
+    type ConsensusState = AnyConsensusState; // <ClientTypesOf<TestGlobalDefs> as ClientTypes>::ConsensusState;
+}
+
+impl ClientTypes for MockContext {
+    type Header = <MockTypes as ClientTypes>::Header;
+    type ClientState = <MockTypes as ClientTypes>::ClientState;
+    type ConsensusState = <MockTypes as ClientTypes>::ConsensusState;
+}
+
+impl ReaderContext for MockContext {
+    type ClientTypes = MockTypes;
+}
 
 impl Ics26Context for MockContext {
     type Router = MockRouter;
@@ -1040,7 +1071,10 @@ impl ClientReader for MockContext {
         }
     }
 
-    fn client_state(&self, client_id: &ClientId) -> Result<AnyClientState, Ics02Error> {
+    fn client_state(
+        &self,
+        client_id: &ClientId,
+    ) -> Result<AnyClientState<TestGlobalDefs>, Ics02Error> {
         match self.ibc_store.lock().unwrap().clients.get(client_id) {
             Some(client_record) => client_record
                 .client_state
@@ -1164,6 +1198,8 @@ impl ClientReader for MockContext {
 }
 
 impl ClientKeeper for MockContext {
+    type ClientTypes = MockTypes;
+
     fn store_client_type(
         &mut self,
         client_id: ClientId,
@@ -1186,7 +1222,7 @@ impl ClientKeeper for MockContext {
     fn store_client_state(
         &mut self,
         client_id: ClientId,
-        client_state: AnyClientState,
+        client_state: AnyClientState<TestGlobalDefs>,
     ) -> Result<(), Ics02Error> {
         let mut ibc_store = self.ibc_store.lock().unwrap();
         let client_record = ibc_store
@@ -1258,7 +1294,10 @@ impl ClientKeeper for MockContext {
         Ok(())
     }
 
-    fn validate_self_client(&self, _client_state: &AnyClientState) -> Result<(), Ics02Error> {
+    fn validate_self_client(
+        &self,
+        _client_state: &AnyClientState<TestGlobalDefs>,
+    ) -> Result<(), Ics02Error> {
         Ok(())
     }
 }
@@ -1268,7 +1307,10 @@ impl Ics18Context for MockContext {
         self.host_height()
     }
 
-    fn query_client_full_state(&self, client_id: &ClientId) -> Option<AnyClientState> {
+    fn query_client_full_state(
+        &self,
+        client_id: &ClientId,
+    ) -> Option<AnyClientState<TestGlobalDefs>> {
         // Forward call to Ics2.
         ClientReader::client_state(self, client_id).ok()
     }
@@ -1283,7 +1325,7 @@ impl Ics18Context for MockContext {
         let mut all_events = vec![];
         for msg in msgs {
             let MsgReceipt { mut events, .. } =
-                deliver::<_, Crypto>(self, msg).map_err(Ics18Error::transaction_failed)?;
+                deliver::<_, TestGlobalDefs>(self, msg).map_err(Ics18Error::transaction_failed)?;
             all_events.append(&mut events);
         }
         self.advance_host_chain_height(); // Advance chain height

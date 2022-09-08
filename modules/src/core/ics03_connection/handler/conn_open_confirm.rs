@@ -1,8 +1,7 @@
 //! Protocol logic specific to processing ICS3 messages of type `MsgConnectionOpenConfirm`.
 
-use crate::clients::host_functions::HostFunctionsProvider;
-use crate::clients::{ClientDefOf, GlobalDefs};
-use crate::core::ics02_client::client_type::ClientTypes;
+use crate::clients::{ClientTypesOf, GlobalDefs};
+
 use crate::core::ics02_client::context::ClientReader;
 use crate::core::ics03_connection::connection::{ConnectionEnd, Counterparty, State};
 use crate::core::ics03_connection::error::Error;
@@ -15,7 +14,7 @@ use crate::events::IbcEvent;
 use crate::handler::{HandlerOutput, HandlerResult};
 use crate::prelude::*;
 
-pub(crate) fn process<G: GlobalDefs, Ctx: ReaderContext<ClientTypes = ClientDefOf<G>>>(
+pub(crate) fn process<G: GlobalDefs, Ctx: ReaderContext<ClientTypes = ClientTypesOf<G>>>(
     ctx: &Ctx,
     msg: MsgConnectionOpenConfirm,
 ) -> HandlerResult<ConnectionResult, Error> {
@@ -81,6 +80,8 @@ pub(crate) fn process<G: GlobalDefs, Ctx: ReaderContext<ClientTypes = ClientDefO
 mod tests {
     use crate::prelude::*;
 
+    use crate::clients::ClientTypesOf;
+    use crate::core::ics02_client::client_def::AnyGlobalDef;
     use core::str::FromStr;
     use test_log::test;
 
@@ -94,6 +95,7 @@ mod tests {
     use crate::core::ics23_commitment::commitment::CommitmentPrefix;
     use crate::core::ics24_host::identifier::ClientId;
     use crate::events::IbcEvent;
+    use crate::mock::client_def::{MockClient, TestGlobalDefs, TestMockClient};
     use crate::mock::context::MockContext;
     use crate::test_utils::Crypto;
     use crate::timestamp::ZERO_DURATION;
@@ -104,7 +106,7 @@ mod tests {
         struct Test {
             name: String,
             ctx: MockContext,
-            msg: ConnectionMsg,
+            msg: ConnectionMsg<ClientTypesOf<TestGlobalDefs>>,
             want_pass: bool,
         }
 
@@ -159,7 +161,7 @@ mod tests {
         .collect();
 
         for test in tests {
-            let res = dispatch::<_, Crypto>(&test.ctx, test.msg.clone());
+            let res = dispatch::<_, TestGlobalDefs>(&test.ctx, test.msg.clone());
             // Additionally check the events and the output objects in the result.
             match res {
                 Ok(proto_output) => {
