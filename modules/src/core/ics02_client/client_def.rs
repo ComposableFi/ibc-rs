@@ -107,7 +107,7 @@ pub trait ClientDef: ClientTypes + Clone {
             ConsensusUpdateResult<<Ctx as ReaderContext>::ClientTypes>,
         ),
         Error,
-    >; // this is where the issue is
+    >;
 
     /// Verification functions as specified in:
     /// <https://github.com/cosmos/ibc/tree/master/spec/core/ics-002-client-semantics>

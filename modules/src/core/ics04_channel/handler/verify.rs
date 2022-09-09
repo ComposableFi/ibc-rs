@@ -42,7 +42,6 @@ where
         .map_err(|_| Error::error_invalid_consensus_state())?;
 
     let client_def = <G as GlobalDefs>::ClientDef::from_client_type(client_state.client_type());
-    // let client_def = AnyClient::<HostFunctions>::from_client_type(client_state.client_type());
 
     // Verify the proof for the channel state against the expected channel end.
     // A counterparty channel id of None in not possible, and is checked by validate_basic in msg.

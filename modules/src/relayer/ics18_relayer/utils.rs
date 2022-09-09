@@ -11,7 +11,6 @@ use crate::relayer::ics18_relayer::error::Error;
 /// Builds a `ClientMsg::UpdateClient` for a client with id `client_id` running on the `dest`
 /// context, assuming that the latest header on the source context is `src_header`.
 pub fn build_client_update_datagram<G: GlobalDefs, Ctx>(
-    // pub fn build_client_update_datagram<G: GlobalDefs<ClientDef = Ctx>, Ctx>(
     dest: &Ctx,
     client_id: &ClientId,
     src_header: Ctx::Header,

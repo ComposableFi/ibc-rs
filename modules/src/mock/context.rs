@@ -666,9 +666,9 @@ impl Router for MockRouter {
 pub struct MockTypes;
 
 impl ClientTypes for MockTypes {
-    type Header = AnyHeader; //<ClientTypesOf<TestGlobalDefs> as ClientTypes>::Header;
-    type ClientState = AnyClientState<TestGlobalDefs>; //<ClientTypesOf<TestGlobalDefs> as ClientTypes>::ClientState;
-    type ConsensusState = AnyConsensusState; // <ClientTypesOf<TestGlobalDefs> as ClientTypes>::ConsensusState;
+    type Header = AnyHeader;
+    type ClientState = AnyClientState<TestGlobalDefs>;
+    type ConsensusState = AnyConsensusState;
 }
 
 impl ClientTypes for MockContext {

@@ -29,12 +29,8 @@ type HeaderStateOf<C> = <C as ClientTypes>::Header;
 
 /// This trait captures all the functional dependencies of needed in light client implementations
 pub trait ReaderContext:
-    ClientKeeper<
-        ClientTypes = <Self as ReaderContext>::ClientTypes
-        // ConsensusState = ConsensusStateOf<Self::ClientTypes>,
-        // ClientState = ClientStateOf<Self::ClientTypes>,
-        // Header = HeaderStateOf<Self::ClientTypes>,
-    > + ClientReader<
+    ClientKeeper<ClientTypes = <Self as ReaderContext>::ClientTypes>
+    + ClientReader<
         ConsensusState = ConsensusStateOf<<Self as ReaderContext>::ClientTypes>,
         ClientState = ClientStateOf<<Self as ReaderContext>::ClientTypes>,
         Header = HeaderStateOf<<Self as ReaderContext>::ClientTypes>,

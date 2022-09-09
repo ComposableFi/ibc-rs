@@ -211,7 +211,6 @@ where
                 parachain_cs_states.push((
                     height,
                     ConsensusStateOf::<G>::from(ConsensusState::from_header(header)?),
-                    // local_to_ctx!(ConsensusState::from_header(header)?, ConsensusState),
                 ))
             }
         }

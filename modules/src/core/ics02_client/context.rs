@@ -91,10 +91,7 @@ where
     fn store_client_result<G: GlobalDefs>(
         &mut self,
         handler_res: ClientResult<Self::ClientTypes>,
-    ) -> Result<(), Error>
-where
-        // Self: ClientKeeper<ClientTypes = G::ClientTypes>,
-    {
+    ) -> Result<(), Error> {
         match handler_res {
             Create(res) => {
                 let client_id = res.client_id.clone();

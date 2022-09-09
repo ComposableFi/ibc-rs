@@ -84,25 +84,8 @@ where
             ConsensusState = ConsensusStateOf<G>,
             ClientState = ClientStateOf<G>,
             Header = <G::ClientTypes as ClientTypes>::Header,
-        > + ClientKeeper<
-            ClientTypes = ClientTypesOf<G>,
-            // ConsensusState = ConsensusStateOf<G>,
-            // ClientState = ClientStateOf<G>,
-            // Header = <G::ClientTypes as ClientTypes>::Header,
-        > + ReaderContext<ClientTypes = ClientTypesOf<G>>,
-    // Ctx: Ics26Context + ReaderContext<ClientTypes = Ctx>,
-    // G::ClientTypes: Debug + Eq,
-    // <Ctx as ReaderContext>::ClientTypes: Debug + Eq + Clone,
-    // <<Ctx as ReaderContext>::ClientTypes as ClientTypes>::ClientState: Protobuf<Any>,
-    // Any: From<<<Ctx as ReaderContext>::ClientTypes as ClientTypes>::ClientState>,
-    // <<Ctx as ReaderContext>::ClientTypes as ClientTypes>::ClientState: TryFrom<Any>,
-    // <<<Ctx as ReaderContext>::ClientTypes as ClientTypes>::ClientState as TryFrom<Any>>::Error:
-    //     Display,
-    // <<Ctx as ReaderContext>::ClientTypes as ClientTypes>::ConsensusState: Protobuf<Any>,
-    // Any: From<<<Ctx as ReaderContext>::ClientTypes as ClientTypes>::ConsensusState>,
-    // <<Ctx as ReaderContext>::ClientTypes as ClientTypes>::ConsensusState: TryFrom<Any>,
-    // <<<Ctx as ReaderContext>::ClientTypes as ClientTypes>::ConsensusState as TryFrom<Any>>::Error:
-    //     Display,
+        > + ClientKeeper<ClientTypes = ClientTypesOf<G>>
+        + ReaderContext<ClientTypes = ClientTypesOf<G>>,
     ClientStateOf<G>: Protobuf<Any>,
     Any: From<ClientStateOf<G>>,
     ClientStateOf<G>: TryFrom<Any>,
