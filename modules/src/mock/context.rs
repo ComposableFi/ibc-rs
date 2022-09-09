@@ -20,7 +20,7 @@ use crate::clients::ics11_beefy::client_state::test_util::get_dummy_beefy_state;
 use crate::clients::ics11_beefy::consensus_state::test_util::get_dummy_beefy_consensus_state;
 use crate::core::ics02_client::client_consensus::{AnyConsensusState, AnyConsensusStateWithHeight};
 use crate::core::ics02_client::client_state::AnyClientState;
-use crate::core::ics02_client::client_type::{ClientType, ClientTypes};
+use crate::core::ics02_client::client_type::ClientType;
 use crate::core::ics02_client::context::{ClientKeeper, ClientReader};
 use crate::core::ics02_client::error::Error as Ics02Error;
 use crate::core::ics02_client::header::AnyHeader;
@@ -469,10 +469,7 @@ impl MockContext {
     /// A datagram passes from the relayer to the IBC module (on host chain).
     /// Alternative method to `Ics18Context::send` that does not exercise any serialization.
     /// Used in testing the Ics18 algorithms, hence this may return a Ics18Error.
-    pub fn deliver(
-        &mut self,
-        msg: Ics26Envelope<ClientTypesOf<TestGlobalDefs>>,
-    ) -> Result<(), Ics18Error> {
+    pub fn deliver(&mut self, msg: Ics26Envelope) -> Result<(), Ics18Error> {
         dispatch::<_, TestGlobalDefs>(self, msg).map_err(Ics18Error::transaction_failed)?;
         // Create a new block.
         self.advance_host_chain_height();
@@ -535,7 +532,7 @@ impl MockContext {
             .collect()
     }
 
-    pub fn latest_client_states(&self, client_id: &ClientId) -> AnyClientState<TestGlobalDefs> {
+    pub fn latest_client_states(&self, client_id: &ClientId) -> AnyClientState {
         self.ibc_store.lock().unwrap().clients[client_id]
             .client_state
             .as_ref()
@@ -665,7 +662,7 @@ pub struct MockTypes;
 
 impl ClientTypes for MockTypes {
     type Header = AnyHeader;
-    type ClientState = AnyClientState<TestGlobalDefs>;
+    type ClientState = AnyClientState;
     type ConsensusState = AnyConsensusState;
 }
 
@@ -1067,10 +1064,7 @@ impl ClientReader for MockContext {
         }
     }
 
-    fn client_state(
-        &self,
-        client_id: &ClientId,
-    ) -> Result<AnyClientState<TestGlobalDefs>, Ics02Error> {
+    fn client_state(&self, client_id: &ClientId) -> Result<AnyClientState, Ics02Error> {
         match self.ibc_store.lock().unwrap().clients.get(client_id) {
             Some(client_record) => client_record
                 .client_state
@@ -1218,7 +1212,7 @@ impl ClientKeeper for MockContext {
     fn store_client_state(
         &mut self,
         client_id: ClientId,
-        client_state: AnyClientState<TestGlobalDefs>,
+        client_state: AnyClientState,
     ) -> Result<(), Ics02Error> {
         let mut ibc_store = self.ibc_store.lock().unwrap();
         let client_record = ibc_store
@@ -1290,10 +1284,7 @@ impl ClientKeeper for MockContext {
         Ok(())
     }
 
-    fn validate_self_client(
-        &self,
-        _client_state: &AnyClientState<TestGlobalDefs>,
-    ) -> Result<(), Ics02Error> {
+    fn validate_self_client(&self, _client_state: &AnyClientState) -> Result<(), Ics02Error> {
         Ok(())
     }
 }
@@ -1303,10 +1294,7 @@ impl Ics18Context for MockContext {
         self.host_height()
     }
 
-    fn query_client_full_state(
-        &self,
-        client_id: &ClientId,
-    ) -> Option<AnyClientState<TestGlobalDefs>> {
+    fn query_client_full_state(&self, client_id: &ClientId) -> Option<AnyClientState> {
         // Forward call to Ics2.
         ClientReader::client_state(self, client_id).ok()
     }

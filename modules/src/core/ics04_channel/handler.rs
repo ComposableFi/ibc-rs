@@ -1,6 +1,5 @@
 //! This module implements the processing logic for ICS4 (channel) messages.
 
-use crate::clients::{ClientTypesOf, GlobalDefs};
 use crate::core::ics04_channel::channel::ChannelEnd;
 use crate::core::ics04_channel::error::Error;
 use crate::core::ics04_channel::msgs::ChannelMsg;
@@ -59,21 +58,20 @@ where
 
 /// General entry point for processing any type of message related to the ICS4 channel open and
 /// channel close handshake protocols.
-pub fn channel_dispatch<Ctx, G>(
+pub fn channel_dispatch<Ctx>(
     ctx: &Ctx,
     msg: &ChannelMsg,
 ) -> Result<(HandlerOutputBuilder<()>, ChannelResult), Error>
 where
-    Ctx: ReaderContext<ClientTypes = ClientTypesOf<G>>,
-    G: GlobalDefs,
+    Ctx: ReaderContext,
 {
     let output = match msg {
         ChannelMsg::ChannelOpenInit(msg) => chan_open_init::process(ctx, msg),
-        ChannelMsg::ChannelOpenTry(msg) => chan_open_try::process::<G, _>(ctx, msg),
-        ChannelMsg::ChannelOpenAck(msg) => chan_open_ack::process::<G, _>(ctx, msg),
-        ChannelMsg::ChannelOpenConfirm(msg) => chan_open_confirm::process::<G, _>(ctx, msg),
+        ChannelMsg::ChannelOpenTry(msg) => chan_open_try::process::<_>(ctx, msg),
+        ChannelMsg::ChannelOpenAck(msg) => chan_open_ack::process::<_>(ctx, msg),
+        ChannelMsg::ChannelOpenConfirm(msg) => chan_open_confirm::process::<_>(ctx, msg),
         ChannelMsg::ChannelCloseInit(msg) => chan_close_init::process(ctx, msg),
-        ChannelMsg::ChannelCloseConfirm(msg) => chan_close_confirm::process::<G, _>(ctx, msg),
+        ChannelMsg::ChannelCloseConfirm(msg) => chan_close_confirm::process::<_>(ctx, msg),
     }?;
     let HandlerOutput {
         result,
@@ -168,19 +166,18 @@ where
 }
 
 /// Dispatcher for processing any type of message related to the ICS4 packet protocols.
-pub fn packet_dispatch<Ctx, G>(
+pub fn packet_dispatch<Ctx>(
     ctx: &Ctx,
     msg: &PacketMsg,
 ) -> Result<(HandlerOutputBuilder<()>, PacketResult), Error>
 where
-    Ctx: ReaderContext<ClientTypes = ClientTypesOf<G>>,
-    G: GlobalDefs,
+    Ctx: ReaderContext,
 {
     let output = match msg {
-        PacketMsg::RecvPacket(msg) => recv_packet::process::<G, _>(ctx, msg),
-        PacketMsg::AckPacket(msg) => acknowledgement::process::<G, _>(ctx, msg),
-        PacketMsg::ToPacket(msg) => timeout::process::<G, _>(ctx, msg),
-        PacketMsg::ToClosePacket(msg) => timeout_on_close::process::<G, _>(ctx, msg),
+        PacketMsg::RecvPacket(msg) => recv_packet::process::<_>(ctx, msg),
+        PacketMsg::AckPacket(msg) => acknowledgement::process::<_>(ctx, msg),
+        PacketMsg::ToPacket(msg) => timeout::process::<_>(ctx, msg),
+        PacketMsg::ToClosePacket(msg) => timeout_on_close::process::<_>(ctx, msg),
     }?;
     let HandlerOutput {
         result,

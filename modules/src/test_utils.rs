@@ -17,7 +17,7 @@ use crate::applications::transfer::context::{BankKeeper, Ics20Context, Ics20Keep
 use crate::applications::transfer::{error::Error as Ics20Error, PrefixedCoin};
 use crate::core::ics02_client::client_consensus::AnyConsensusState;
 use crate::core::ics02_client::client_state::AnyClientState;
-use crate::core::ics02_client::client_type::{ClientType, ClientTypes};
+use crate::core::ics02_client::client_type::ClientType;
 use crate::core::ics03_connection::connection::ConnectionEnd;
 use crate::core::ics03_connection::error::Error as Ics03Error;
 use crate::core::ics04_channel::channel::{ChannelEnd, Counterparty, Order};
@@ -417,10 +417,7 @@ impl ClientTypes for DummyTransferModule {
 }
 
 impl ClientReader for DummyTransferModule {
-    fn client_state(
-        &self,
-        client_id: &ClientId,
-    ) -> Result<AnyClientState<TestGlobalDefs>, Ics02Error> {
+    fn client_state(&self, client_id: &ClientId) -> Result<AnyClientState, Ics02Error> {
         match self.ibc_store.lock().unwrap().clients.get(client_id) {
             Some(client_record) => client_record
                 .client_state
@@ -600,7 +597,7 @@ impl ClientKeeper for DummyTransferModule {
     fn store_client_state(
         &mut self,
         _client_id: ClientId,
-        _client_state: AnyClientState<TestGlobalDefs>,
+        _client_state: AnyClientState,
     ) -> Result<(), Ics02Error> {
         todo!()
     }
@@ -636,10 +633,7 @@ impl ClientKeeper for DummyTransferModule {
         Ok(())
     }
 
-    fn validate_self_client(
-        &self,
-        _client_state: &AnyClientState<TestGlobalDefs>,
-    ) -> Result<(), Ics02Error> {
+    fn validate_self_client(&self, _client_state: &AnyClientState) -> Result<(), Ics02Error> {
         Ok(())
     }
 }

@@ -1,4 +1,3 @@
-use crate::clients::{ClientTypesOf, GlobalDefs};
 use crate::core::ics03_connection::connection::State as ConnectionState;
 use crate::core::ics04_channel::channel::{Counterparty, Order, State};
 use crate::core::ics04_channel::error::Error;
@@ -33,7 +32,7 @@ pub enum RecvPacketResult {
     },
 }
 
-pub fn process<G: GlobalDefs, Ctx: ReaderContext<ClientTypes = ClientTypesOf<G>>>(
+pub fn process<Ctx: ReaderContext>(
     ctx: &Ctx,
     msg: &MsgRecvPacket,
 ) -> HandlerResult<PacketResult, Error> {
@@ -83,7 +82,7 @@ pub fn process<G: GlobalDefs, Ctx: ReaderContext<ClientTypes = ClientTypesOf<G>>
         return Err(Error::low_packet_timestamp());
     }
 
-    verify_packet_recv_proofs::<G, Ctx>(
+    verify_packet_recv_proofs::<Ctx>(
         ctx,
         msg.proofs.height(),
         packet,

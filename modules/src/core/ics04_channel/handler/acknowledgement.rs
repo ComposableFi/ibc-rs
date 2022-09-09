@@ -1,4 +1,3 @@
-use crate::clients::{ClientTypesOf, GlobalDefs};
 use crate::core::ics03_connection::connection::State as ConnectionState;
 use crate::core::ics04_channel::channel::State;
 use crate::core::ics04_channel::channel::{Counterparty, Order};
@@ -22,7 +21,7 @@ pub struct AckPacketResult {
     pub seq_number: Option<Sequence>,
 }
 
-pub fn process<G: GlobalDefs, Ctx: ReaderContext<ClientTypes = ClientTypesOf<G>>>(
+pub fn process<Ctx: ReaderContext>(
     ctx: &Ctx,
     msg: &MsgAcknowledgement,
 ) -> HandlerResult<PacketResult, Error> {
@@ -77,7 +76,7 @@ pub fn process<G: GlobalDefs, Ctx: ReaderContext<ClientTypes = ClientTypesOf<G>>
     }
 
     // Verify the acknowledgement proof
-    verify_packet_acknowledgement_proofs::<G, Ctx>(
+    verify_packet_acknowledgement_proofs::<Ctx>(
         ctx,
         msg.proofs.height(),
         packet,

@@ -1,12 +1,12 @@
 //! Protocol logic specific to processing ICS2 messages of type `MsgCreateAnyClient`.
 
-use crate::clients::{ClientTypesOf, GlobalDefs};
 use crate::core::ics26_routing::context::ReaderContext;
 use crate::prelude::*;
 use core::fmt::Debug;
 
 use crate::core::ics02_client::client_state::ClientState;
-use crate::core::ics02_client::client_type::{ClientType, ClientTypes};
+use crate::core::ics02_client::client_type::ClientType;
+use crate::core::ics02_client::context::ClientKeeper;
 use crate::core::ics02_client::error::Error;
 use crate::core::ics02_client::events::Attributes;
 use crate::core::ics02_client::handler::ClientResult;
@@ -20,22 +20,21 @@ use crate::timestamp::Timestamp;
 /// The result following the successful processing of a `MsgCreateAnyClient` message. Preferably
 /// this data type should be used with a qualified name `create_client::Result` to avoid ambiguity.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Result<C: ClientTypes> {
+pub struct Result<C: ClientKeeper> {
     pub client_id: ClientId,
     pub client_type: ClientType,
-    pub client_state: C::ClientState,
-    pub consensus_state: C::ConsensusState,
+    pub client_state: C::AnyClientState,
+    pub consensus_state: C::AnyConsensusState,
     pub processed_time: Timestamp,
     pub processed_height: Height,
 }
 
-pub fn process<G, Ctx>(
+pub fn process<Ctx>(
     ctx: &Ctx,
-    msg: MsgCreateAnyClient<G::ClientTypes>,
-) -> HandlerResult<ClientResult<Ctx::ClientTypes>, Error>
+    msg: MsgCreateAnyClient<Ctx>,
+) -> HandlerResult<ClientResult<Ctx>, Error>
 where
-    G: GlobalDefs,
-    Ctx: ReaderContext<ClientTypes = ClientTypesOf<G>> + Eq + Debug + Clone,
+    Ctx: ReaderContext + Eq + Debug + Clone,
 {
     let mut output = HandlerOutput::builder();
 
@@ -151,7 +150,7 @@ mod tests {
 
         let ctx = MockContext::default().with_client(&existing_client_id, height);
 
-        let create_client_msgs: Vec<MsgCreateAnyClient<ClientTypesOf<TestGlobalDefs>>> = vec![
+        let create_client_msgs: Vec<MsgCreateAnyClient> = vec![
             MsgCreateAnyClient::new(
                 MockClientState::new(MockHeader::new(Height {
                     revision_height: 42,
@@ -243,7 +242,7 @@ mod tests {
 
         let tm_header = get_dummy_tendermint_header();
 
-        let tm_client_state = AnyClientState::<TestGlobalDefs>::Tendermint(
+        let tm_client_state = AnyClientState::Tendermint(
             TendermintClientState::new(
                 tm_header.chain_id.clone().into(),
                 TrustThreshold::ONE_THIRD,

@@ -12,10 +12,11 @@ use crate::clients::ics11_beefy::client_state::ClientState;
 use crate::clients::ics11_beefy::consensus_state::ConsensusState;
 use crate::clients::ics11_beefy::error::Error as BeefyError;
 use crate::clients::ics11_beefy::header::BeefyHeader;
-use crate::clients::{ClientStateOf, ClientTypesOf, ConsensusStateOf, GlobalDefs};
-use crate::core::ics02_client::client_consensus::AnyConsensusState;
+use crate::core::ics02_client::client_consensus::{AnyConsensusState, ConsensusState as _};
 use crate::core::ics02_client::client_def::{ClientDef, ConsensusUpdateResult};
-use crate::core::ics02_client::client_type::{ClientType, ClientTypes};
+use crate::core::ics02_client::client_state::ClientState as _;
+use crate::core::ics02_client::client_type::ClientType;
+use crate::core::ics02_client::context::ClientKeeper;
 use crate::core::ics02_client::error::Error;
 use crate::core::ics03_connection::connection::ConnectionEnd;
 use crate::core::ics04_channel::channel::ChannelEnd;
@@ -40,50 +41,52 @@ use ibc_proto::google::protobuf::Any;
 
 #[derive(Derivative, Debug, PartialEq, Eq)]
 #[derivative(Clone(bound = ""))]
-pub struct BeefyClient<G>(PhantomData<G>);
+pub struct BeefyClient;
 
-impl<G> Default for BeefyClient<G> {
+impl Default for BeefyClient {
     fn default() -> Self {
-        Self(PhantomData::default())
+        Self
     }
 }
 
-impl<G: GlobalDefs> ClientTypes for BeefyClient<G>
+// impl ClientTypes for BeefyClient
+// where
+//     // ConsensusState: TryFrom<Ctx::AnyConsensusState, Error = Error>,
+//     // Ctx::AnyConsensusState: From<ConsensusState>,
+//
+//     // Ctx::AnyConsensusState: Protobuf<Any>,
+//     // Ctx::AnyConsensusState: TryFrom<Any>,
+//     // <Ctx::AnyConsensusState as TryFrom<Any>>::Error: Display,
+//     // Any: From<Ctx::AnyConsensusState>,
+//
+//     // Ctx::AnyClientState: Protobuf<Any>,
+//     // Ctx::AnyClientState: TryFrom<Any>,
+//     // <Ctx::AnyClientState as TryFrom<Any>>::Error: Display,
+//     // Any: From<Ctx::AnyClientState>,
+// {
+//     type Header = BeefyHeader;
+//     type ClientState = ClientState;
+//     type ConsensusState = ConsensusState;
+// }
+
+impl ClientDef for BeefyClient
 where
-    ConsensusState: TryFrom<ConsensusStateOf<G>, Error = Error>,
-    ConsensusStateOf<G>: From<ConsensusState>,
-
-    ConsensusStateOf<G>: Protobuf<Any>,
-    ConsensusStateOf<G>: TryFrom<Any>,
-    <ConsensusStateOf<G> as TryFrom<Any>>::Error: Display,
-    Any: From<ConsensusStateOf<G>>,
-
-    ClientStateOf<G>: Protobuf<Any>,
-    ClientStateOf<G>: TryFrom<Any>,
-    <ClientStateOf<G> as TryFrom<Any>>::Error: Display,
-    Any: From<ClientStateOf<G>>,
+// ConsensusState: TryFrom<Ctx::AnyConsensusState, Error = Error>,
+// Ctx::AnyConsensusState: From<ConsensusState>,
+//
+// Ctx::AnyConsensusState: Protobuf<Any>,
+// Ctx::AnyConsensusState: TryFrom<Any>,
+// <Ctx::AnyConsensusState as TryFrom<Any>>::Error: Display,
+// Any: From<Ctx::AnyConsensusState>,
+//
+// Ctx::AnyClientState: Protobuf<Any>,
+// Ctx::AnyClientState: TryFrom<Any>,
+// <Ctx::AnyClientState as TryFrom<Any>>::Error: Display,
+// Any: From<Ctx::AnyClientState>,
 {
     type Header = BeefyHeader;
-    type ClientState = ClientState<G>;
+    type ClientState = ClientState;
     type ConsensusState = ConsensusState;
-}
-
-impl<G: GlobalDefs> ClientDef for BeefyClient<G>
-where
-    ConsensusState: TryFrom<ConsensusStateOf<G>, Error = Error>,
-    ConsensusStateOf<G>: From<ConsensusState>,
-
-    ConsensusStateOf<G>: Protobuf<Any>,
-    ConsensusStateOf<G>: TryFrom<Any>,
-    <ConsensusStateOf<G> as TryFrom<Any>>::Error: Display,
-    Any: From<ConsensusStateOf<G>>,
-
-    ClientStateOf<G>: Protobuf<Any>,
-    ClientStateOf<G>: TryFrom<Any>,
-    <ClientStateOf<G> as TryFrom<Any>>::Error: Display,
-    Any: From<ClientStateOf<G>>,
-{
-    type G = G;
 
     fn verify_header<Ctx: ReaderContext>(
         &self,
@@ -102,7 +105,7 @@ where
         // If mmr update exists verify it and return the new light client state
         // or else return existing light client state
         let light_client_state = if let Some(mmr_update) = header.mmr_update_proof {
-            beefy_client::verify_mmr_root_with_proof::<HostFunctionsManager<G::HostFunctions>>(
+            beefy_client::verify_mmr_root_with_proof::<HostFunctionsManager<Ctx::HostFunctions>>(
                 light_client_state,
                 mmr_update,
             )
@@ -155,7 +158,7 @@ where
             };
 
             // Perform the parachain header verification
-            beefy_client::verify_parachain_headers::<HostFunctionsManager<G::HostFunctions>>(
+            beefy_client::verify_parachain_headers::<HostFunctionsManager<Ctx::HostFunctions>>(
                 light_client_state,
                 parachain_update_proof,
             )
@@ -165,13 +168,13 @@ where
         Ok(())
     }
 
-    fn update_state<Ctx: ReaderContext<ClientTypes = ClientTypesOf<G>>>(
+    fn update_state<Ctx: ReaderContext>(
         &self,
         ctx: &Ctx,
         client_id: ClientId,
         client_state: Self::ClientState,
         header: Self::Header,
-    ) -> Result<(Self::ClientState, ConsensusUpdateResult<Ctx::ClientTypes>), Error> {
+    ) -> Result<(Self::ClientState, ConsensusUpdateResult<Ctx>), Error> {
         let mut parachain_cs_states = vec![];
         // Extract the new client state from the verified header
         let mut client_state = client_state
@@ -198,7 +201,7 @@ where
                 }
                 parachain_cs_states.push((
                     height,
-                    ConsensusStateOf::<G>::from(ConsensusState::from_header(header)?),
+                    Ctx::AnyConsensusState::wrap(&ConsensusState::from_header(header)?),
                 ))
             }
         }
@@ -247,20 +250,20 @@ where
         Ok(false)
     }
 
-    fn verify_upgrade_and_update_state<Ctx: ReaderContext<ClientTypes = ClientTypesOf<Self::G>>>(
+    fn verify_upgrade_and_update_state<Ctx: ReaderContext>(
         &self,
         _client_state: &Self::ClientState,
         _consensus_state: &Self::ConsensusState,
         _proof_upgrade_client: Vec<u8>,
         _proof_upgrade_consensus_state: Vec<u8>,
-    ) -> Result<(Self::ClientState, ConsensusUpdateResult<Ctx::ClientTypes>), Error> {
+    ) -> Result<(Self::ClientState, ConsensusUpdateResult<Ctx>), Error> {
         // TODO:
         Err(Error::beefy(BeefyError::implementation_specific(
             "Not implemented".to_string(),
         )))
     }
 
-    fn verify_client_consensus_state<Ctx: ReaderContext<ClientTypes = ClientTypesOf<Self::G>>>(
+    fn verify_client_consensus_state<Ctx: ReaderContext>(
         &self,
         _ctx: &Ctx,
         client_state: &Self::ClientState,
@@ -270,7 +273,7 @@ where
         root: &CommitmentRoot,
         client_id: &ClientId,
         consensus_height: Height,
-        expected_consensus_state: &<Ctx::ClientTypes as ClientTypes>::ConsensusState,
+        expected_consensus_state: &Ctx::AnyConsensusState,
     ) -> Result<(), Error> {
         client_state.verify_height(height)?;
         let path = ClientConsensusStatePath {
@@ -278,8 +281,8 @@ where
             epoch: consensus_height.revision_number,
             height: consensus_height.revision_height,
         };
-        let value = expected_consensus_state.encode_vec();
-        verify_membership::<G, _>(prefix, proof, root, path, value)
+        let value = expected_consensus_state.encode_to_vec();
+        verify_membership::<Ctx, _>(prefix, proof, root, path, value)
     }
 
     // Consensus state will be verified in the verification functions  before these are called
@@ -298,7 +301,7 @@ where
         client_state.verify_height(height)?;
         let path = ConnectionsPath(connection_id.clone());
         let value = expected_connection_end.encode_vec();
-        verify_membership::<G, _>(prefix, proof, root, path, value)
+        verify_membership::<Ctx, _>(prefix, proof, root, path, value)
     }
 
     fn verify_channel_state<Ctx: ReaderContext>(
@@ -317,10 +320,10 @@ where
         client_state.verify_height(height)?;
         let path = ChannelEndsPath(port_id.clone(), *channel_id);
         let value = expected_channel_end.encode_vec();
-        verify_membership::<G, _>(prefix, proof, root, path, value)
+        verify_membership::<Ctx, _>(prefix, proof, root, path, value)
     }
 
-    fn verify_client_full_state<Ctx: ReaderContext<ClientTypes = ClientTypesOf<Self::G>>>(
+    fn verify_client_full_state<Ctx: ReaderContext>(
         &self,
         _ctx: &Ctx,
         client_state: &Self::ClientState,
@@ -329,12 +332,12 @@ where
         proof: &CommitmentProofBytes,
         root: &CommitmentRoot,
         client_id: &ClientId,
-        expected_client_state: &<Ctx::ClientTypes as ClientTypes>::ClientState,
+        expected_client_state: &Ctx::AnyClientState,
     ) -> Result<(), Error> {
         client_state.verify_height(height)?;
         let path = ClientStatePath(client_id.clone());
-        let value = expected_client_state.encode_vec();
-        verify_membership::<G, _>(prefix, proof, root, path, value)
+        let value = expected_client_state.encode_to_vec();
+        verify_membership::<Ctx, _>(prefix, proof, root, path, value)
     }
 
     fn verify_packet_data<Ctx: ReaderContext>(
@@ -360,7 +363,7 @@ where
             sequence,
         };
 
-        verify_membership::<G, _>(
+        verify_membership::<Ctx, _>(
             connection_end.counterparty().prefix(),
             proof,
             root,
@@ -391,7 +394,7 @@ where
             channel_id: *channel_id,
             sequence,
         };
-        verify_membership::<G, _>(
+        verify_membership::<Ctx, _>(
             connection_end.counterparty().prefix(),
             proof,
             root,
@@ -419,7 +422,7 @@ where
         let seq_bytes = codec::Encode::encode(&u64::from(sequence));
 
         let seq_path = SeqRecvsPath(port_id.clone(), *channel_id);
-        verify_membership::<G, _>(
+        verify_membership::<Ctx, _>(
             connection_end.counterparty().prefix(),
             proof,
             root,
@@ -449,7 +452,7 @@ where
             channel_id: *channel_id,
             sequence,
         };
-        verify_non_membership::<G, _>(
+        verify_non_membership::<Ctx, _>(
             connection_end.counterparty().prefix(),
             proof,
             root,
@@ -462,7 +465,7 @@ where
     }
 }
 
-fn verify_membership<G, P>(
+fn verify_membership<Ctx: ClientKeeper, P>(
     prefix: &CommitmentPrefix,
     proof: &CommitmentProofBytes,
     root: &CommitmentRoot,
@@ -470,7 +473,6 @@ fn verify_membership<G, P>(
     value: Vec<u8>,
 ) -> Result<(), Error>
 where
-    G: GlobalDefs,
     P: Into<Path>,
 {
     if root.as_bytes().len() != 32 {
@@ -484,17 +486,21 @@ where
     let trie_proof: Vec<Vec<u8>> = codec::Decode::decode(&mut &*trie_proof)
         .map_err(|e| Error::beefy(BeefyError::scale_decode(e)))?;
     let root = H256::from_slice(root.as_bytes());
-    G::HostFunctions::verify_membership_trie_proof(root.as_fixed_bytes(), &trie_proof, &key, &value)
+    Ctx::HostFunctions::verify_membership_trie_proof(
+        root.as_fixed_bytes(),
+        &trie_proof,
+        &key,
+        &value,
+    )
 }
 
-fn verify_non_membership<G, P>(
+fn verify_non_membership<Ctx: ClientKeeper, P>(
     prefix: &CommitmentPrefix,
     proof: &CommitmentProofBytes,
     root: &CommitmentRoot,
     path: P,
 ) -> Result<(), Error>
 where
-    G: GlobalDefs,
     P: Into<Path>,
 {
     if root.as_bytes().len() != 32 {
@@ -508,7 +514,7 @@ where
     let trie_proof: Vec<Vec<u8>> = codec::Decode::decode(&mut &*trie_proof)
         .map_err(|e| Error::beefy(BeefyError::scale_decode(e)))?;
     let root = H256::from_slice(root.as_bytes());
-    G::HostFunctions::verify_non_membership_trie_proof(root.as_fixed_bytes(), &trie_proof, &key)
+    Ctx::HostFunctions::verify_non_membership_trie_proof(root.as_fixed_bytes(), &trie_proof, &key)
 }
 
 fn verify_delay_passed<Ctx: ReaderContext>(
@@ -536,7 +542,7 @@ fn verify_delay_passed<Ctx: ReaderContext>(
     let delay_period_time = connection_end.delay_period();
     let delay_period_height = ctx.block_delay(delay_period_time);
 
-    ClientState::<Ctx>::verify_delay_passed(
+    ClientState::verify_delay_passed(
         current_timestamp,
         current_height,
         processed_time,

@@ -6,10 +6,11 @@ use crate::clients::ics07_tendermint::client_state::ClientState;
 use crate::clients::ics07_tendermint::consensus_state::ConsensusState;
 use crate::clients::ics07_tendermint::error::Error;
 use crate::clients::ics07_tendermint::header::Header;
-use crate::clients::{ClientStateOf, ClientTypesOf, ConsensusStateOf, GlobalDefs};
 use crate::core::ics02_client::client_consensus::ConsensusState as _;
 use crate::core::ics02_client::client_def::{ClientDef, ConsensusUpdateResult};
-use crate::core::ics02_client::client_type::{ClientType, ClientTypes};
+use crate::core::ics02_client::client_state::ClientState as _;
+use crate::core::ics02_client::client_type::ClientType;
+use crate::core::ics02_client::context::ClientKeeper;
 use crate::core::ics02_client::error::Error as Ics02Error;
 use crate::core::ics03_connection::connection::ConnectionEnd;
 use crate::core::ics04_channel::channel::ChannelEnd;
@@ -39,56 +40,49 @@ use crate::prelude::*;
 use crate::timestamp::Timestamp;
 use crate::Height;
 
-#[derive(Derivative)]
-#[derivative(
-    Clone(bound = "G::HostFunctions: Clone"),
-    Debug(bound = "G::HostFunctions: Debug"),
-    PartialEq(bound = "G::HostFunctions: PartialEq"),
-    Eq(bound = "G::HostFunctions: Eq"),
-    Default(bound = "G::HostFunctions: Default")
-)]
-pub struct TendermintClient<G: GlobalDefs> {
-    verifier: ProdVerifier<HostFunctionsManager<G::HostFunctions>>,
-}
+#[derive(Clone, Debug, PartialEq, Eq, Default)]
+pub struct TendermintClient;
 
-impl<G> ClientTypes for TendermintClient<G>
+// impl ClientTypes for TendermintClient
+// where
+//     G: GlobalDefs + Clone,
+//     ConsensusState: TryFrom<Ctx::AnyConsensusState, Error = Ics02Error>,
+//     Ctx::AnyConsensusState: From<ConsensusState>,
+//
+//     Ctx::AnyConsensusState: Protobuf<Any>,
+//     Ctx::AnyConsensusState: TryFrom<Any>,
+//     <Ctx::AnyConsensusState as TryFrom<Any>>::Error: Display,
+//     Any: From<Ctx::AnyConsensusState>,
+//
+//     Ctx::AnyClientState: Protobuf<Any>,
+//     Ctx::AnyClientState: TryFrom<Any>,
+//     <Ctx::AnyClientState as TryFrom<Any>>::Error: Display,
+//     Any: From<Ctx::AnyClientState>,
+// {
+//     type Header = Header;
+//     type ClientState = ClientState;
+//     type ConsensusState = ConsensusState;
+// }
+
+impl ClientDef for TendermintClient
 where
-    G: GlobalDefs + Clone,
-    ConsensusState: TryFrom<ConsensusStateOf<G>, Error = Ics02Error>,
-    ConsensusStateOf<G>: From<ConsensusState>,
-
-    ConsensusStateOf<G>: Protobuf<Any>,
-    ConsensusStateOf<G>: TryFrom<Any>,
-    <ConsensusStateOf<G> as TryFrom<Any>>::Error: Display,
-    Any: From<ConsensusStateOf<G>>,
-
-    ClientStateOf<G>: Protobuf<Any>,
-    ClientStateOf<G>: TryFrom<Any>,
-    <ClientStateOf<G> as TryFrom<Any>>::Error: Display,
-    Any: From<ClientStateOf<G>>,
+// G: GlobalDefs + Clone,
+// ConsensusState: TryFrom<Ctx::AnyConsensusState, Error = Ics02Error>,
+// Ctx::AnyConsensusState: From<ConsensusState>,
+//
+// Ctx::AnyConsensusState: Protobuf<Any>,
+// Ctx::AnyConsensusState: TryFrom<Any>,
+// <Ctx::AnyConsensusState as TryFrom<Any>>::Error: Display,
+// Any: From<Ctx::AnyConsensusState>,
+//
+// Ctx::AnyClientState: Protobuf<Any>,
+// Ctx::AnyClientState: TryFrom<Any>,
+// <Ctx::AnyClientState as TryFrom<Any>>::Error: Display,
+// Any: From<Ctx::AnyClientState>,
 {
     type Header = Header;
-    type ClientState = ClientState<G>;
+    type ClientState = ClientState;
     type ConsensusState = ConsensusState;
-}
-
-impl<G> ClientDef for TendermintClient<G>
-where
-    G: GlobalDefs + Clone,
-    ConsensusState: TryFrom<ConsensusStateOf<G>, Error = Ics02Error>,
-    ConsensusStateOf<G>: From<ConsensusState>,
-
-    ConsensusStateOf<G>: Protobuf<Any>,
-    ConsensusStateOf<G>: TryFrom<Any>,
-    <ConsensusStateOf<G> as TryFrom<Any>>::Error: Display,
-    Any: From<ConsensusStateOf<G>>,
-
-    ClientStateOf<G>: Protobuf<Any>,
-    ClientStateOf<G>: TryFrom<Any>,
-    <ClientStateOf<G> as TryFrom<Any>>::Error: Display,
-    Any: From<ClientStateOf<G>>,
-{
-    type G = G;
 
     fn verify_header<Ctx>(
         &self,
@@ -98,7 +92,7 @@ where
         header: Self::Header,
     ) -> Result<(), Ics02Error>
     where
-        Ctx: ReaderContext<ClientTypes = ClientTypesOf<Self::G>>,
+        Ctx: ReaderContext,
     {
         if header.height().revision_number != client_state.chain_id.version() {
             return Err(Ics02Error::tendermint_handler_error(
@@ -114,7 +108,8 @@ where
 
         let _ = match ctx.maybe_consensus_state(&client_id, header.height())? {
             Some(cs) => {
-                let cs = ConsensusState::try_from(cs)?;
+                let cs: ConsensusState = cs.downcast();
+                // ConsensusState::try_from(cs)?;
                 // If this consensus state matches, skip verification
                 // (optimization)
                 if cs == header_consensus_state {
@@ -127,11 +122,11 @@ where
             None => None,
         };
 
-        let trusted_consensus_state: ConsensusStateOf<G> = ctx
+        let trusted_consensus_state: Self::ConsensusState = ctx
             .consensus_state(&client_id, header.trusted_height)?
-            .into();
-        let trusted_consensus_state =
-            <Self::ConsensusState as TryFrom<_>>::try_from(trusted_consensus_state)?;
+            .downcast();
+        // let trusted_consensus_state = trusted_consensus_state.downcast();
+        //<Self::ConsensusState as TryFrom<_>>::try_from(trusted_consensus_state)?;
 
         let trusted_state = TrustedBlockState {
             header_time: trusted_consensus_state.timestamp().into_tm_time().unwrap(),
@@ -159,7 +154,8 @@ where
 
         let options = client_state.as_light_client_options()?;
 
-        let verdict = self.verifier.verify(
+        let verifier = ProdVerifier::<HostFunctionsManager<Ctx::HostFunctions>>::default();
+        let verdict = verifier.verify(
             untrusted_state,
             trusted_state,
             &options,
@@ -185,15 +181,15 @@ where
         Ok(())
     }
 
-    fn update_state<Ctx: ReaderContext<ClientTypes = ClientTypesOf<G>>>(
+    fn update_state<Ctx: ReaderContext>(
         &self,
         _ctx: &Ctx,
         _client_id: ClientId,
         client_state: Self::ClientState,
         header: Self::Header,
-    ) -> Result<(Self::ClientState, ConsensusUpdateResult<Ctx::ClientTypes>), Ics02Error> {
+    ) -> Result<(Self::ClientState, ConsensusUpdateResult<Ctx>), Ics02Error> {
         let header_consensus_state = <ConsensusState as From<Header>>::from(header.clone());
-        let cs = <Ctx::ClientTypes as ClientTypes>::ConsensusState::from(header_consensus_state);
+        let cs = Ctx::AnyConsensusState::wrap(&header_consensus_state);
         Ok((
             client_state.with_header(header),
             ConsensusUpdateResult::Single(cs),
@@ -210,7 +206,7 @@ where
             .map_err(|e| e.into())
     }
 
-    fn check_for_misbehaviour<Ctx: ReaderContext<ClientTypes = ClientTypesOf<G>>>(
+    fn check_for_misbehaviour<Ctx: ReaderContext>(
         &self,
         ctx: &Ctx,
         client_id: ClientId,
@@ -224,7 +220,8 @@ where
         let existing_consensus_state =
             match ctx.maybe_consensus_state(&client_id, header.height())? {
                 Some(cs) => {
-                    let cs = ConsensusState::try_from(cs)?;
+                    let cs = cs.downcast::<ConsensusState>();
+                    // let cs = ConsensusState::try_from(cs)?;
                     // If this consensus state matches, skip verification
                     // (optimization)
                     if header_consensus_state == cs {
@@ -251,8 +248,7 @@ where
         if header.height() < client_state.latest_height() {
             let maybe_next_cs = ctx
                 .next_consensus_state(&client_id, header.height())?
-                .map(|cs| ConsensusState::try_from(cs))
-                .transpose()?;
+                .map(|cs| cs.downcast::<ConsensusState>());
 
             if let Some(next_cs) = maybe_next_cs {
                 // New (untrusted) header timestamp cannot occur after next
@@ -273,8 +269,7 @@ where
         if header.trusted_height < header.height() {
             let maybe_prev_cs = ctx
                 .prev_consensus_state(&client_id, header.height())?
-                .map(|cs| ConsensusState::try_from(cs))
-                .transpose()?;
+                .map(|cs| cs.downcast::<ConsensusState>());
 
             if let Some(prev_cs) = maybe_prev_cs {
                 // New (untrusted) header timestamp cannot occur before the
@@ -293,20 +288,20 @@ where
         Ok(false)
     }
 
-    fn verify_upgrade_and_update_state<Ctx: ReaderContext<ClientTypes = ClientTypesOf<Self::G>>>(
+    fn verify_upgrade_and_update_state<Ctx: ReaderContext>(
         &self,
         _client_state: &Self::ClientState,
         _consensus_state: &Self::ConsensusState,
         _proof_upgrade_client: Vec<u8>,
         _proof_upgrade_consensus_state: Vec<u8>,
-    ) -> Result<(Self::ClientState, ConsensusUpdateResult<Ctx::ClientTypes>), Ics02Error> {
+    ) -> Result<(Self::ClientState, ConsensusUpdateResult<Ctx>), Ics02Error> {
         // TODO:
         Err(Ics02Error::implementation_specific(
             "Not implemented".to_string(),
         ))
     }
 
-    fn verify_client_consensus_state<Ctx: ReaderContext<ClientTypes = ClientTypesOf<Self::G>>>(
+    fn verify_client_consensus_state<Ctx: ReaderContext>(
         &self,
         _ctx: &Ctx,
         client_state: &Self::ClientState,
@@ -316,7 +311,7 @@ where
         root: &CommitmentRoot,
         client_id: &ClientId,
         consensus_height: Height,
-        expected_consensus_state: &<Ctx::ClientTypes as ClientTypes>::ConsensusState,
+        expected_consensus_state: &Ctx::AnyConsensusState,
     ) -> Result<(), Ics02Error> {
         client_state.verify_height(height)?;
 
@@ -325,8 +320,8 @@ where
             epoch: consensus_height.revision_number,
             height: consensus_height.revision_height,
         };
-        let value = expected_consensus_state.encode_vec();
-        verify_membership::<G, _>(client_state, prefix, proof, root, path, value)
+        let value = expected_consensus_state.encode_to_vec();
+        verify_membership::<Ctx, _>(client_state, prefix, proof, root, path, value)
     }
 
     fn verify_connection_state<Ctx: ReaderContext>(
@@ -345,7 +340,7 @@ where
 
         let path = ConnectionsPath(connection_id.clone());
         let value = expected_connection_end.encode_vec();
-        verify_membership::<G, _>(client_state, prefix, proof, root, path, value)
+        verify_membership::<Ctx, _>(client_state, prefix, proof, root, path, value)
     }
 
     fn verify_channel_state<Ctx: ReaderContext>(
@@ -365,10 +360,10 @@ where
 
         let path = ChannelEndsPath(port_id.clone(), *channel_id);
         let value = expected_channel_end.encode_vec();
-        verify_membership::<G, _>(client_state, prefix, proof, root, path, value)
+        verify_membership::<Ctx, _>(client_state, prefix, proof, root, path, value)
     }
 
-    fn verify_client_full_state<Ctx: ReaderContext<ClientTypes = ClientTypesOf<Self::G>>>(
+    fn verify_client_full_state<Ctx: ReaderContext>(
         &self,
         _ctx: &Ctx,
         client_state: &Self::ClientState,
@@ -377,13 +372,13 @@ where
         proof: &CommitmentProofBytes,
         root: &CommitmentRoot,
         client_id: &ClientId,
-        expected_client_state: &<Ctx::ClientTypes as ClientTypes>::ClientState,
+        expected_client_state: &Ctx::AnyClientState,
     ) -> Result<(), Ics02Error> {
         client_state.verify_height(height)?;
 
         let path = ClientStatePath(client_id.clone());
-        let value = expected_client_state.encode_vec();
-        verify_membership::<G, _>(client_state, prefix, proof, root, path, value)
+        let value = expected_client_state.encode_to_vec();
+        verify_membership::<Ctx, _>(client_state, prefix, proof, root, path, value)
     }
 
     fn verify_packet_data<Ctx: ReaderContext>(
@@ -409,7 +404,7 @@ where
             sequence,
         };
 
-        verify_membership::<G, _>(
+        verify_membership::<Ctx, _>(
             client_state,
             connection_end.counterparty().prefix(),
             proof,
@@ -442,7 +437,7 @@ where
             channel_id: *channel_id,
             sequence,
         };
-        verify_membership::<G, _>(
+        verify_membership::<Ctx, _>(
             client_state,
             connection_end.counterparty().prefix(),
             proof,
@@ -474,7 +469,7 @@ where
             .expect("buffer size too small");
 
         let seq_path = SeqRecvsPath(port_id.clone(), *channel_id);
-        verify_membership::<G, _>(
+        verify_membership::<Ctx, _>(
             client_state,
             connection_end.counterparty().prefix(),
             proof,
@@ -505,7 +500,7 @@ where
             channel_id: *channel_id,
             sequence,
         };
-        verify_non_membership::<G, _>(
+        verify_non_membership::<Ctx, _>(
             client_state,
             connection_end.counterparty().prefix(),
             proof,
@@ -519,8 +514,8 @@ where
     }
 }
 
-fn verify_membership<G, P>(
-    client_state: &ClientState<G>,
+fn verify_membership<Ctx: ClientKeeper, P>(
+    client_state: &ClientState,
     prefix: &CommitmentPrefix,
     proof: &CommitmentProofBytes,
     root: &CommitmentRoot,
@@ -528,11 +523,10 @@ fn verify_membership<G, P>(
     value: Vec<u8>,
 ) -> Result<(), Ics02Error>
 where
-    G: GlobalDefs,
     P: Into<Path>,
 {
     let merkle_path = apply_prefix(prefix, vec![path.into().to_string()]);
-    let merkle_proof: MerkleProof<G::HostFunctions> = RawMerkleProof::try_from(proof.clone())
+    let merkle_proof: MerkleProof<Ctx::HostFunctions> = RawMerkleProof::try_from(proof.clone())
         .map_err(Ics02Error::invalid_commitment_proof)?
         .into();
 
@@ -547,19 +541,18 @@ where
         .map_err(|e| Ics02Error::tendermint(Error::ics23_error(e)))
 }
 
-fn verify_non_membership<G, P>(
-    client_state: &ClientState<G>,
+fn verify_non_membership<Ctx: ClientKeeper, P>(
+    client_state: &ClientState,
     prefix: &CommitmentPrefix,
     proof: &CommitmentProofBytes,
     root: &CommitmentRoot,
     path: P,
 ) -> Result<(), Ics02Error>
 where
-    G: GlobalDefs,
     P: Into<Path>,
 {
     let merkle_path = apply_prefix(prefix, vec![path.into().to_string()]);
-    let merkle_proof: MerkleProof<G::HostFunctions> = RawMerkleProof::try_from(proof.clone())
+    let merkle_proof: MerkleProof<Ctx::HostFunctions> = RawMerkleProof::try_from(proof.clone())
         .map_err(Ics02Error::invalid_commitment_proof)?
         .into();
 
@@ -587,7 +580,7 @@ fn verify_delay_passed<Ctx: ReaderContext>(
     let delay_period_time = connection_end.delay_period();
     let delay_period_height = ctx.block_delay(delay_period_time);
 
-    ClientState::<Ctx>::verify_delay_passed(
+    ClientState::verify_delay_passed(
         current_timestamp,
         current_height,
         processed_time,

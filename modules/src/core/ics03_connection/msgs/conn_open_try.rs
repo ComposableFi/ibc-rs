@@ -12,7 +12,7 @@ use tendermint_proto::Protobuf;
 use crate::core::ics02_client;
 use ibc_proto::ibc::core::connection::v1::MsgConnectionOpenTry as RawMsgConnectionOpenTry;
 
-use crate::core::ics02_client::client_type::ClientTypes;
+use crate::core::ics02_client::context::ClientKeeper;
 use crate::core::ics03_connection::connection::Counterparty;
 use crate::core::ics03_connection::error::Error;
 use crate::core::ics03_connection::version::Version;
@@ -29,9 +29,9 @@ pub const TYPE_URL: &str = "/ibc.core.connection.v1.MsgConnectionOpenTry";
 /// Message definition `MsgConnectionOpenTry`  (i.e., `ConnOpenTry` datagram).
 ///
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct MsgConnectionOpenTry<C: ClientTypes + Clone + Debug + PartialEq + Eq> {
+pub struct MsgConnectionOpenTry<C: ClientKeeper + Clone + Debug + PartialEq + Eq> {
     pub client_id: ClientId,
-    pub client_state: Option<C::ClientState>,
+    pub client_state: Option<C::AnyClientState>,
     pub counterparty: Counterparty,
     pub counterparty_versions: Vec<Version>,
     pub proofs: Proofs,
@@ -41,7 +41,7 @@ pub struct MsgConnectionOpenTry<C: ClientTypes + Clone + Debug + PartialEq + Eq>
 
 impl<C> MsgConnectionOpenTry<C>
 where
-    C: ClientTypes + Clone + Debug + PartialEq + Eq,
+    C: ClientKeeper + Clone + Debug + PartialEq + Eq,
 {
     /// Getter for accessing the `consensus_height` field from this message. Returns the special
     /// value `0` if this field is not set.
@@ -55,8 +55,8 @@ where
 
 impl<C> Msg for MsgConnectionOpenTry<C>
 where
-    C: ClientTypes + Clone + Debug + PartialEq + Eq,
-    Any: From<C::ClientState>,
+    C: ClientKeeper + Clone + Debug + PartialEq + Eq,
+    Any: From<C::AnyClientState>,
 {
     type ValidationError = Error;
     type Raw = RawMsgConnectionOpenTry;
@@ -72,8 +72,8 @@ where
 
 impl<C> Protobuf<RawMsgConnectionOpenTry> for MsgConnectionOpenTry<C>
 where
-    C: ClientTypes + Clone + Debug + PartialEq + Eq,
-    Any: From<C::ClientState>,
+    C: ClientKeeper + Clone + Debug + PartialEq + Eq,
+    Any: From<C::AnyClientState>,
     MsgConnectionOpenTry<C>: TryFrom<v1::MsgConnectionOpenTry>,
     <MsgConnectionOpenTry<C> as TryFrom<v1::MsgConnectionOpenTry>>::Error: Display,
 {
@@ -81,8 +81,8 @@ where
 
 impl<C> TryFrom<RawMsgConnectionOpenTry> for MsgConnectionOpenTry<C>
 where
-    C: ClientTypes + Clone + Debug + PartialEq + Eq,
-    C::ClientState: TryFrom<Any, Error = ics02_client::error::Error>,
+    C: ClientKeeper + Clone + Debug + PartialEq + Eq,
+    C::AnyClientState: TryFrom<Any, Error = ics02_client::error::Error>,
 {
     type Error = Error;
 
@@ -124,7 +124,7 @@ where
             client_id: msg.client_id.parse().map_err(Error::invalid_identifier)?,
             client_state: msg
                 .client_state
-                .map(C::ClientState::try_from)
+                .map(C::AnyClientState::try_from)
                 .transpose()
                 .map_err(Error::ics02_client)?,
             counterparty: msg
@@ -148,8 +148,8 @@ where
 
 impl<C> From<MsgConnectionOpenTry<C>> for RawMsgConnectionOpenTry
 where
-    C: ClientTypes + Clone + Debug + PartialEq + Eq,
-    Any: From<C::ClientState>,
+    C: ClientKeeper + Clone + Debug + PartialEq + Eq,
+    Any: From<C::AnyClientState>,
 {
     fn from(ics_msg: MsgConnectionOpenTry<C>) -> Self {
         RawMsgConnectionOpenTry {
@@ -188,7 +188,6 @@ where
 #[cfg(test)]
 pub mod test_util {
     use crate::core::ics02_client::client_state::AnyClientState;
-    use crate::core::ics02_client::client_type::ClientTypes;
     use crate::core::ics03_connection::msgs::conn_open_try::MsgConnectionOpenTry;
     use crate::core::ics03_connection::msgs::test_util::get_dummy_raw_counterparty;
     use crate::core::ics03_connection::version::get_compatible_versions;
@@ -205,7 +204,7 @@ pub mod test_util {
     /// Testing-specific helper methods.
     impl<C> MsgConnectionOpenTry<C>
     where
-        C: ClientTypes + Clone + Debug + Eq,
+        C: ClientKeeper + Clone + Debug + Eq,
     {
         /// Setter for `client_id`.
         pub fn with_client_id(self, client_id: ClientId) -> MsgConnectionOpenTry<C> {
@@ -224,8 +223,7 @@ pub mod test_util {
         RawMsgConnectionOpenTry {
             client_id: ClientId::default().to_string(),
             client_state: Some(
-                AnyClientState::<TestGlobalDefs>::Mock(MockClientState::new(MockHeader::default()))
-                    .into(),
+                AnyClientState::Mock(MockClientState::new(MockHeader::default())).into(),
             ),
             counterparty: Some(get_dummy_raw_counterparty()),
             delay_period: 0,
@@ -362,8 +360,7 @@ mod tests {
             .collect();
 
         for test in tests {
-            let msg =
-                MsgConnectionOpenTry::<ClientTypesOf<TestGlobalDefs>>::try_from(test.raw.clone());
+            let msg = MsgConnectionOpenTry::try_from(test.raw.clone());
 
             assert_eq!(
                 test.want_pass,
@@ -379,12 +376,9 @@ mod tests {
     #[test]
     fn to_and_from() {
         let raw = get_dummy_raw_msg_conn_open_try(10, 34);
-        let msg =
-            MsgConnectionOpenTry::<ClientTypesOf<TestGlobalDefs>>::try_from(raw.clone()).unwrap();
+        let msg = MsgConnectionOpenTry::try_from(raw.clone()).unwrap();
         let raw_back = RawMsgConnectionOpenTry::from(msg.clone());
-        let msg_back =
-            MsgConnectionOpenTry::<ClientTypesOf<TestGlobalDefs>>::try_from(raw_back.clone())
-                .unwrap();
+        let msg_back = MsgConnectionOpenTry::try_from(raw_back.clone()).unwrap();
         assert_eq!(raw, raw_back);
         assert_eq!(msg, msg_back);
     }

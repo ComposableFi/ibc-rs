@@ -4,12 +4,9 @@ use super::error::Error as NearError;
 use super::header::NearHeader;
 use super::types::{ApprovalInner, CryptoHash, LightClientBlockView};
 use crate::clients::host_functions::HostFunctionsProvider;
-use crate::clients::{ConsensusStateOf, GlobalDefs};
-
 use crate::core::ics02_client::client_def::{ClientDef, ConsensusUpdateResult};
-
-use crate::core::ics02_client::client_type::{ClientType, ClientTypes};
-
+use crate::core::ics02_client::client_type::ClientType;
+use crate::core::ics02_client::context::ClientKeeper;
 use crate::core::ics02_client::error::Error;
 use crate::core::ics03_connection::connection::ConnectionEnd;
 use crate::core::ics04_channel::channel::ChannelEnd;
@@ -23,18 +20,17 @@ use crate::core::ics26_routing::context::ReaderContext;
 use crate::prelude::*;
 use crate::Height;
 use borsh::BorshSerialize;
-
 use core::marker::PhantomData;
 use derivative::Derivative;
 
 #[derive(Derivative)]
 #[derivative(Debug(bound = ""), Clone(bound = ""))]
-pub struct NearClient<G>(PhantomData<G>);
+pub struct NearClient;
 
-impl<G: GlobalDefs> ClientTypes for NearClient<G>
+impl ClientDef for NearClient
 where
-    ConsensusState: TryFrom<ConsensusStateOf<G>, Error = Error>,
-    ConsensusStateOf<G>: From<ConsensusState>,
+// ConsensusState: TryFrom<Ctx::AnyConsensusState, Error = Error>,
+// Ctx::AnyConsensusState: From<ConsensusState>,
 {
     /// The data that we need to update the [`ClientState`] to a new block height
     type Header = NearHeader;
@@ -51,20 +47,12 @@ where
     ///     next_validators:  Vec<ValidatorStakeView>,
     /// }
     /// ```
-    type ClientState = NearClientState<G>;
+    type ClientState = NearClientState;
 
     /// This is usually just two things, that should be derived from the header:
     ///    - The ibc commitment root hash as described by ics23 (possibly from tx outcome/ state proof)
     ///    - The timestamp of the header.
     type ConsensusState = ConsensusState;
-}
-
-impl<G: GlobalDefs> ClientDef for NearClient<G>
-where
-    ConsensusState: TryFrom<ConsensusStateOf<G>, Error = Error>,
-    ConsensusStateOf<G>: From<ConsensusState>,
-{
-    type G = G;
 
     // rehydrate client from its own storage, then call this function
     fn verify_header<Ctx>(
@@ -78,7 +66,7 @@ where
         Ctx: ReaderContext,
     {
         // your light client, shouldn't do storage anymore, it should just do verification here.
-        validate_light_block::<G>(&header, client_state)
+        validate_light_block::<Ctx>(&header, client_state)
     }
 
     fn update_state<Ctx: ReaderContext>(
@@ -87,7 +75,7 @@ where
         _client_id: ClientId,
         _client_state: Self::ClientState,
         _header: Self::Header,
-    ) -> Result<(Self::ClientState, ConsensusUpdateResult<Ctx::ClientTypes>), Error> {
+    ) -> Result<(Self::ClientState, ConsensusUpdateResult<Ctx>), Error> {
         // 1. create new client state from this header, return that.
         // 2. as well as all the neccessary consensus states.
         //
@@ -125,7 +113,7 @@ where
         _consensus_state: &Self::ConsensusState,
         _proof_upgrade_client: Vec<u8>,
         _proof_upgrade_consensus_state: Vec<u8>,
-    ) -> Result<(Self::ClientState, ConsensusUpdateResult<Ctx::ClientTypes>), Error> {
+    ) -> Result<(Self::ClientState, ConsensusUpdateResult<Ctx>), Error> {
         todo!()
     }
 
@@ -139,7 +127,7 @@ where
         _root: &CommitmentRoot,
         _client_id: &ClientId,
         _consensus_height: Height,
-        _expected_consensus_state: &<Ctx::ClientTypes as ClientTypes>::ConsensusState,
+        _expected_consensus_state: &Ctx::AnyConsensusState,
     ) -> Result<(), Error> {
         todo!()
     }
@@ -185,7 +173,7 @@ where
         _proof: &CommitmentProofBytes,
         _root: &CommitmentRoot,
         _client_id: &ClientId,
-        _expected_client_state: &<Ctx::ClientTypes as ClientTypes>::ClientState,
+        _expected_client_state: &Ctx::AnyClientState,
     ) -> Result<(), Error> {
         todo!()
     }
@@ -263,9 +251,9 @@ where
 
 /// validates a light block that's contained on the `NearHeader` based on the current
 /// state of the light client.
-pub fn validate_light_block<G: GlobalDefs>(
+pub fn validate_light_block<Ctx: ClientKeeper>(
     header: &NearHeader,
-    client_state: NearClientState<G>,
+    client_state: NearClientState,
 ) -> Result<(), Error>
 where
 {
@@ -285,7 +273,7 @@ where
     let new_block_view = header.get_light_client_block_view();
     let current_block_view = client_state.get_head();
     let (_current_block_hash, _next_block_hash, approval_message) =
-        reconstruct_light_client_block_view_fields::<G::HostFunctions>(new_block_view)?;
+        reconstruct_light_client_block_view_fields::<Ctx::HostFunctions>(new_block_view)?;
 
     // (1)
     if new_block_view.inner_lite.height <= current_block_view.inner_lite.height {
@@ -333,9 +321,9 @@ where
         approved_stake += bp_stake;
 
         let validator_public_key = &bp_stake_view.public_key;
-        let data = G::HostFunctions::sha256_digest(&approval_message);
+        let data = Ctx::HostFunctions::sha256_digest(&approval_message);
         let signature = maybe_signature.as_ref().unwrap();
-        if G::HostFunctions::ed25519_verify(
+        if Ctx::HostFunctions::ed25519_verify(
             signature.get_inner(),
             &data,
             validator_public_key.get_inner(),
@@ -357,7 +345,7 @@ where
             .unwrap()
             .try_to_vec()
             .map_err(|_| Error::from(NearError::serialization_error()))?;
-        if G::HostFunctions::sha256_digest(new_block_view_next_bps_serialized.as_ref()).as_slice()
+        if Ctx::HostFunctions::sha256_digest(new_block_view_next_bps_serialized.as_ref()).as_slice()
             != new_block_view.inner_lite.next_bp_hash.as_ref()
         {
             return Err(NearError::serialization_error().into());

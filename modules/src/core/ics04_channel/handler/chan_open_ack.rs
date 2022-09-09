@@ -1,6 +1,5 @@
 //! Protocol logic specific to ICS4 messages of type `MsgChannelOpenAck`.
 
-use crate::clients::{ClientTypesOf, GlobalDefs};
 use crate::core::ics03_connection::connection::State as ConnectionState;
 use crate::core::ics04_channel::channel::{ChannelEnd, Counterparty, State};
 use crate::core::ics04_channel::error::Error;
@@ -13,14 +12,10 @@ use crate::events::IbcEvent;
 use crate::handler::{HandlerOutput, HandlerResult};
 use crate::prelude::*;
 
-pub(crate) fn process<G, Ctx>(
+pub(crate) fn process<Ctx: ReaderContext>(
     ctx: &Ctx,
     msg: &MsgChannelOpenAck,
-) -> HandlerResult<ChannelResult, Error>
-where
-    G: GlobalDefs,
-    Ctx: ReaderContext<ClientTypes = ClientTypesOf<G>>,
-{
+) -> HandlerResult<ChannelResult, Error> {
     let mut output = HandlerOutput::builder();
 
     // Unwrap the old channel end and validate it against the message.
@@ -77,7 +72,7 @@ where
     channel_end.set_counterparty_channel_id(msg.counterparty_channel_id);
 
     //2. Verify proofs
-    verify_channel_proofs::<G, Ctx>(
+    verify_channel_proofs::<Ctx>(
         ctx,
         msg.proofs.height(),
         &channel_end,
@@ -193,12 +188,10 @@ mod tests {
             },
         );
 
-        let msg_conn_try = MsgConnectionOpenTry::<ClientTypesOf<TestGlobalDefs>>::try_from(
-            get_dummy_raw_msg_conn_open_try(
-                client_consensus_state_height,
-                host_chain_height.revision_height,
-            ),
-        )
+        let msg_conn_try = MsgConnectionOpenTry::try_from(get_dummy_raw_msg_conn_open_try(
+            client_consensus_state_height,
+            host_chain_height.revision_height,
+        ))
         .unwrap();
 
         let msg_chan_ack =

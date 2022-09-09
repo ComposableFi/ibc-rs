@@ -1,6 +1,5 @@
 //! Protocol logic specific to ICS4 messages of type `MsgChannelCloseConfirm`.
 
-use crate::clients::{ClientTypesOf, GlobalDefs};
 use crate::core::ics03_connection::connection::State as ConnectionState;
 use crate::core::ics04_channel::channel::{ChannelEnd, Counterparty, State};
 use crate::core::ics04_channel::error::Error;
@@ -13,14 +12,10 @@ use crate::events::IbcEvent;
 use crate::handler::{HandlerOutput, HandlerResult};
 use crate::prelude::*;
 
-pub(crate) fn process<G, Ctx>(
+pub(crate) fn process<Ctx: ReaderContext>(
     ctx: &Ctx,
     msg: &MsgChannelCloseConfirm,
-) -> HandlerResult<ChannelResult, Error>
-where
-    G: GlobalDefs,
-    Ctx: ReaderContext<ClientTypes = ClientTypesOf<G>>,
-{
+) -> HandlerResult<ChannelResult, Error> {
     let mut output = HandlerOutput::builder();
 
     // Retrieve the old channel end and validate it against the message.
@@ -69,7 +64,7 @@ where
         channel_end.version().clone(),
     );
 
-    verify_channel_proofs::<G, Ctx>(
+    verify_channel_proofs::<Ctx>(
         ctx,
         msg.proofs.height(),
         &channel_end,

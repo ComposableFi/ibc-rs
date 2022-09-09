@@ -1,4 +1,3 @@
-use crate::clients::{ClientTypesOf, GlobalDefs};
 use crate::core::ics02_client::client_consensus::ConsensusState;
 use crate::core::ics02_client::client_def::ClientDef;
 use crate::core::ics02_client::client_state::ClientState;
@@ -14,7 +13,7 @@ use crate::proofs::Proofs;
 use crate::Height;
 
 /// Entry point for verifying all proofs bundled in any ICS4 message for channel protocols.
-pub fn verify_channel_proofs<G, Ctx>(
+pub fn verify_channel_proofs<Ctx>(
     ctx: &Ctx,
     height: Height,
     channel_end: &ChannelEnd,
@@ -23,8 +22,7 @@ pub fn verify_channel_proofs<G, Ctx>(
     proof: &CommitmentProofBytes,
 ) -> Result<(), Error>
 where
-    G: GlobalDefs,
-    Ctx: ReaderContext<ClientTypes = ClientTypesOf<G>>,
+    Ctx: ReaderContext,
 {
     // This is the client which will perform proof verification.
     let client_id = connection_end.client_id().clone();
@@ -40,7 +38,7 @@ where
         .consensus_state(&client_id, height)
         .map_err(|_| Error::error_invalid_consensus_state())?;
 
-    let client_def = <G as GlobalDefs>::ClientDef::from_client_type(client_state.client_type());
+    let client_def = Ctx::ClientDef::from_client_type(client_state.client_type());
 
     // Verify the proof for the channel state against the expected channel end.
     // A counterparty channel id of None in not possible, and is checked by validate_basic in msg.
@@ -61,10 +59,7 @@ where
 }
 
 /// Entry point for verifying all proofs bundled in a ICS4 packet recv. message.
-pub fn verify_packet_recv_proofs<
-    G: GlobalDefs,
-    Ctx: ReaderContext<ClientTypes = ClientTypesOf<G>>,
->(
+pub fn verify_packet_recv_proofs<Ctx: ReaderContext>(
     ctx: &Ctx,
     height: Height,
     packet: &Packet,
@@ -83,7 +78,7 @@ pub fn verify_packet_recv_proofs<
         .consensus_state(client_id, proofs.height())
         .map_err(|_| Error::error_invalid_consensus_state())?;
 
-    let client_def = <G as GlobalDefs>::ClientDef::from_client_type(client_state.client_type());
+    let client_def = Ctx::ClientDef::from_client_type(client_state.client_type());
 
     let commitment = ctx.packet_commitment(
         packet.data.clone(),
@@ -112,10 +107,7 @@ pub fn verify_packet_recv_proofs<
 }
 
 /// Entry point for verifying all proofs bundled in an ICS4 packet ack message.
-pub fn verify_packet_acknowledgement_proofs<
-    G: GlobalDefs,
-    Ctx: ReaderContext<ClientTypes = ClientTypesOf<G>>,
->(
+pub fn verify_packet_acknowledgement_proofs<Ctx: ReaderContext>(
     ctx: &Ctx,
     height: Height,
     packet: &Packet,
@@ -137,7 +129,7 @@ pub fn verify_packet_acknowledgement_proofs<
 
     let ack_commitment = ctx.ack_commitment(acknowledgement);
 
-    let client_def = <G as GlobalDefs>::ClientDef::from_client_type(client_state.client_type());
+    let client_def = Ctx::ClientDef::from_client_type(client_state.client_type());
 
     // Verify the proof for the packet against the chain store.
     client_def
@@ -160,7 +152,7 @@ pub fn verify_packet_acknowledgement_proofs<
 }
 
 /// Entry point for verifying all timeout proofs.
-pub fn verify_next_sequence_recv<G, Ctx>(
+pub fn verify_next_sequence_recv<Ctx>(
     ctx: &Ctx,
     height: Height,
     connection_end: &ConnectionEnd,
@@ -169,8 +161,7 @@ pub fn verify_next_sequence_recv<G, Ctx>(
     proofs: &Proofs,
 ) -> Result<(), Error>
 where
-    G: GlobalDefs,
-    Ctx: ReaderContext<ClientTypes = ClientTypesOf<G>>,
+    Ctx: ReaderContext,
 {
     let client_id = connection_end.client_id();
     let client_state = ctx.client_state(client_id).map_err(Error::ics02_client)?;
@@ -184,7 +175,7 @@ where
         .consensus_state(client_id, proofs.height())
         .map_err(|_| Error::error_invalid_consensus_state())?;
 
-    let client_def = <G as GlobalDefs>::ClientDef::from_client_type(client_state.client_type());
+    let client_def = Ctx::ClientDef::from_client_type(client_state.client_type());
 
     // Verify the proof for the packet against the chain store.
     client_def
@@ -205,7 +196,7 @@ where
     Ok(())
 }
 
-pub fn verify_packet_receipt_absence<G, Ctx>(
+pub fn verify_packet_receipt_absence<Ctx>(
     ctx: &Ctx,
     height: Height,
     connection_end: &ConnectionEnd,
@@ -213,8 +204,7 @@ pub fn verify_packet_receipt_absence<G, Ctx>(
     proofs: &Proofs,
 ) -> Result<(), Error>
 where
-    G: GlobalDefs,
-    Ctx: ReaderContext<ClientTypes = ClientTypesOf<G>>,
+    Ctx: ReaderContext,
 {
     let client_id = connection_end.client_id();
     let client_state = ctx.client_state(client_id).map_err(Error::ics02_client)?;
@@ -228,7 +218,7 @@ where
         .consensus_state(client_id, proofs.height())
         .map_err(|_| Error::error_invalid_consensus_state())?;
 
-    let client_def = <G as GlobalDefs>::ClientDef::from_client_type(client_state.client_type());
+    let client_def = Ctx::ClientDef::from_client_type(client_state.client_type());
 
     // Verify the proof for the packet against the chain store.
     client_def

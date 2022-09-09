@@ -1,6 +1,6 @@
 use crate::clients::{ClientTypesOf, ConsensusStateOf, GlobalDefs};
 use crate::core::ics02_client::client_def::{AnyClient, ClientDef, ConsensusUpdateResult};
-use crate::core::ics02_client::client_type::{ClientType, ClientTypes};
+use crate::core::ics02_client::client_type::ClientType;
 use crate::core::ics02_client::error::Error;
 use crate::core::ics03_connection::connection::ConnectionEnd;
 use crate::core::ics04_channel::channel::ChannelEnd;
@@ -26,50 +26,50 @@ use std::marker::PhantomData;
 
 #[derive(Derivative, Debug, PartialEq, Eq)]
 #[derivative(Clone(bound = ""))]
-pub struct MockClient<G>(PhantomData<G>);
+pub struct MockClient;
 
 #[derive(Clone, Debug, PartialEq, Eq, Default)]
 pub struct TestGlobalDefs;
 impl GlobalDefs for TestGlobalDefs {
     type HostFunctions = Crypto;
     type ClientTypes = MockTypes;
-    type ClientDef = AnyClient<TestGlobalDefs>;
+    type ClientDef = AnyClient;
 }
 
-pub type TestMockClient = MockClient<TestGlobalDefs>;
+pub type TestMockClient = MockClient;
 
-impl<G> Default for MockClient<G> {
+impl Default for MockClient {
     fn default() -> Self {
         Self(PhantomData::default())
     }
 }
 
-impl<G: GlobalDefs + Clone> ClientTypes for MockClient<G>
+impl ClientTypes for MockClient
 where
-    MockConsensusState: TryFrom<ConsensusStateOf<G>, Error = Error>,
-    ConsensusStateOf<G>: From<MockConsensusState>,
+    MockConsensusState: TryFrom<Ctx::AnyConsensusState, Error = Error>,
+    Ctx::AnyConsensusState: From<MockConsensusState>,
 {
     type Header = MockHeader;
-    type ClientState = MockClientState<G>;
+    type ClientState = MockClientState;
     type ConsensusState = MockConsensusState;
 }
 
-impl<G> ClientDef for MockClient<G>
+impl ClientDef for MockClient
 where
-    MockConsensusState: TryFrom<ConsensusStateOf<G>, Error = Error>,
-    ConsensusStateOf<G>: From<MockConsensusState>,
+    MockConsensusState: TryFrom<Ctx::AnyConsensusState, Error = Error>,
+    Ctx::AnyConsensusState: From<MockConsensusState>,
 
     G: GlobalDefs + Clone,
 {
     type G = G;
 
-    fn update_state<Ctx: ReaderContext<ClientTypes = ClientTypesOf<Self::G>>>(
+    fn update_state<Ctx: ReaderContext>(
         &self,
         _ctx: &Ctx,
         _client_id: ClientId,
         client_state: Self::ClientState,
         header: Self::Header,
-    ) -> Result<(Self::ClientState, ConsensusUpdateResult<Ctx::ClientTypes>), Error> {
+    ) -> Result<(Self::ClientState, ConsensusUpdateResult<Ctx>), Error> {
         if client_state.latest_height() >= header.height() {
             return Err(Error::low_header_height(
                 header.height(),
@@ -83,7 +83,7 @@ where
         ))
     }
 
-    fn verify_client_consensus_state<Ctx: ReaderContext<ClientTypes = ClientTypesOf<Self::G>>>(
+    fn verify_client_consensus_state<Ctx: ReaderContext>(
         &self,
         _ctx: &Ctx,
         _client_state: &Self::ClientState,
@@ -93,7 +93,7 @@ where
         _root: &CommitmentRoot,
         client_id: &ClientId,
         consensus_height: Height,
-        _expected_consensus_state: &<Ctx::ClientTypes as ClientTypes>::ConsensusState,
+        _expected_consensus_state: &Ctx::AnyConsensusState,
     ) -> Result<(), Error> {
         let client_prefixed_path = Path::ClientConsensusState(ClientConsensusStatePath {
             client_id: client_id.clone(),
@@ -138,7 +138,7 @@ where
         Ok(())
     }
 
-    fn verify_client_full_state<Ctx: ReaderContext<ClientTypes = ClientTypesOf<Self::G>>>(
+    fn verify_client_full_state<Ctx: ReaderContext>(
         &self,
         _ctx: &Ctx,
         _client_state: &Self::ClientState,
@@ -147,7 +147,7 @@ where
         _proof: &CommitmentProofBytes,
         _root: &CommitmentRoot,
         _client_id: &ClientId,
-        _expected_client_state: &<Ctx::ClientTypes as ClientTypes>::ClientState,
+        _expected_client_state: &Ctx::AnyClientState,
     ) -> Result<(), Error> {
         Ok(())
     }
@@ -218,20 +218,20 @@ where
         Ok(())
     }
 
-    fn verify_upgrade_and_update_state<Ctx: ReaderContext<ClientTypes = ClientTypesOf<G>>>(
+    fn verify_upgrade_and_update_state<Ctx: ReaderContext>(
         &self,
         client_state: &Self::ClientState,
         consensus_state: &Self::ConsensusState,
         _proof_upgrade_client: Vec<u8>,
         _proof_upgrade_consensus_state: Vec<u8>,
-    ) -> Result<(Self::ClientState, ConsensusUpdateResult<Ctx::ClientTypes>), Error> {
+    ) -> Result<(Self::ClientState, ConsensusUpdateResult<Ctx>), Error> {
         Ok((
             *client_state,
             ConsensusUpdateResult::Single(consensus_state.clone().into()),
         ))
     }
 
-    fn verify_header<Ctx: ReaderContext<ClientTypes = ClientTypesOf<Self::G>>>(
+    fn verify_header<Ctx: ReaderContext>(
         &self,
         _ctx: &Ctx,
         _client_id: ClientId,
@@ -249,7 +249,7 @@ where
         Ok(client_state)
     }
 
-    fn check_for_misbehaviour<Ctx: ReaderContext<ClientTypes = ClientTypesOf<Self::G>>>(
+    fn check_for_misbehaviour<Ctx: ReaderContext>(
         &self,
         _ctx: &Ctx,
         _client_id: ClientId,

@@ -1,12 +1,10 @@
 //! ICS3 verification functions, common across all four handlers of ICS3.
 
-use crate::clients::{ClientStateOf, ClientTypesOf, ConsensusStateOf, GlobalDefs};
 use crate::core::ics02_client::client_consensus::ConsensusState;
 use crate::core::ics02_client::client_def::ClientDef;
 use crate::core::ics02_client::client_state::ClientState;
 #[cfg(feature = "ics11_beefy")]
 use crate::core::ics02_client::client_type::ClientType;
-use crate::core::ics02_client::client_type::ClientTypes;
 use crate::core::ics03_connection::connection::ConnectionEnd;
 use crate::core::ics03_connection::error::Error;
 use crate::core::ics23_commitment::commitment::CommitmentProofBytes;
@@ -34,10 +32,7 @@ pub struct ConnectionProof {
 /// Verifies the authenticity and semantic correctness of a commitment `proof`. The commitment
 /// claims to prove that an object of type connection exists on the source chain (i.e., the chain
 /// which created this proof). This object must match the state of `expected_conn`.
-pub fn verify_connection_proof<
-    G: GlobalDefs,
-    Ctx: ReaderContext<ClientTypes = ClientTypesOf<G>>,
->(
+pub fn verify_connection_proof<Ctx: ReaderContext>(
     ctx: &Ctx,
     height: Height,
     connection_end: &ConnectionEnd,
@@ -67,7 +62,7 @@ pub fn verify_connection_proof<
         .connection_id()
         .ok_or_else(Error::invalid_counterparty)?;
 
-    let client_def = <G as GlobalDefs>::ClientDef::from_client_type(client_state.client_type());
+    let client_def = <Ctx::ClientDef as ClientDef>::from_client_type(client_state.client_type());
 
     // Verify the proof for the connection state against the expected connection end.
     client_def
@@ -92,19 +87,19 @@ pub fn verify_connection_proof<
 /// complete verification: that the client state the counterparty stores is valid (i.e., not frozen,
 /// at the same revision as the current chain, with matching chain identifiers, etc) and that the
 /// `proof` is correct.
-pub fn verify_client_proof<G: GlobalDefs, Ctx: ReaderContext<ClientTypes = G::ClientTypes>>(
+pub fn verify_client_proof<Ctx: ReaderContext>(
     ctx: &Ctx,
     height: Height,
     connection_end: &ConnectionEnd,
-    expected_client_state: <Ctx::ClientTypes as ClientTypes>::ClientState,
+    expected_client_state: Ctx::AnyClientState,
     proof_height: Height,
     proof: &CommitmentProofBytes,
 ) -> Result<(), Error>
 where
-    ClientStateOf<G>: Protobuf<Any>,
-    Any: From<ClientStateOf<G>>,
-    ClientStateOf<G>: TryFrom<Any>,
-    <ClientStateOf<G> as TryFrom<Any>>::Error: Display,
+    // Ctx::AnyClientState: Protobuf<Any>,
+    // Any: From<Ctx::AnyClientState>,
+    // Ctx::AnyClientState: TryFrom<Any>,
+    // <Ctx::AnyClientState as TryFrom<Any>>::Error: Display,
 {
     // Fetch the local client state (IBC client running on the host chain).
     let client_state = ctx
@@ -119,7 +114,7 @@ where
         .consensus_state(connection_end.client_id(), proof_height)
         .map_err(|e| Error::consensus_state_verification_failure(proof_height, e))?;
 
-    let client_def = <G as GlobalDefs>::ClientDef::from_client_type(client_state.client_type());
+    let client_def = Ctx::ClientDef::from_client_type(client_state.client_type());
 
     client_def
         .verify_client_full_state(
@@ -137,17 +132,17 @@ where
         })
 }
 
-pub fn verify_consensus_proof<G: GlobalDefs, Ctx: ReaderContext<ClientTypes = G::ClientTypes>>(
+pub fn verify_consensus_proof<Ctx: ReaderContext>(
     ctx: &Ctx,
     height: Height,
     connection_end: &ConnectionEnd,
     proof: &ConsensusProof,
 ) -> Result<(), Error>
 where
-    ConsensusStateOf<G>: Protobuf<Any>,
-    Any: From<ConsensusStateOf<G>>,
-    ConsensusStateOf<G>: TryFrom<Any>,
-    <ConsensusStateOf<G> as TryFrom<Any>>::Error: Display,
+    // Ctx::AnyConsensusState: Protobuf<Any>,
+    // Any: From<Ctx::AnyConsensusState>,
+    // Ctx::AnyConsensusState: TryFrom<Any>,
+    // <Ctx::AnyConsensusState as TryFrom<Any>>::Error: Display,
 {
     // Fetch the client state (IBC client on the local chain).
     let client_state = ctx
@@ -162,7 +157,7 @@ where
         .consensus_state(connection_end.client_id(), height)
         .map_err(|e| Error::consensus_state_verification_failure(height, e))?;
 
-    let client = <G as GlobalDefs>::ClientDef::from_client_type(client_state.client_type());
+    let client = Ctx::ClientDef::from_client_type(client_state.client_type());
 
     let (consensus_proof, expected_consensus) = match ctx.host_client_type() {
         #[cfg(feature = "ics11_beefy")]

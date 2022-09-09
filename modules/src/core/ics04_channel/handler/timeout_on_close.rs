@@ -1,4 +1,3 @@
-use crate::clients::{ClientTypesOf, GlobalDefs};
 use crate::core::ics04_channel::channel::State;
 use crate::core::ics04_channel::channel::{ChannelEnd, Counterparty, Order};
 use crate::core::ics04_channel::events::TimeoutOnClosePacket;
@@ -14,7 +13,7 @@ use crate::events::IbcEvent;
 use crate::handler::{HandlerOutput, HandlerResult};
 use crate::prelude::*;
 
-pub fn process<G: GlobalDefs, Ctx: ReaderContext<ClientTypes = ClientTypesOf<G>>>(
+pub fn process<Ctx: ReaderContext>(
     ctx: &Ctx,
     msg: &MsgTimeoutOnClose,
 ) -> HandlerResult<PacketResult, Error> {
@@ -75,7 +74,7 @@ pub fn process<G: GlobalDefs, Ctx: ReaderContext<ClientTypes = ClientTypesOf<G>>
         source_channel_end.version().clone(),
     );
 
-    verify_channel_proofs::<G, Ctx>(
+    verify_channel_proofs::<Ctx>(
         ctx,
         msg.proofs.height(),
         &source_channel_end,
@@ -94,7 +93,7 @@ pub fn process<G: GlobalDefs, Ctx: ReaderContext<ClientTypes = ClientTypesOf<G>>
                 msg.next_sequence_recv,
             ));
         }
-        verify_next_sequence_recv::<G, Ctx>(
+        verify_next_sequence_recv::<Ctx>(
             ctx,
             msg.proofs.height(),
             &connection_end,
@@ -110,7 +109,7 @@ pub fn process<G: GlobalDefs, Ctx: ReaderContext<ClientTypes = ClientTypesOf<G>>
             channel: Some(source_channel_end),
         })
     } else {
-        verify_packet_receipt_absence::<G, Ctx>(
+        verify_packet_receipt_absence::<Ctx>(
             ctx,
             msg.proofs.height(),
             &connection_end,

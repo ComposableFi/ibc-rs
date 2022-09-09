@@ -1,4 +1,3 @@
-use crate::clients::{ClientTypesOf, GlobalDefs};
 use crate::core::ics02_client::client_consensus::ConsensusState;
 use crate::core::ics04_channel::channel::State;
 use crate::core::ics04_channel::channel::{ChannelEnd, Counterparty, Order};
@@ -24,10 +23,9 @@ pub struct TimeoutPacketResult {
     pub channel: Option<ChannelEnd>,
 }
 
-pub fn process<G, Ctx>(ctx: &Ctx, msg: &MsgTimeout) -> HandlerResult<PacketResult, Error>
+pub fn process<Ctx>(ctx: &Ctx, msg: &MsgTimeout) -> HandlerResult<PacketResult, Error>
 where
-    G: GlobalDefs,
-    Ctx: ReaderContext<ClientTypes = ClientTypesOf<G>>,
+    Ctx: ReaderContext,
 {
     let mut output = HandlerOutput::builder();
 
@@ -99,7 +97,7 @@ where
                 msg.next_sequence_recv,
             ));
         }
-        verify_next_sequence_recv::<G, Ctx>(
+        verify_next_sequence_recv::<Ctx>(
             ctx,
             msg.proofs.height(),
             &connection_end,
@@ -116,7 +114,7 @@ where
             channel: Some(source_channel_end),
         })
     } else {
-        verify_packet_receipt_absence::<G, Ctx>(
+        verify_packet_receipt_absence::<Ctx>(
             ctx,
             msg.proofs.height(),
             &connection_end,

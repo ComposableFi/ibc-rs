@@ -1,10 +1,9 @@
 //! Protocol logic specific to processing ICS2 messages of type `MsgUpgradeAnyClient`.
 //!
 
-use crate::clients::GlobalDefs;
 use crate::core::ics02_client::client_def::{ClientDef, ConsensusUpdateResult};
 use crate::core::ics02_client::client_state::ClientState;
-use crate::core::ics02_client::client_type::ClientTypes;
+use crate::core::ics02_client::context::ClientKeeper;
 use crate::core::ics02_client::error::Error;
 use crate::core::ics02_client::events::Attributes;
 use crate::core::ics02_client::handler::ClientResult;
@@ -19,19 +18,18 @@ use core::fmt::Debug;
 /// The result following the successful processing of a `MsgUpgradeAnyClient` message.
 /// This data type should be used with a qualified name `upgrade_client::Result` to avoid ambiguity.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Result<C: ClientTypes> {
+pub struct Result<C: ClientKeeper> {
     pub client_id: ClientId,
-    pub client_state: C::ClientState,
+    pub client_state: C::AnyClientState,
     pub consensus_state: Option<ConsensusUpdateResult<C>>,
 }
 
-pub fn process<G, Ctx>(
+pub fn process<Ctx>(
     ctx: &Ctx,
-    msg: MsgUpgradeAnyClient<Ctx::ClientTypes>,
-) -> HandlerResult<ClientResult<Ctx::ClientTypes>, Error>
+    msg: MsgUpgradeAnyClient<Ctx>,
+) -> HandlerResult<ClientResult<Ctx>, Error>
 where
-    G: GlobalDefs,
-    Ctx: ReaderContext<ClientTypes = G::ClientTypes> + Eq + Debug + Clone,
+    Ctx: ReaderContext + Eq + Debug + Clone,
 {
     let mut output = HandlerOutput::builder();
     let MsgUpgradeAnyClient { client_id, .. } = msg;
@@ -54,7 +52,7 @@ where
 
     let client_type = ctx.client_type(&client_id)?;
 
-    let client_def = <G as GlobalDefs>::ClientDef::from_client_type(client_type);
+    let client_def = <Ctx::ClientDef as ClientDef>::from_client_type(client_type);
 
     let (new_client_state, new_consensus_state) = client_def
         .verify_upgrade_and_update_state::<Ctx>(

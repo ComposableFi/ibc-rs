@@ -9,6 +9,7 @@ use tendermint_proto::Protobuf;
 
 use crate::clients::ics07_tendermint::client_def::TendermintClient;
 use crate::clients::ics07_tendermint::client_state;
+use crate::clients::ics07_tendermint::client_state::ClientState as TendermintClientState;
 use crate::clients::ics07_tendermint::consensus_state::ConsensusState as TendermintConsensusState;
 #[cfg(any(test, feature = "ics11_beefy"))]
 use crate::clients::ics11_beefy::client_state as beefy_client_state;
@@ -16,7 +17,6 @@ use crate::clients::ics11_beefy::client_state as beefy_client_state;
 use crate::clients::ics11_beefy::{
     client_def::BeefyClient, consensus_state::ConsensusState as BeefyConsensusState,
 };
-use crate::clients::{ClientStateOf, ConsensusStateOf, GlobalDefs};
 use crate::core::ics02_client::client_def::{AnyClient, ClientDef};
 use crate::core::ics02_client::client_type::ClientType;
 use crate::core::ics02_client::error::Error;
@@ -44,18 +44,12 @@ pub trait ClientState: Clone + Debug + Send + Sync {
     /// Client-specific options for upgrading the client
     type UpgradeOptions;
 
-    /// Client definition type (used for verification)
-    type ClientDef: ClientDef;
-
     /// Return the chain identifier which this client is serving (i.e., the client is verifying
     /// consensus states from this chain).
     fn chain_id(&self) -> ChainId;
 
     /// Type of client associated with this state (eg. Tendermint)
     fn client_type(&self) -> ClientType;
-
-    /// Returns a client definition for this client state
-    fn client_def(&self) -> Self::ClientDef;
 
     /// Latest height of consensus state
     fn latest_height(&self) -> Height;
@@ -80,6 +74,14 @@ pub trait ClientState: Clone + Debug + Send + Sync {
 
     /// Helper function to verify the upgrade client procedure.
     fn expired(&self, elapsed: Duration) -> bool;
+
+    /// Performs downcast of the client state from an "AnyClientState" type to T, otherwise
+    /// panics. Downcast from `T` to `T` is always successful.
+    fn downcast<T: Clone + core::any::Any>(self) -> T;
+
+    fn wrap(sub_state: &dyn core::any::Any) -> Self;
+
+    fn encode_to_vec(&self) -> Vec<u8>;
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -123,27 +125,21 @@ impl AnyUpgradeOptions {
     }
 }
 
-#[derive(Derivative, Serialize, Deserialize)]
-#[derivative(
-    Clone(bound = ""),
-    Debug(bound = ""),
-    PartialEq(bound = ""),
-    Eq(bound = "")
-)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "type")]
-pub enum AnyClientState<G> {
-    Tendermint(client_state::ClientState<G>),
+pub enum AnyClientState {
+    Tendermint(client_state::ClientState),
     #[cfg(any(test, feature = "ics11_beefy"))]
     #[serde(skip)]
-    Beefy(beefy_client_state::ClientState<G>),
+    Beefy(beefy_client_state::ClientState),
     #[cfg(any(test, feature = "ics11_beefy"))]
     #[serde(skip)]
-    Near(beefy_client_state::ClientState<G>),
+    Near(beefy_client_state::ClientState),
     #[cfg(any(test, feature = "mocks"))]
-    Mock(MockClientState<G>),
+    Mock(MockClientState),
 }
 
-impl<G> AnyClientState<G> {
+impl AnyClientState {
     pub fn latest_height(&self) -> Height {
         match self {
             Self::Tendermint(tm_state) => tm_state.latest_height(),
@@ -229,9 +225,9 @@ impl<G> AnyClientState<G> {
     }
 }
 
-impl<G> Protobuf<Any> for AnyClientState<G> {}
+impl Protobuf<Any> for AnyClientState {}
 
-impl<G> TryFrom<Any> for AnyClientState<G> {
+impl TryFrom<Any> for AnyClientState {
     type Error = Error;
 
     fn try_from(raw: Any) -> Result<Self, Self::Error> {
@@ -259,22 +255,22 @@ impl<G> TryFrom<Any> for AnyClientState<G> {
     }
 }
 
-impl<G> From<AnyClientState<G>> for Any {
-    fn from(value: AnyClientState<G>) -> Self {
+impl From<AnyClientState> for Any {
+    fn from(value: AnyClientState) -> Self {
         match value {
             AnyClientState::Tendermint(value) => Any {
                 type_url: TENDERMINT_CLIENT_STATE_TYPE_URL.to_string(),
-                value: value.encode_vec(),
+                value: value.encode_to_vec(),
             },
             #[cfg(any(test, feature = "ics11_beefy"))]
             AnyClientState::Beefy(value) => Any {
                 type_url: BEEFY_CLIENT_STATE_TYPE_URL.to_string(),
-                value: value.encode_vec(),
+                value: value.encode_to_vec(),
             },
             #[cfg(any(test, feature = "ics11_beefy"))]
             AnyClientState::Near(_) => Any {
                 type_url: BEEFY_CLIENT_STATE_TYPE_URL.to_string(),
-                value: value.encode_vec(),
+                value: value.encode_to_vec(),
             },
             #[cfg(any(test, feature = "mocks"))]
             AnyClientState::Mock(value) => Any {
@@ -285,32 +281,31 @@ impl<G> From<AnyClientState<G>> for Any {
     }
 }
 
-impl<G> ClientState for AnyClientState<G>
+impl ClientState for AnyClientState
 where
-    G: GlobalDefs + Clone,
-    G::HostFunctions: Sync + Send + Clone + Debug + Eq,
-
-    TendermintConsensusState: TryFrom<ConsensusStateOf<G>, Error = Error>,
-    ConsensusStateOf<G>: From<TendermintConsensusState>,
-
-    BeefyConsensusState: TryFrom<ConsensusStateOf<G>, Error = Error>,
-    ConsensusStateOf<G>: From<BeefyConsensusState>,
-
-    MockConsensusState: TryFrom<ConsensusStateOf<G>, Error = Error>,
-    ConsensusStateOf<G>: From<MockConsensusState>,
-
-    ConsensusStateOf<G>: Protobuf<Any>,
-    ConsensusStateOf<G>: TryFrom<Any>,
-    <ConsensusStateOf<G> as TryFrom<Any>>::Error: Display,
-    Any: From<ConsensusStateOf<G>>,
-
-    ClientStateOf<G>: Protobuf<Any>,
-    ClientStateOf<G>: TryFrom<Any>,
-    <ClientStateOf<G> as TryFrom<Any>>::Error: Display,
-    Any: From<ClientStateOf<G>>,
+// G: GlobalDefs + Clone,
+// Ctx::HostFunctions: Sync + Send + Clone + Debug + Eq,
+//
+// TendermintConsensusState: TryFrom<Ctx::AnyConsensusState, Error = Error>,
+// Ctx::AnyConsensusState: From<TendermintConsensusState>,
+//
+// BeefyConsensusState: TryFrom<Ctx::AnyConsensusState, Error = Error>,
+// Ctx::AnyConsensusState: From<BeefyConsensusState>,
+//
+// MockConsensusState: TryFrom<Ctx::AnyConsensusState, Error = Error>,
+// Ctx::AnyConsensusState: From<MockConsensusState>,
+//
+// Ctx::AnyConsensusState: Protobuf<Any>,
+// Ctx::AnyConsensusState: TryFrom<Any>,
+// <Ctx::AnyConsensusState as TryFrom<Any>>::Error: Display,
+// Any: From<Ctx::AnyConsensusState>,
+//
+// Ctx::AnyClientState: Protobuf<Any>,
+// Ctx::AnyClientState: TryFrom<Any>,
+// <Ctx::AnyClientState as TryFrom<Any>>::Error: Display,
+// Any: From<Ctx::AnyClientState>,
 {
     type UpgradeOptions = AnyUpgradeOptions;
-    type ClientDef = AnyClient<G>;
 
     fn chain_id(&self) -> ChainId {
         match self {
@@ -326,20 +321,6 @@ where
 
     fn client_type(&self) -> ClientType {
         self.client_type()
-    }
-
-    fn client_def(&self) -> Self::ClientDef {
-        match self {
-            AnyClientState::Tendermint(_tm_state) => {
-                AnyClient::Tendermint(TendermintClient::default())
-            }
-            #[cfg(any(test, feature = "ics11_beefy"))]
-            AnyClientState::Beefy(_bf_state) => AnyClient::Beefy(BeefyClient::default()),
-            #[cfg(any(test, feature = "ics11_beefy"))]
-            AnyClientState::Near(_) => todo!(),
-            #[cfg(any(test, feature = "mocks"))]
-            AnyClientState::Mock(_mock_state) => AnyClient::Mock(MockClient::default()),
-        }
     }
 
     fn latest_height(&self) -> Height {
@@ -392,18 +373,44 @@ where
             AnyClientState::Mock(mock_state) => mock_state.expired(elapsed),
         }
     }
+
+    fn downcast<T: Clone + core::any::Any>(self) -> T {
+        <dyn core::any::Any>::downcast_ref(&self)
+            .cloned()
+            .expect("downcast failed")
+    }
+
+    fn wrap(sub_state: &dyn core::any::Any) -> Self {
+        if let Some(state) = sub_state.downcast_ref::<TendermintClientState>() {
+            return AnyClientState::Tendermint(state.clone());
+        }
+        #[cfg(any(test, feature = "ics11_beefy"))]
+        if let Some(state) = sub_state.downcast_ref::<beefy_client_state::ClientState>() {
+            return AnyClientState::Beefy(state.clone());
+        }
+        // TODO: wrap near client state
+        #[cfg(any(test, feature = "mocks"))]
+        if let Some(state) = sub_state.downcast_ref::<MockClientState>() {
+            return AnyClientState::Mock(state.clone());
+        }
+        panic!("unknown client state type")
+    }
+
+    fn encode_to_vec(&self) -> Vec<u8> {
+        todo!()
+    }
 }
 
 #[derive(Derivative, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[derivative(Clone(bound = ""))]
 #[serde(tag = "type")]
-pub struct IdentifiedAnyClientState<G> {
+pub struct IdentifiedAnyClientState {
     pub client_id: ClientId,
-    pub client_state: AnyClientState<G>,
+    pub client_state: AnyClientState,
 }
 
-impl<G> IdentifiedAnyClientState<G> {
-    pub fn new(client_id: ClientId, client_state: AnyClientState<G>) -> Self {
+impl IdentifiedAnyClientState {
+    pub fn new(client_id: ClientId, client_state: AnyClientState) -> Self {
         IdentifiedAnyClientState {
             client_id,
             client_state,
@@ -411,17 +418,17 @@ impl<G> IdentifiedAnyClientState<G> {
     }
 }
 
-impl<G> Protobuf<IdentifiedClientState> for IdentifiedAnyClientState<G>
+impl Protobuf<IdentifiedClientState> for IdentifiedAnyClientState
 where
-    IdentifiedAnyClientState<G>: TryFrom<IdentifiedClientState>,
-    <IdentifiedAnyClientState<G> as TryFrom<IdentifiedClientState>>::Error: Display,
+    IdentifiedAnyClientState: TryFrom<IdentifiedClientState>,
+    <IdentifiedAnyClientState as TryFrom<IdentifiedClientState>>::Error: Display,
 {
 }
 
-impl<G> TryFrom<IdentifiedClientState> for IdentifiedAnyClientState<G>
+impl TryFrom<IdentifiedClientState> for IdentifiedAnyClientState
 where
-    AnyClientState<G>: TryFrom<Any>,
-    Error: From<<AnyClientState<G> as TryFrom<Any>>::Error>,
+    AnyClientState: TryFrom<Any>,
+    Error: From<<AnyClientState as TryFrom<Any>>::Error>,
 {
     type Error = Error;
 
@@ -438,8 +445,8 @@ where
     }
 }
 
-impl<G> From<IdentifiedAnyClientState<G>> for IdentifiedClientState {
-    fn from(value: IdentifiedAnyClientState<G>) -> Self {
+impl From<IdentifiedAnyClientState> for IdentifiedClientState {
+    fn from(value: IdentifiedAnyClientState) -> Self {
         IdentifiedClientState {
             client_id: value.client_id.to_string(),
             client_state: Some(value.client_state.into()),

@@ -13,7 +13,6 @@ use tendermint_proto::Protobuf;
 
 use crate::clients::ics07_tendermint::client_def::TendermintClient;
 use crate::clients::ics07_tendermint::consensus_state::ConsensusState;
-use crate::clients::{ClientStateOf, ConsensusStateOf, GlobalDefs};
 use ibc_proto::ibc::lightclients::tendermint::v1::ClientState as RawClientState;
 
 use crate::clients::ics07_tendermint::error::Error;
@@ -34,7 +33,7 @@ use crate::Height;
     Debug(bound = ""),
     Clone(bound = "")
 )]
-pub struct ClientState<G> {
+pub struct ClientState {
     pub chain_id: ChainId,
     pub trust_level: TrustThreshold,
     pub trusting_period: Duration,
@@ -44,12 +43,11 @@ pub struct ClientState<G> {
     pub proof_specs: ProofSpecs,
     pub upgrade_path: Vec<String>,
     pub frozen_height: Option<Height>,
-    pub _phantom: PhantomData<G>,
 }
 
-impl<G> Protobuf<RawClientState> for ClientState<G> {}
+impl Protobuf<RawClientState> for ClientState {}
 
-impl<G> ClientState<G> {
+impl ClientState {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         chain_id: ChainId,
@@ -60,7 +58,7 @@ impl<G> ClientState<G> {
         latest_height: Height,
         proof_specs: ProofSpecs,
         upgrade_path: Vec<String>,
-    ) -> Result<ClientState<G>, Error> {
+    ) -> Result<ClientState, Error> {
         // Basic validation of trusting period and unbonding period: each should be non-zero.
         if trusting_period <= Duration::new(0, 0) {
             return Err(Error::invalid_trusting_period(format!(
@@ -115,7 +113,6 @@ impl<G> ClientState<G> {
             proof_specs,
             upgrade_path,
             frozen_height: None,
-            _phantom: Default::default(),
         })
     }
 
@@ -158,10 +155,8 @@ impl<G> ClientState<G> {
         ClientType::Tendermint
     }
 
-    pub fn client_def(&self) -> TendermintClient<G>
-    where
-        G: GlobalDefs,
-    {
+    pub fn client_def(&self) -> TendermintClient
+where {
         TendermintClient::default()
     }
 
@@ -254,25 +249,24 @@ pub struct UpgradeOptions {
     pub unbonding_period: Duration,
 }
 
-impl<G> crate::core::ics02_client::client_state::ClientState for ClientState<G>
+impl crate::core::ics02_client::client_state::ClientState for ClientState
 where
-    G: GlobalDefs + Clone,
-    ConsensusState: TryFrom<ConsensusStateOf<G>, Error = Ics02Error>,
-    ConsensusStateOf<G>: From<ConsensusState>,
-
-    ConsensusState: TryFrom<ConsensusStateOf<G>, Error = Ics02Error>,
-    ConsensusStateOf<G>: From<ConsensusState>,
-    ConsensusStateOf<G>: Protobuf<Any>,
-    <ConsensusStateOf<G> as TryFrom<Any>>::Error: Display,
-    Any: From<ConsensusStateOf<G>>,
-
-    ClientStateOf<G>: TryFrom<Any>,
-    ClientStateOf<G>: Protobuf<Any>,
-    <ClientStateOf<G> as TryFrom<Any>>::Error: Display,
-    Any: From<ClientStateOf<G>>,
+// G: GlobalDefs + Clone,
+// ConsensusState: TryFrom<Ctx::AnyConsensusState, Error = Ics02Error>,
+// Ctx::AnyConsensusState: From<ConsensusState>,
+//
+// ConsensusState: TryFrom<Ctx::AnyConsensusState, Error = Ics02Error>,
+// Ctx::AnyConsensusState: From<ConsensusState>,
+// Ctx::AnyConsensusState: Protobuf<Any>,
+// <Ctx::AnyConsensusState as TryFrom<Any>>::Error: Display,
+// Any: From<Ctx::AnyConsensusState>,
+//
+// Ctx::AnyClientState: TryFrom<Any>,
+// Ctx::AnyClientState: Protobuf<Any>,
+// <Ctx::AnyClientState as TryFrom<Any>>::Error: Display,
+// Any: From<Ctx::AnyClientState>,
 {
     type UpgradeOptions = UpgradeOptions;
-    type ClientDef = TendermintClient<G>;
 
     fn chain_id(&self) -> ChainId {
         self.chain_id()
@@ -282,12 +276,12 @@ where
         self.client_type()
     }
 
-    fn client_def(&self) -> Self::ClientDef {
-        self.client_def()
-    }
-
     fn latest_height(&self) -> Height {
         self.latest_height()
+    }
+
+    fn is_frozen(&self) -> bool {
+        todo!()
     }
 
     fn frozen_height(&self) -> Option<Height> {
@@ -306,9 +300,21 @@ where
     fn expired(&self, elapsed: Duration) -> bool {
         self.expired(elapsed)
     }
+
+    fn downcast<T: Clone + core::any::Any>(self) -> T {
+        todo!()
+    }
+
+    fn wrap(sub_state: &dyn core::any::Any) -> Self {
+        todo!()
+    }
+
+    fn encode_to_vec(&self) -> Vec<u8> {
+        todo!()
+    }
 }
 
-impl<G> TryFrom<RawClientState> for ClientState<G> {
+impl TryFrom<RawClientState> for ClientState {
     type Error = Error;
 
     fn try_from(raw: RawClientState) -> Result<Self, Self::Error> {
@@ -353,13 +359,12 @@ impl<G> TryFrom<RawClientState> for ClientState<G> {
             frozen_height,
             upgrade_path: raw.upgrade_path,
             proof_specs: raw.proof_specs.into(),
-            _phantom: Default::default(),
         })
     }
 }
 
-impl<G> From<ClientState<G>> for RawClientState {
-    fn from(value: ClientState<G>) -> Self {
+impl From<ClientState> for RawClientState {
+    fn from(value: ClientState) -> Self {
         RawClientState {
             chain_id: value.chain_id.to_string(),
             trust_level: Some(value.trust_level.into()),
@@ -501,7 +506,7 @@ mod tests {
         for test in tests {
             let p = test.params.clone();
 
-            let cs_result = ClientState::<TestGlobalDefs>::new(
+            let cs_result = ClientState::new(
                 p.id,
                 p.trust_level,
                 p.trusting_period,
@@ -581,7 +586,7 @@ mod tests {
         ];
 
         for test in tests {
-            let res = ClientState::<TestGlobalDefs>::verify_delay_passed(
+            let res = ClientState::verify_delay_passed(
                 test.params.current_time,
                 test.params.current_height,
                 test.params.processed_time,
@@ -618,8 +623,7 @@ mod tests {
         struct Test {
             name: String,
             height: Height,
-            setup:
-                Option<Box<dyn FnOnce(ClientState<TestGlobalDefs>) -> ClientState<TestGlobalDefs>>>,
+            setup: Option<Box<dyn FnOnce(ClientState) -> ClientState>>,
             want_pass: bool,
         }
 
@@ -690,7 +694,7 @@ pub mod test_util {
     use crate::core::ics24_host::identifier::ChainId;
     use crate::mock::client_def::TestGlobalDefs;
 
-    pub fn get_dummy_tendermint_client_state(tm_header: Header) -> AnyClientState<TestGlobalDefs> {
+    pub fn get_dummy_tendermint_client_state(tm_header: Header) -> AnyClientState {
         AnyClientState::Tendermint(
             ClientState::new(
                 ChainId::from(tm_header.chain_id.clone()),

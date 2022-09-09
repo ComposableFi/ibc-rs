@@ -6,16 +6,18 @@ use crate::prelude::*;
 use core::fmt;
 use core::fmt::Debug;
 
+use crate::core::ics02_client::client_def::ClientDef;
 use serde_derive::{Deserialize, Serialize};
 
 use super::error::Error;
 
-/// Client types other traits depend on (client configuration).
-pub trait ClientTypes {
-    type Header: Header;
-    type ClientState: ClientState + Eq;
-    type ConsensusState: ConsensusState + Eq;
-}
+// Client types other traits depend on (client configuration).
+// pub trait ClientTypes {
+//     type Header: Header;
+//     type ClientState: ClientState + Eq;
+//     type ConsensusState: ConsensusState + Eq;
+//     type ClientDef: ClientDef;
+// }
 
 /// Type of the client, depending on the specific consensus algorithm.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]

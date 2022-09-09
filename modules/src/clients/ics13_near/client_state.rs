@@ -2,9 +2,6 @@ use super::types::{CryptoHash, LightClientBlockView, ValidatorStakeView};
 
 use crate::clients::ics13_near::client_def::NearClient;
 use crate::clients::ics13_near::consensus_state::ConsensusState;
-use crate::clients::{ConsensusStateOf, GlobalDefs};
-
-use crate::core::ics02_client::error::Error;
 use crate::core::{
     ics02_client::{client_state::ClientState, client_type::ClientType},
     ics24_host::identifier::ChainId,
@@ -22,19 +19,18 @@ use std::time::Duration;
     Debug(bound = ""),
     Clone(bound = "")
 )]
-pub struct NearClientState<G> {
+pub struct NearClientState {
     chain_id: ChainId,
     head: LightClientBlockView,
     current_epoch: CryptoHash,
     next_epoch: CryptoHash,
     current_validators: Vec<ValidatorStakeView>,
     next_validators: Vec<ValidatorStakeView>,
-    _phantom: PhantomData<G>,
 }
 
 pub struct NearUpgradeOptions {}
 
-impl<G> NearClientState<G> {
+impl NearClientState {
     pub fn get_validators_by_epoch(
         &self,
         epoch_id: &CryptoHash,
@@ -53,14 +49,12 @@ impl<G> NearClientState<G> {
     }
 }
 
-impl<G: GlobalDefs> ClientState for NearClientState<G>
+impl ClientState for NearClientState
 where
-    ConsensusState: TryFrom<ConsensusStateOf<G>, Error = Error>,
-    ConsensusStateOf<G>: From<ConsensusState>,
+// ConsensusState: TryFrom<Ctx::AnyConsensusState, Error = Error>,
+// Ctx::AnyConsensusState: From<ConsensusState>,
 {
     type UpgradeOptions = NearUpgradeOptions;
-
-    type ClientDef = NearClient<G>;
 
     fn chain_id(&self) -> ChainId {
         self.chain_id.clone()
@@ -68,10 +62,6 @@ where
 
     fn client_type(&self) -> ClientType {
         ClientType::Near
-    }
-
-    fn client_def(&self) -> Self::ClientDef {
-        todo!()
     }
 
     fn latest_height(&self) -> crate::Height {
@@ -98,6 +88,18 @@ where
     }
 
     fn expired(&self, _elapsed: Duration) -> bool {
+        todo!()
+    }
+
+    fn downcast<T: Clone + core::any::Any>(self) -> T {
+        todo!()
+    }
+
+    fn wrap(sub_state: &dyn core::any::Any) -> Self {
+        todo!()
+    }
+
+    fn encode_to_vec(&self) -> Vec<u8> {
         todo!()
     }
 }

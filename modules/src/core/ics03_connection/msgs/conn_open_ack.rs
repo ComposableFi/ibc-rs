@@ -7,7 +7,7 @@ use ibc_proto::ibc::core::connection::v1;
 use ibc_proto::ibc::core::connection::v1::MsgConnectionOpenAck as RawMsgConnectionOpenAck;
 use tendermint_proto::Protobuf;
 
-use crate::core::ics02_client::client_type::ClientTypes;
+use crate::core::ics02_client::context::ClientKeeper;
 use crate::core::ics03_connection::error::Error;
 use crate::core::ics03_connection::version::Version;
 use crate::core::ics23_commitment::commitment::CommitmentProofBytes;
@@ -21,16 +21,16 @@ pub const TYPE_URL: &str = "/ibc.core.connection.v1.MsgConnectionOpenAck";
 
 /// Message definition `MsgConnectionOpenAck`  (i.e., `ConnOpenAck` datagram).
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct MsgConnectionOpenAck<C: ClientTypes> {
+pub struct MsgConnectionOpenAck<C: ClientKeeper> {
     pub connection_id: ConnectionId,
     pub counterparty_connection_id: ConnectionId,
-    pub client_state: Option<C::ClientState>,
+    pub client_state: Option<C::AnyClientState>,
     pub proofs: Proofs,
     pub version: Version,
     pub signer: Signer,
 }
 
-impl<C: ClientTypes> MsgConnectionOpenAck<C> {
+impl<C: ClientKeeper> MsgConnectionOpenAck<C> {
     /// Getter for accessing the `consensus_height` field from this message. Returns the special
     /// value `Height(0)` if this field is not set.
     pub fn consensus_height(&self) -> Height {
@@ -43,8 +43,8 @@ impl<C: ClientTypes> MsgConnectionOpenAck<C> {
 
 impl<C> Msg for MsgConnectionOpenAck<C>
 where
-    C: ClientTypes + Clone,
-    Any: From<C::ClientState>,
+    C: ClientKeeper + Clone,
+    Any: From<C::AnyClientState>,
 {
     type ValidationError = Error;
     type Raw = RawMsgConnectionOpenAck;
@@ -60,8 +60,8 @@ where
 
 impl<C> Protobuf<RawMsgConnectionOpenAck> for MsgConnectionOpenAck<C>
 where
-    C: ClientTypes + Clone,
-    Any: From<C::ClientState>,
+    C: ClientKeeper + Clone,
+    Any: From<C::AnyClientState>,
     MsgConnectionOpenAck<C>: TryFrom<v1::MsgConnectionOpenAck>,
     <MsgConnectionOpenAck<C> as TryFrom<v1::MsgConnectionOpenAck>>::Error: Display,
 {
@@ -69,8 +69,8 @@ where
 
 impl<C> TryFrom<RawMsgConnectionOpenAck> for MsgConnectionOpenAck<C>
 where
-    C: ClientTypes,
-    C::ClientState: TryFrom<Any, Error = ics02_client::error::Error>,
+    C: ClientKeeper,
+    C::AnyClientState: TryFrom<Any, Error = ics02_client::error::Error>,
 {
     type Error = Error;
 
@@ -109,7 +109,7 @@ where
                 .map_err(Error::invalid_identifier)?,
             client_state: msg
                 .client_state
-                .map(C::ClientState::try_from)
+                .map(C::AnyClientState::try_from)
                 .transpose()
                 .map_err(Error::ics02_client)?,
             version: msg.version.ok_or_else(Error::empty_versions)?.try_into()?,
@@ -128,8 +128,8 @@ where
 
 impl<C> From<MsgConnectionOpenAck<C>> for RawMsgConnectionOpenAck
 where
-    C: ClientTypes,
-    Any: From<C::ClientState>,
+    C: ClientKeeper,
+    Any: From<C::AnyClientState>,
 {
     fn from(ics_msg: MsgConnectionOpenAck<C>) -> Self {
         RawMsgConnectionOpenAck {
@@ -191,8 +191,7 @@ pub mod test_util {
                 revision_height: consensus_height,
             }),
             client_state: Some(
-                AnyClientState::<TestGlobalDefs>::Mock(MockClientState::new(MockHeader::default()))
-                    .into(),
+                AnyClientState::Mock(MockClientState::new(MockHeader::default())).into(),
             ),
             proof_client: get_dummy_proof(),
             version: Some(Version::default().into()),
@@ -275,8 +274,7 @@ mod tests {
         .collect();
 
         for test in tests {
-            let msg =
-                MsgConnectionOpenAck::<ClientTypesOf<TestGlobalDefs>>::try_from(test.raw.clone());
+            let msg = MsgConnectionOpenAck::try_from(test.raw.clone());
 
             assert_eq!(
                 test.want_pass,
@@ -292,12 +290,9 @@ mod tests {
     #[test]
     fn to_and_from() {
         let raw = get_dummy_raw_msg_conn_open_ack(5, 6);
-        let msg =
-            MsgConnectionOpenAck::<ClientTypesOf<TestGlobalDefs>>::try_from(raw.clone()).unwrap();
+        let msg = MsgConnectionOpenAck::try_from(raw.clone()).unwrap();
         let raw_back = RawMsgConnectionOpenAck::from(msg.clone());
-        let msg_back =
-            MsgConnectionOpenAck::<ClientTypesOf<TestGlobalDefs>>::try_from(raw_back.clone())
-                .unwrap();
+        let msg_back = MsgConnectionOpenAck::try_from(raw_back.clone()).unwrap();
         assert_eq!(raw, raw_back);
         assert_eq!(msg, msg_back);
     }

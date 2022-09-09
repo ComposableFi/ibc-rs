@@ -1,11 +1,10 @@
 //! Protocol logic specific to processing ICS2 messages of type `MsgUpdateAnyClient`.
-use crate::clients::{ClientTypesOf, GlobalDefs};
 use core::fmt::Debug;
 
 use crate::core::ics02_client::client_consensus::ConsensusState;
 use crate::core::ics02_client::client_def::{ClientDef, ConsensusUpdateResult};
 use crate::core::ics02_client::client_state::ClientState;
-use crate::core::ics02_client::client_type::ClientTypes;
+use crate::core::ics02_client::context::ClientKeeper;
 use crate::core::ics02_client::error::Error;
 use crate::core::ics02_client::events::Attributes;
 use crate::core::ics02_client::handler::ClientResult;
@@ -21,20 +20,20 @@ use crate::timestamp::Timestamp;
 /// The result following the successful processing of a `MsgUpdateAnyClient` message. Preferably
 /// this data type should be used with a qualified name `update_client::Result` to avoid ambiguity.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Result<C: ClientTypes> {
+pub struct Result<C: ClientKeeper> {
     pub client_id: ClientId,
-    pub client_state: C::ClientState,
+    pub client_state: C::AnyClientState,
     pub consensus_state: Option<ConsensusUpdateResult<C>>,
     pub processed_time: Timestamp,
     pub processed_height: Height,
 }
 
-pub fn process<G: GlobalDefs, Ctx>(
+pub fn process<Ctx>(
     ctx: &Ctx,
-    msg: MsgUpdateAnyClient<G::ClientTypes>,
-) -> HandlerResult<ClientResult<Ctx::ClientTypes>, Error>
+    msg: MsgUpdateAnyClient<Ctx>,
+) -> HandlerResult<ClientResult<Ctx>, Error>
 where
-    Ctx: ReaderContext<ClientTypes = ClientTypesOf<G>>,
+    Ctx: ReaderContext,
 {
     let mut output = HandlerOutput::builder();
 
@@ -47,7 +46,7 @@ where
     // Read client type from the host chain store. The client should already exist.
     let client_type = ctx.client_type(&client_id)?;
 
-    let client_def = <G::ClientDef as ClientDef>::from_client_type(client_type);
+    let client_def = <Ctx::ClientDef as ClientDef>::from_client_type(client_type);
 
     // Read client state from the host chain store.
     let client_state = ctx.client_state(&client_id)?;
@@ -113,7 +112,7 @@ where
         .update_state(ctx, client_id.clone(), client_state, header)
         .map_err(|e| Error::header_verification_failure(e.to_string()))?;
 
-    let result = ClientResult::<Ctx::ClientTypes>::Update(Result {
+    let result = ClientResult::<Ctx>::Update(Result {
         client_id,
         client_state: new_client_state,
         consensus_state: Some(new_consensus_state),

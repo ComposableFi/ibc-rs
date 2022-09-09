@@ -1,6 +1,5 @@
 //! Protocol logic specific to processing ICS3 messages of type `MsgConnectionOpenAck`.
 
-use crate::clients::{ClientStateOf, ConsensusStateOf, GlobalDefs};
 use crate::core::ics03_connection::connection::{ConnectionEnd, Counterparty, State};
 use crate::core::ics03_connection::error::Error;
 use crate::core::ics03_connection::events::Attributes;
@@ -18,19 +17,19 @@ use core::fmt::Display;
 use ibc_proto::google::protobuf::Any;
 use tendermint_proto::Protobuf;
 
-pub(crate) fn process<G: GlobalDefs, Ctx: ReaderContext<ClientTypes = G::ClientTypes>>(
+pub(crate) fn process<Ctx: ReaderContext>(
     ctx: &Ctx,
-    msg: MsgConnectionOpenAck<G::ClientTypes>,
+    msg: MsgConnectionOpenAck<Ctx>,
 ) -> HandlerResult<ConnectionResult, Error>
 where
-    ClientStateOf<G>: Protobuf<Any>,
-    Any: From<ClientStateOf<G>>,
-    ClientStateOf<G>: TryFrom<Any>,
-    <ClientStateOf<G> as TryFrom<Any>>::Error: Display,
-    ConsensusStateOf<G>: Protobuf<Any>,
-    Any: From<ConsensusStateOf<G>>,
-    ConsensusStateOf<G>: TryFrom<Any>,
-    <ConsensusStateOf<G> as TryFrom<Any>>::Error: Display,
+    // Ctx::AnyClientState: Protobuf<Any>,
+    // Any: From<Ctx::AnyClientState>,
+    // Ctx::AnyClientState: TryFrom<Any>,
+    // <Ctx::AnyClientState as TryFrom<Any>>::Error: Display,
+    // Ctx::AnyConsensusState: Protobuf<Any>,
+    // Any: From<Ctx::AnyConsensusState>,
+    // Ctx::AnyConsensusState: TryFrom<Any>,
+    // <Ctx::AnyConsensusState as TryFrom<Any>>::Error: Display,
 {
     let mut output = HandlerOutput::builder();
 
@@ -96,7 +95,7 @@ where
     ctx.validate_self_client(&client_state)
         .map_err(Error::ics02_client)?;
 
-    verify_connection_proof::<G, Ctx>(
+    verify_connection_proof::<Ctx>(
         ctx,
         msg.proofs.height(),
         &conn_end,
@@ -105,7 +104,7 @@ where
         msg.proofs.object_proof(),
     )?;
 
-    verify_client_proof::<G, Ctx>(
+    verify_client_proof::<Ctx>(
         ctx,
         msg.proofs.height(),
         &conn_end,
@@ -114,7 +113,7 @@ where
         client_proof,
     )?;
 
-    verify_consensus_proof::<G, Ctx>(ctx, msg.proofs.height(), &conn_end, &consensus_proof)?;
+    verify_consensus_proof::<Ctx>(ctx, msg.proofs.height(), &conn_end, &consensus_proof)?;
 
     output.log("success: connection verification passed");
 
@@ -165,15 +164,13 @@ mod tests {
         struct Test {
             name: String,
             ctx: MockContext,
-            msg: ConnectionMsg<ClientTypesOf<TestGlobalDefs>>,
+            msg: ConnectionMsg,
             want_pass: bool,
             match_error: Box<dyn FnOnce(error::Error)>,
         }
 
-        let msg_ack = MsgConnectionOpenAck::<ClientTypesOf<TestGlobalDefs>>::try_from(
-            get_dummy_raw_msg_conn_open_ack(10, 10),
-        )
-        .unwrap();
+        let msg_ack =
+            MsgConnectionOpenAck::try_from(get_dummy_raw_msg_conn_open_ack(10, 10)).unwrap();
         let conn_id = msg_ack.connection_id.clone();
         let counterparty_conn_id = msg_ack.counterparty_connection_id.clone();
 

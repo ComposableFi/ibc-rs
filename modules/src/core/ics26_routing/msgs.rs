@@ -3,7 +3,6 @@ use core::fmt::{Debug, Display};
 
 use ibc_proto::google::protobuf::Any;
 
-use crate::core::ics02_client::client_type::ClientTypes;
 use crate::core::ics02_client::msgs::create_client::MsgCreateAnyClient;
 use crate::core::ics02_client::msgs::update_client::MsgUpdateAnyClient;
 use crate::core::ics02_client::msgs::upgrade_client::MsgUpgradeAnyClient;
@@ -19,6 +18,7 @@ use crate::core::ics04_channel::msgs::{
 };
 use crate::core::ics26_routing::error::Error;
 
+use crate::core::ics02_client::context::ClientKeeper;
 use ibc_proto::ibc::core::client::v1::{MsgCreateClient, MsgUpdateClient, MsgUpgradeClient};
 use ibc_proto::ibc::core::connection;
 use tendermint_proto::Protobuf;
@@ -27,7 +27,7 @@ use tendermint_proto::Protobuf;
 #[derive(Clone, Debug)]
 pub enum Ics26Envelope<C>
 where
-    C: ClientTypes + Eq + Clone + Debug,
+    C: ClientKeeper + Eq + Clone + Debug,
 {
     Ics2Msg(ClientMsg<C>),
     Ics3Msg(ConnectionMsg<C>),
@@ -37,10 +37,10 @@ where
 
 impl<C> TryFrom<Any> for Ics26Envelope<C>
 where
-    C: ClientTypes + Clone + Debug + PartialEq + Eq,
-    Any: From<C::ClientState>,
-    Any: From<C::ConsensusState>,
-    Any: From<C::Header>,
+    C: ClientKeeper + Clone + Debug + PartialEq + Eq,
+    Any: From<C::AnyClientState>,
+    Any: From<C::AnyConsensusState>,
+    Any: From<C::AnyHeader>,
     MsgCreateAnyClient<C>: TryFrom<MsgCreateClient>,
     <MsgCreateAnyClient<C> as TryFrom<MsgCreateClient>>::Error: Display,
     MsgCreateAnyClient<C>: Protobuf<MsgCreateClient>,

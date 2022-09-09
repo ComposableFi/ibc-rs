@@ -44,6 +44,12 @@ pub trait ConsensusState: Clone + Debug + Send + Sync {
 
     /// Returns the timestamp of the state.
     fn timestamp(&self) -> Timestamp;
+
+    fn downcast<T: Clone + 'static>(self) -> T;
+
+    fn wrap(sub_state: &dyn core::any::Any) -> Self;
+
+    fn encode_to_vec(&self) -> Vec<u8>;
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
@@ -104,17 +110,17 @@ impl From<AnyConsensusState> for Any {
         match value {
             AnyConsensusState::Tendermint(value) => Any {
                 type_url: TENDERMINT_CONSENSUS_STATE_TYPE_URL.to_string(),
-                value: value.encode_vec(),
+                value: value.encode_to_vec(),
             },
             #[cfg(any(test, feature = "ics11_beefy"))]
             AnyConsensusState::Beefy(value) => Any {
                 type_url: BEEFY_CONSENSUS_STATE_TYPE_URL.to_string(),
-                value: value.encode_vec(),
+                value: value.encode_to_vec(),
             },
             #[cfg(any(test, feature = "mocks"))]
             AnyConsensusState::Mock(value) => Any {
                 type_url: MOCK_CONSENSUS_STATE_TYPE_URL.to_string(),
-                value: value.encode_vec(),
+                value: value.encode_to_vec(),
             },
         }
     }
@@ -183,6 +189,18 @@ impl ConsensusState for AnyConsensusState {
             #[cfg(any(test, feature = "mocks"))]
             Self::Mock(mock_state) => mock_state.timestamp(),
         }
+    }
+
+    fn downcast<T: Clone + 'static>(self) -> T {
+        todo!()
+    }
+
+    fn wrap(sub_state: &dyn core::any::Any) -> Self {
+        todo!()
+    }
+
+    fn encode_to_vec(&self) -> Vec<u8> {
+        todo!()
     }
 }
 

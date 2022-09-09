@@ -10,7 +10,7 @@ use ibc_proto::ibc::core::client::v1::{MsgCreateClient as RawMsgCreateClient, Ms
 
 use crate::core::ics02_client::client_consensus::ConsensusState;
 use crate::core::ics02_client::client_state::ClientState;
-use crate::core::ics02_client::client_type::ClientTypes;
+use crate::core::ics02_client::context::ClientKeeper;
 use crate::core::ics02_client::error::Error;
 use crate::signer::Signer;
 use crate::tx_msg::Msg;
@@ -19,16 +19,16 @@ pub const TYPE_URL: &str = "/ibc.core.client.v1.MsgCreateClient";
 
 /// A type of message that triggers the creation of a new on-chain (IBC) client.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct MsgCreateAnyClient<C: ClientTypes> {
-    pub client_state: C::ClientState,
-    pub consensus_state: C::ConsensusState,
+pub struct MsgCreateAnyClient<C: ClientKeeper> {
+    pub client_state: C::AnyClientState,
+    pub consensus_state: C::AnyConsensusState,
     pub signer: Signer,
 }
 
-impl<C: ClientTypes> MsgCreateAnyClient<C> {
+impl<C: ClientKeeper> MsgCreateAnyClient<C> {
     pub fn new(
-        client_state: C::ClientState,
-        consensus_state: C::ConsensusState,
+        client_state: C::AnyClientState,
+        consensus_state: C::AnyConsensusState,
         signer: Signer,
     ) -> Result<Self, Error> {
         if client_state.client_type() != consensus_state.client_type() {
@@ -48,9 +48,9 @@ impl<C: ClientTypes> MsgCreateAnyClient<C> {
 
 impl<C> Msg for MsgCreateAnyClient<C>
 where
-    C: ClientTypes + Clone,
-    Any: From<C::ClientState>,
-    Any: From<C::ConsensusState>,
+    C: ClientKeeper + Clone,
+    Any: From<C::AnyClientState>,
+    Any: From<C::AnyConsensusState>,
 {
     type ValidationError = crate::core::ics24_host::error::ValidationError;
     type Raw = RawMsgCreateClient;
@@ -66,9 +66,9 @@ where
 
 impl<C> Protobuf<RawMsgCreateClient> for MsgCreateAnyClient<C>
 where
-    C: ClientTypes + Clone,
-    Any: From<C::ClientState>,
-    Any: From<C::ConsensusState>,
+    C: ClientKeeper + Clone,
+    Any: From<C::AnyClientState>,
+    Any: From<C::AnyConsensusState>,
     MsgCreateAnyClient<C>: TryFrom<MsgCreateClient>,
     <MsgCreateAnyClient<C> as TryFrom<MsgCreateClient>>::Error: Display,
 {
@@ -76,10 +76,10 @@ where
 
 impl<C> TryFrom<RawMsgCreateClient> for MsgCreateAnyClient<C>
 where
-    C: ClientTypes,
-    C::ClientState: TryFrom<Any>,
-    C::ConsensusState: TryFrom<Any>,
-    Error: From<<C::ClientState as TryFrom<Any>>::Error>,
+    C: ClientKeeper,
+    C::AnyClientState: TryFrom<Any>,
+    C::AnyConsensusState: TryFrom<Any>,
+    Error: From<<C::AnyClientState as TryFrom<Any>>::Error>,
 {
     type Error = Error;
 
@@ -90,11 +90,11 @@ where
 
         let consensus_state = raw
             .consensus_state
-            .and_then(|cs| C::ConsensusState::try_from(cs).ok())
+            .and_then(|cs| C::AnyConsensusState::try_from(cs).ok())
             .ok_or_else(Error::missing_raw_consensus_state)?;
 
         MsgCreateAnyClient::new(
-            C::ClientState::try_from(raw_client_state)?,
+            C::AnyClientState::try_from(raw_client_state)?,
             consensus_state,
             raw.signer.parse().map_err(Error::signer)?,
         )
@@ -103,9 +103,9 @@ where
 
 impl<C> From<MsgCreateAnyClient<C>> for RawMsgCreateClient
 where
-    C: ClientTypes,
-    Any: From<C::ClientState>,
-    Any: From<C::ConsensusState>,
+    C: ClientKeeper,
+    Any: From<C::AnyClientState>,
+    Any: From<C::AnyConsensusState>,
 {
     fn from(ics_msg: MsgCreateAnyClient<C>) -> Self {
         RawMsgCreateClient {
@@ -138,7 +138,7 @@ mod tests {
         let tm_header = get_dummy_tendermint_header();
         let tm_client_state = get_dummy_tendermint_client_state(tm_header.clone());
 
-        let msg = MsgCreateAnyClient::<ClientTypesOf<TestGlobalDefs>>::new(
+        let msg = MsgCreateAnyClient::new(
             tm_client_state,
             AnyConsensusState::Tendermint(tm_header.try_into().unwrap()),
             signer,

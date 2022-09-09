@@ -1,6 +1,4 @@
-use crate::clients::{ClientStateOf, ConsensusStateOf, GlobalDefs};
 use crate::core::ics02_client::client_state::ClientState;
-use crate::core::ics02_client::client_type::ClientTypes;
 use crate::core::ics02_client::header::Header;
 use crate::core::ics02_client::msgs::update_client::MsgUpdateAnyClient;
 use crate::core::ics02_client::msgs::ClientMsg;
@@ -10,17 +8,13 @@ use crate::relayer::ics18_relayer::error::Error;
 
 /// Builds a `ClientMsg::UpdateClient` for a client with id `client_id` running on the `dest`
 /// context, assuming that the latest header on the source context is `src_header`.
-pub fn build_client_update_datagram<G: GlobalDefs, Ctx>(
+pub fn build_client_update_datagram<Ctx>(
     dest: &Ctx,
     client_id: &ClientId,
-    src_header: Ctx::Header,
-) -> Result<ClientMsg<G::ClientTypes>, Error>
+    src_header: Ctx::AnyHeader,
+) -> Result<ClientMsg<Ctx>, Error>
 where
-    Ctx: Ics18Context<
-        ConsensusState = ConsensusStateOf<G>,
-        ClientState = ClientStateOf<G>,
-        Header = <G::ClientTypes as ClientTypes>::Header,
-    >,
+    Ctx: Ics18Context,
 {
     // Check if client for ibc0 on ibc1 has been updated to latest height:
     // - query client state on destination chain

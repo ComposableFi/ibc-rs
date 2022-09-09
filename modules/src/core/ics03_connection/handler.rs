@@ -1,6 +1,6 @@
 //! This module implements the processing logic for ICS3 (connection open handshake) messages.
 
-use crate::clients::{ClientStateOf, ClientTypesOf, ConsensusStateOf, GlobalDefs};
+use crate::core::ics02_client::context::ClientKeeper;
 use crate::core::ics03_connection::connection::ConnectionEnd;
 use crate::core::ics03_connection::error::Error;
 use crate::core::ics03_connection::msgs::ConnectionMsg;
@@ -45,25 +45,25 @@ pub struct ConnectionResult {
 
 /// General entry point for processing any type of message related to the ICS3 connection open
 /// handshake protocol.
-pub fn dispatch<Ctx, G: GlobalDefs>(
+pub fn dispatch<Ctx: ReaderContext>(
     ctx: &Ctx,
-    msg: ConnectionMsg<G::ClientTypes>,
+    msg: ConnectionMsg<Ctx>,
 ) -> Result<HandlerOutput<ConnectionResult>, Error>
 where
-    Ctx: ReaderContext<ClientTypes = ClientTypesOf<G>> + Eq,
-    ClientStateOf<G>: Protobuf<Any>,
-    Any: From<ClientStateOf<G>>,
-    ClientStateOf<G>: TryFrom<Any>,
-    <ClientStateOf<G> as TryFrom<Any>>::Error: Display,
-    ConsensusStateOf<G>: Protobuf<Any>,
-    Any: From<ConsensusStateOf<G>>,
-    ConsensusStateOf<G>: TryFrom<Any>,
-    <ConsensusStateOf<G> as TryFrom<Any>>::Error: Display,
+    // Ctx: ReaderContext + Eq,
+    // Ctx::AnyClientState: Protobuf<Any>,
+    // Any: From<Ctx::AnyClientState>,
+    // Ctx::AnyClientState: TryFrom<Any>,
+    // <Ctx::AnyClientState as TryFrom<Any>>::Error: Display,
+    // Ctx::AnyConsensusState: Protobuf<Any>,
+    // Any: From<Ctx::AnyConsensusState>,
+    // Ctx::AnyConsensusState: TryFrom<Any>,
+    // <Ctx::AnyConsensusState as TryFrom<Any>>::Error: Display,
 {
     match msg {
         ConnectionMsg::ConnectionOpenInit(msg) => conn_open_init::process(ctx, msg),
-        ConnectionMsg::ConnectionOpenTry(msg) => conn_open_try::process::<G, _>(ctx, *msg),
-        ConnectionMsg::ConnectionOpenAck(msg) => conn_open_ack::process::<G, _>(ctx, *msg),
-        ConnectionMsg::ConnectionOpenConfirm(msg) => conn_open_confirm::process::<G, _>(ctx, msg),
+        ConnectionMsg::ConnectionOpenTry(msg) => conn_open_try::process::<_>(ctx, *msg),
+        ConnectionMsg::ConnectionOpenAck(msg) => conn_open_ack::process::<_>(ctx, *msg),
+        ConnectionMsg::ConnectionOpenConfirm(msg) => conn_open_confirm::process::<_>(ctx, msg),
     }
 }

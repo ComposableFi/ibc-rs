@@ -94,7 +94,7 @@ mod tests {
         struct Test {
             name: String,
             ctx: MockContext,
-            msg: ConnectionMsg<ClientTypesOf<TestGlobalDefs>>,
+            msg: ConnectionMsg,
             expected_versions: Vec<Version>,
             want_pass: bool,
         }

@@ -1,6 +1,5 @@
 //! Protocol logic specific to ICS4 messages of type `MsgChannelOpenTry`.
 
-use crate::clients::{ClientTypesOf, GlobalDefs};
 use crate::core::ics03_connection::connection::State as ConnectionState;
 use crate::core::ics04_channel::channel::{ChannelEnd, Counterparty, State};
 use crate::core::ics04_channel::error::Error;
@@ -14,13 +13,12 @@ use crate::events::IbcEvent;
 use crate::handler::{HandlerOutput, HandlerResult};
 use crate::prelude::*;
 
-pub(crate) fn process<G, Ctx>(
+pub(crate) fn process<Ctx>(
     ctx: &Ctx,
     msg: &MsgChannelOpenTry,
 ) -> HandlerResult<ChannelResult, Error>
 where
-    G: GlobalDefs,
-    Ctx: ReaderContext<ClientTypes = ClientTypesOf<G>>,
+    Ctx: ReaderContext,
 {
     let mut output = HandlerOutput::builder();
 
@@ -95,7 +93,7 @@ where
     );
 
     // 2. Actual proofs are verified now.
-    verify_channel_proofs::<G, Ctx>(
+    verify_channel_proofs::<Ctx>(
         ctx,
         msg.proofs.height(),
         &new_channel_end,

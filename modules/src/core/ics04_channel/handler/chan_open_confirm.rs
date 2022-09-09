@@ -1,6 +1,5 @@
 //! Protocol logic specific to ICS4 messages of type `MsgChannelOpenConfirm`.
 
-use crate::clients::{ClientTypesOf, GlobalDefs};
 use crate::core::ics03_connection::connection::State as ConnectionState;
 use crate::core::ics04_channel::channel::{ChannelEnd, Counterparty, State};
 use crate::core::ics04_channel::error::Error;
@@ -13,13 +12,12 @@ use crate::events::IbcEvent;
 use crate::handler::{HandlerOutput, HandlerResult};
 use crate::prelude::*;
 
-pub(crate) fn process<G, Ctx>(
+pub(crate) fn process<Ctx>(
     ctx: &Ctx,
     msg: &MsgChannelOpenConfirm,
 ) -> HandlerResult<ChannelResult, Error>
 where
-    G: GlobalDefs,
-    Ctx: ReaderContext<ClientTypes = ClientTypesOf<G>>,
+    Ctx: ReaderContext,
 {
     let mut output = HandlerOutput::builder();
 
@@ -72,7 +70,7 @@ where
         channel_end.version().clone(),
     );
     //2. Verify proofs
-    verify_channel_proofs::<G, Ctx>(
+    verify_channel_proofs::<Ctx>(
         ctx,
         msg.proofs.height(),
         &channel_end,

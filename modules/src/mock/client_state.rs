@@ -34,7 +34,7 @@ pub struct MockClientRecord {
     pub client_type: ClientType,
 
     /// The client state (representing only the latest height at the moment).
-    pub client_state: Option<AnyClientState<TestGlobalDefs>>,
+    pub client_state: Option<AnyClientState>,
 
     /// Mapping of heights to consensus states for this client.
     pub consensus_states: HashMap<Height, AnyConsensusState>,
@@ -50,15 +50,14 @@ pub struct MockClientRecord {
     PartialEq(bound = ""),
     Eq(bound = "")
 )]
-pub struct MockClientState<G> {
+pub struct MockClientState {
     pub header: MockHeader,
     pub frozen_height: Option<Height>,
-    pub _phantom: PhantomData<G>,
 }
 
-impl<G> Protobuf<RawMockClientState> for MockClientState<G> {}
+impl Protobuf<RawMockClientState> for MockClientState {}
 
-impl<G> MockClientState<G> {
+impl MockClientState {
     pub fn new(header: MockHeader) -> Self {
         Self {
             header,
@@ -72,13 +71,13 @@ impl<G> MockClientState<G> {
     }
 }
 
-impl<G> From<MockClientState<G>> for AnyClientState<G> {
-    fn from(mcs: MockClientState<G>) -> Self {
+impl From<MockClientState> for AnyClientState {
+    fn from(mcs: MockClientState) -> Self {
         Self::Mock(mcs)
     }
 }
 
-impl<G> TryFrom<RawMockClientState> for MockClientState<G> {
+impl TryFrom<RawMockClientState> for MockClientState {
     type Error = Error;
 
     fn try_from(raw: RawMockClientState) -> Result<Self, Self::Error> {
@@ -86,8 +85,8 @@ impl<G> TryFrom<RawMockClientState> for MockClientState<G> {
     }
 }
 
-impl<G> From<MockClientState<G>> for RawMockClientState {
-    fn from(value: MockClientState<G>) -> Self {
+impl From<MockClientState> for RawMockClientState {
+    fn from(value: MockClientState) -> Self {
         RawMockClientState {
             header: Some(ibc_proto::ibc::mock::Header {
                 height: Some(value.header.height().into()),
@@ -97,13 +96,13 @@ impl<G> From<MockClientState<G>> for RawMockClientState {
     }
 }
 
-impl<G: GlobalDefs + Clone> ClientState for MockClientState<G>
+impl ClientState for MockClientState
 where
-    MockConsensusState: TryFrom<ConsensusStateOf<G>, Error = Error>,
-    ConsensusStateOf<G>: From<MockConsensusState>,
+    MockConsensusState: TryFrom<Ctx::AnyConsensusState, Error = Error>,
+    Ctx::AnyConsensusState: From<MockConsensusState>,
 {
     type UpgradeOptions = ();
-    type ClientDef = MockClient<G>;
+    type ClientDef = MockClient;
 
     fn chain_id(&self) -> ChainId {
         self.chain_id()
@@ -134,7 +133,7 @@ where
     }
 }
 
-impl<G> MockClientState<G> {
+impl MockClientState {
     pub fn chain_id(&self) -> ChainId {
         ChainId::default()
     }
@@ -143,7 +142,7 @@ impl<G> MockClientState<G> {
         ClientType::Mock
     }
 
-    pub fn client_def(&self) -> MockClient<G> {
+    pub fn client_def(&self) -> MockClient {
         todo!()
     }
 
@@ -169,7 +168,7 @@ impl<G> MockClientState<G> {
     }
 }
 
-impl<G> From<MockConsensusState> for MockClientState<G> {
+impl From<MockConsensusState> for MockClientState {
     fn from(cs: MockConsensusState) -> Self {
         Self::new(cs.header)
     }

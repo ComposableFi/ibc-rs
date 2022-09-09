@@ -52,6 +52,18 @@ impl crate::core::ics02_client::client_consensus::ConsensusState for ConsensusSt
     fn timestamp(&self) -> Timestamp {
         self.timestamp.into()
     }
+
+    fn downcast<T: Clone + 'static>(self) -> T {
+        todo!()
+    }
+
+    fn wrap(sub_state: &dyn core::any::Any) -> Self {
+        todo!()
+    }
+
+    fn encode_to_vec(&self) -> Vec<u8> {
+        todo!()
+    }
 }
 
 impl Protobuf<RawConsensusState> for ConsensusState {}

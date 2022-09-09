@@ -6,7 +6,7 @@ use core::fmt::Display;
 use ibc_proto::google::protobuf::Any;
 use tendermint_proto::Protobuf;
 
-use crate::core::ics02_client::client_type::ClientTypes;
+use crate::core::ics02_client::context::ClientKeeper;
 use ibc_proto::ibc::core::client::v1::{MsgUpdateClient as RawMsgUpdateClient, MsgUpdateClient};
 
 use crate::core::ics02_client::error::Error;
@@ -20,17 +20,17 @@ pub const TYPE_URL: &str = "/ibc.core.client.v1.MsgUpdateClient";
 
 /// A type of message that triggers the update of an on-chain (IBC) client with new headers.
 #[derive(Clone, Debug, PartialEq)] // TODO: Add Eq bound when possible
-pub struct MsgUpdateAnyClient<C: ClientTypes> {
+pub struct MsgUpdateAnyClient<C: ClientKeeper> {
     pub client_id: ClientId,
-    pub header: C::Header,
+    pub header: C::AnyHeader,
     pub signer: Signer,
 }
 
 impl<C> MsgUpdateAnyClient<C>
 where
-    C: ClientTypes,
+    C: ClientKeeper,
 {
-    pub fn new(client_id: ClientId, header: C::Header, signer: Signer) -> Self {
+    pub fn new(client_id: ClientId, header: C::AnyHeader, signer: Signer) -> Self {
         MsgUpdateAnyClient {
             client_id,
             header,
@@ -41,8 +41,8 @@ where
 
 impl<C> Msg for MsgUpdateAnyClient<C>
 where
-    C: ClientTypes + Clone,
-    Any: From<C::Header>,
+    C: ClientKeeper + Clone,
+    Any: From<C::AnyHeader>,
 {
     type ValidationError = ValidationError;
     type Raw = RawMsgUpdateClient;
@@ -58,8 +58,8 @@ where
 
 impl<C> Protobuf<RawMsgUpdateClient> for MsgUpdateAnyClient<C>
 where
-    C: ClientTypes + Clone,
-    Any: From<C::Header>,
+    C: ClientKeeper + Clone,
+    Any: From<C::AnyHeader>,
     MsgUpdateAnyClient<C>: TryFrom<MsgUpdateClient>,
     <MsgUpdateAnyClient<C> as TryFrom<MsgUpdateClient>>::Error: Display,
 {
@@ -67,9 +67,9 @@ where
 
 impl<C> TryFrom<RawMsgUpdateClient> for MsgUpdateAnyClient<C>
 where
-    C: ClientTypes,
-    C::Header: TryFrom<Any>,
-    Error: From<<C::Header as TryFrom<Any>>::Error>,
+    C: ClientKeeper,
+    C::AnyHeader: TryFrom<Any>,
+    Error: From<<C::AnyHeader as TryFrom<Any>>::Error>,
 {
     type Error = Error;
 
@@ -81,7 +81,7 @@ where
                 .client_id
                 .parse()
                 .map_err(Error::invalid_msg_update_client_id)?,
-            header: C::Header::try_from(raw_header)?,
+            header: C::AnyHeader::try_from(raw_header)?,
             signer: raw.signer.parse().map_err(Error::signer)?,
         })
     }
@@ -89,8 +89,8 @@ where
 
 impl<C> From<MsgUpdateAnyClient<C>> for RawMsgUpdateClient
 where
-    C: ClientTypes,
-    Any: From<C::Header>,
+    C: ClientKeeper,
+    Any: From<C::AnyHeader>,
 {
     fn from(ics_msg: MsgUpdateAnyClient<C>) -> Self {
         RawMsgUpdateClient {
@@ -123,14 +123,9 @@ mod tests {
 
         let header = get_dummy_ics07_header();
 
-        let msg = MsgUpdateAnyClient::<ClientTypesOf<TestGlobalDefs>>::new(
-            client_id,
-            AnyHeader::Tendermint(header),
-            signer,
-        );
+        let msg = MsgUpdateAnyClient::new(client_id, AnyHeader::Tendermint(header), signer);
         let raw = MsgUpdateClient::from(msg.clone());
-        let msg_back =
-            MsgUpdateAnyClient::<ClientTypesOf<TestGlobalDefs>>::try_from(raw.clone()).unwrap();
+        let msg_back = MsgUpdateAnyClient::try_from(raw.clone()).unwrap();
         let raw_back = MsgUpdateClient::from(msg_back.clone());
         assert_eq!(msg, msg_back);
         assert_eq!(raw, raw_back);
