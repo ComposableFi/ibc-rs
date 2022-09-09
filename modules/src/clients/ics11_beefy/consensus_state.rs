@@ -32,7 +32,6 @@ impl ConsensusState {
 
     pub fn from_header(header: ParachainHeader) -> Result<Self, Error> {
         use crate::clients::ics11_beefy::header::decode_timestamp_extrinsic;
-        use crate::timestamp::Timestamp;
         use sp_runtime::SaturatedConversion;
         let root = header.parachain_header.state_root.0.to_vec();
 
