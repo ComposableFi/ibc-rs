@@ -2,12 +2,10 @@
 
 use crate::clients::{ClientStateOf, ClientTypesOf, ConsensusStateOf, GlobalDefs};
 use crate::core::ics02_client::client_consensus::ConsensusState;
+use crate::core::ics02_client::client_def::ClientDef;
 use crate::core::ics02_client::client_state::ClientState;
 #[cfg(feature = "ics11_beefy")]
 use crate::core::ics02_client::client_type::ClientType;
-
-use crate::core::ics02_client::client_def::ClientDef;
-use crate::core::ics02_client::context::ClientReader;
 use crate::core::ics03_connection::connection::ConnectionEnd;
 use crate::core::ics03_connection::error::Error;
 use crate::core::ics23_commitment::commitment::CommitmentProofBytes;

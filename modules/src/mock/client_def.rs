@@ -1,9 +1,5 @@
 use crate::clients::{ClientTypesOf, ConsensusStateOf, GlobalDefs};
-use crate::core::ics02_client::client_consensus::AnyConsensusState;
-use crate::core::ics02_client::client_def::{
-    AnyClient, AnyGlobalDef, ClientDef, ConsensusUpdateResult,
-};
-use crate::core::ics02_client::client_state::AnyClientState;
+use crate::core::ics02_client::client_def::{AnyClient, ClientDef, ConsensusUpdateResult};
 use crate::core::ics02_client::client_type::{ClientType, ClientTypes};
 use crate::core::ics02_client::error::Error;
 use crate::core::ics03_connection::connection::ConnectionEnd;
@@ -19,7 +15,7 @@ use crate::core::ics24_host::path::ClientConsensusStatePath;
 use crate::core::ics24_host::Path;
 use crate::core::ics26_routing::context::ReaderContext;
 use crate::mock::client_state::{MockClientState, MockConsensusState};
-use crate::mock::context::{MockContext, MockTypes};
+use crate::mock::context::MockTypes;
 use crate::mock::header::MockHeader;
 use crate::prelude::*;
 use crate::test_utils::Crypto;
@@ -275,7 +271,7 @@ where
         Ok(false)
     }
 
-    fn from_client_type(client_type: ClientType) -> Self {
+    fn from_client_type(_client_type: ClientType) -> Self {
         todo!()
     }
 }

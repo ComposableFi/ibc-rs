@@ -17,7 +17,6 @@ use crate::applications::transfer::context::{BankKeeper, Ics20Context, Ics20Keep
 use crate::applications::transfer::{error::Error as Ics20Error, PrefixedCoin};
 use crate::clients::ClientTypesOf;
 use crate::core::ics02_client::client_consensus::AnyConsensusState;
-use crate::core::ics02_client::client_def::AnyGlobalDef;
 use crate::core::ics02_client::client_state::AnyClientState;
 use crate::core::ics02_client::client_type::{ClientType, ClientTypes};
 use crate::core::ics03_connection::connection::ConnectionEnd;

@@ -1,4 +1,3 @@
-use crate::core::ics02_client::context::ClientReader;
 use crate::core::ics04_channel::channel::State;
 use crate::core::ics04_channel::commitment::AcknowledgementCommitment;
 use crate::core::ics04_channel::error::Error;

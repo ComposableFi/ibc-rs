@@ -1,6 +1,5 @@
 //! Protocol logic specific to ICS4 messages of type `MsgChannelCloseInit`.
 
-use crate::core::ics02_client::context::ClientReader;
 use crate::core::ics03_connection::connection::State as ConnectionState;
 use crate::core::ics04_channel::channel::State;
 use crate::core::ics04_channel::error::Error;
@@ -100,7 +99,6 @@ mod tests {
     use crate::core::ics02_client::context::ClientReader;
     use crate::mock::client_def::TestGlobalDefs;
     use crate::mock::context::MockContext;
-    use crate::test_utils::Crypto;
     use crate::timestamp::ZERO_DURATION;
 
     #[test]

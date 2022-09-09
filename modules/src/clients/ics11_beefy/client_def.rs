@@ -12,37 +12,31 @@ use crate::clients::ics11_beefy::client_state::ClientState;
 use crate::clients::ics11_beefy::consensus_state::ConsensusState;
 use crate::clients::ics11_beefy::error::Error as BeefyError;
 use crate::clients::ics11_beefy::header::BeefyHeader;
+use crate::clients::{ClientStateOf, ClientTypesOf, ConsensusStateOf, GlobalDefs};
 use crate::core::ics02_client::client_consensus::AnyConsensusState;
 use crate::core::ics02_client::client_def::{ClientDef, ConsensusUpdateResult};
-
 use crate::core::ics02_client::client_type::{ClientType, ClientTypes};
 use crate::core::ics02_client::error::Error;
 use crate::core::ics03_connection::connection::ConnectionEnd;
 use crate::core::ics04_channel::channel::ChannelEnd;
 use crate::core::ics04_channel::commitment::{AcknowledgementCommitment, PacketCommitment};
 use crate::core::ics04_channel::packet::Sequence;
-
 use crate::core::ics23_commitment::commitment::{
     CommitmentPrefix, CommitmentProofBytes, CommitmentRoot,
 };
-
-use crate::clients::{ClientStateOf, ClientTypesOf, ConsensusStateOf, GlobalDefs};
-
-use crate::core::ics02_client::context::ClientReader;
 use crate::core::ics24_host::identifier::ConnectionId;
 use crate::core::ics24_host::identifier::{ChannelId, ClientId, PortId};
-use crate::core::ics24_host::Path;
-use crate::core::ics26_routing::context::ReaderContext;
-use crate::prelude::*;
-use crate::Height;
-use core::marker::PhantomData;
-use ibc_proto::google::protobuf::Any;
-
 use crate::core::ics24_host::path::{
     AcksPath, ChannelEndsPath, ClientConsensusStatePath, ClientStatePath, CommitmentsPath,
     ConnectionsPath, ReceiptsPath, SeqRecvsPath,
 };
+use crate::core::ics24_host::Path;
+use crate::core::ics26_routing::context::ReaderContext;
 use crate::downcast;
+use crate::prelude::*;
+use crate::Height;
+use core::marker::PhantomData;
+use ibc_proto::google::protobuf::Any;
 
 #[derive(Derivative, Debug, PartialEq, Eq)]
 #[derivative(Clone(bound = ""))]

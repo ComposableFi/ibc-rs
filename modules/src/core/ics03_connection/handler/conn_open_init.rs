@@ -1,6 +1,5 @@
 //! Protocol logic specific to ICS3 messages of type `MsgConnectionOpenInit`.
 
-use crate::core::ics02_client::context::ClientReader;
 use crate::core::ics03_connection::connection::{ConnectionEnd, State};
 use crate::core::ics03_connection::error::Error;
 use crate::core::ics03_connection::events::Attributes;
@@ -84,12 +83,10 @@ mod tests {
     use crate::events::IbcEvent;
     use crate::mock::context::MockContext;
     use crate::prelude::*;
-    use crate::test_utils::Crypto;
     use crate::Height;
 
     use crate::clients::ClientTypesOf;
-    use crate::core::ics02_client::client_def::{AnyClient, AnyGlobalDef};
-    use crate::mock::client_def::{MockClient, TestGlobalDefs, TestMockClient};
+    use crate::mock::client_def::TestGlobalDefs;
     use ibc_proto::ibc::core::connection::v1::Version as RawVersion;
 
     #[test]

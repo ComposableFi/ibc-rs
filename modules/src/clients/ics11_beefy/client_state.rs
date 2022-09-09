@@ -464,10 +464,8 @@ impl FromStr for RelayChain {
 #[cfg(any(test, feature = "mocks"))]
 pub mod test_util {
     use super::*;
-    use crate::core::ics02_client::client_def::AnyGlobalDef;
     use crate::core::ics02_client::client_state::AnyClientState;
     use crate::mock::client_def::TestGlobalDefs;
-    use crate::test_utils::Crypto;
 
     pub fn get_dummy_beefy_state() -> AnyClientState<TestGlobalDefs> {
         AnyClientState::Beefy(

@@ -98,11 +98,11 @@ mod tests {
     use crate::core::ics24_host::identifier::ClientId;
     use crate::events::IbcEvent;
     use crate::handler::HandlerOutput;
-    use crate::mock::client_def::{MockClient, TestGlobalDefs};
+    use crate::mock::client_def::TestGlobalDefs;
     use crate::mock::client_state::{MockClientState, MockConsensusState};
     use crate::mock::context::MockContext;
     use crate::mock::header::MockHeader;
-    use crate::test_utils::{get_dummy_account_id, Crypto};
+    use crate::test_utils::get_dummy_account_id;
     use crate::Height;
 
     #[test]

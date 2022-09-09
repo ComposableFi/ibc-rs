@@ -1,8 +1,6 @@
 //! Protocol logic specific to ICS4 messages of type `MsgChannelOpenAck`.
 
 use crate::clients::{ClientTypesOf, GlobalDefs};
-
-use crate::core::ics02_client::context::ClientReader;
 use crate::core::ics03_connection::connection::State as ConnectionState;
 use crate::core::ics04_channel::channel::{ChannelEnd, Counterparty, State};
 use crate::core::ics04_channel::error::Error;
@@ -147,7 +145,6 @@ mod tests {
     use crate::mock::client_def::TestGlobalDefs;
     use crate::mock::context::MockContext;
     use crate::prelude::*;
-    use crate::test_utils::Crypto;
     use crate::Height;
 
     // TODO: The tests here are very fragile and complex.

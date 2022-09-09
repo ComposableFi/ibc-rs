@@ -1,8 +1,6 @@
 //! Protocol logic specific to processing ICS3 messages of type `MsgConnectionOpenConfirm`.
 
 use crate::clients::{ClientTypesOf, GlobalDefs};
-
-use crate::core::ics02_client::context::ClientReader;
 use crate::core::ics03_connection::connection::{ConnectionEnd, Counterparty, State};
 use crate::core::ics03_connection::error::Error;
 use crate::core::ics03_connection::events::Attributes;
@@ -81,7 +79,6 @@ mod tests {
     use crate::prelude::*;
 
     use crate::clients::ClientTypesOf;
-    use crate::core::ics02_client::client_def::AnyGlobalDef;
     use core::str::FromStr;
     use test_log::test;
 
@@ -95,9 +92,8 @@ mod tests {
     use crate::core::ics23_commitment::commitment::CommitmentPrefix;
     use crate::core::ics24_host::identifier::ClientId;
     use crate::events::IbcEvent;
-    use crate::mock::client_def::{MockClient, TestGlobalDefs, TestMockClient};
+    use crate::mock::client_def::TestGlobalDefs;
     use crate::mock::context::MockContext;
-    use crate::test_utils::Crypto;
     use crate::timestamp::ZERO_DURATION;
     use crate::Height;
 

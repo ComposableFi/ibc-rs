@@ -15,7 +15,6 @@ use ibc_proto::ibc::mock::ConsensusState as RawMockConsensusState;
 
 use crate::clients::{ConsensusStateOf, GlobalDefs};
 use crate::core::ics02_client::client_consensus::{AnyConsensusState, ConsensusState};
-use crate::core::ics02_client::client_def::AnyGlobalDef;
 use crate::core::ics02_client::client_state::{AnyClientState, ClientState};
 use crate::core::ics02_client::client_type::ClientType;
 use crate::core::ics02_client::error::Error;
@@ -23,7 +22,6 @@ use crate::core::ics23_commitment::commitment::CommitmentRoot;
 use crate::core::ics24_host::identifier::ChainId;
 use crate::mock::client_def::{MockClient, TestGlobalDefs};
 use crate::mock::header::MockHeader;
-use crate::test_utils::Crypto;
 use crate::timestamp::Timestamp;
 use crate::{downcast, Height};
 use derivative::Derivative;
@@ -166,7 +164,7 @@ impl<G> MockClientState<G> {
         todo!()
     }
 
-    pub fn expired(&self, elapsed: Duration) -> bool {
+    pub fn expired(&self, _elapsed: Duration) -> bool {
         false
     }
 }

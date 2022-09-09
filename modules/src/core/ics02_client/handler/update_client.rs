@@ -128,32 +128,29 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::clients::ics11_beefy::header::ParachainHeadersWithProof;
     use core::str::FromStr;
-    use subxt::sp_runtime::traits::Header;
     use test_log::test;
 
-    use crate::core::ics02_client::client_consensus::{AnyConsensusState, ConsensusState};
+    use crate::core::ics02_client::client_consensus::AnyConsensusState;
     use crate::core::ics02_client::client_state::{AnyClientState, ClientState};
     use crate::core::ics02_client::client_type::ClientType;
-    use crate::core::ics02_client::context::{ClientKeeper, ClientReader};
+    use crate::core::ics02_client::context::ClientReader;
     use crate::core::ics02_client::error::{Error, ErrorDetail};
     use crate::core::ics02_client::handler::dispatch;
     use crate::core::ics02_client::handler::ClientResult::Update;
     use crate::core::ics02_client::header::AnyHeader;
-    use crate::core::ics02_client::msgs::create_client::MsgCreateAnyClient;
     use crate::core::ics02_client::msgs::update_client::MsgUpdateAnyClient;
     use crate::core::ics02_client::msgs::ClientMsg;
     use crate::core::ics24_host::identifier::{ChainId, ClientId};
     use crate::events::IbcEvent;
     use crate::handler::HandlerOutput;
-    use crate::mock::client_def::{MockClient, TestGlobalDefs};
+    use crate::mock::client_def::TestGlobalDefs;
     use crate::mock::client_state::MockClientState;
     use crate::mock::context::MockContext;
     use crate::mock::header::MockHeader;
     use crate::mock::host::HostType;
     use crate::prelude::*;
-    use crate::test_utils::{get_dummy_account_id, Crypto};
+    use crate::test_utils::get_dummy_account_id;
     use crate::timestamp::Timestamp;
     use crate::Height;
 

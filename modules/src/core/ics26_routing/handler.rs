@@ -177,7 +177,6 @@ mod tests {
     use crate::applications::transfer::PrefixedCoin;
     use crate::clients::ClientTypesOf;
     use crate::core::ics02_client::client_consensus::AnyConsensusState;
-    use crate::core::ics02_client::client_def::AnyGlobalDef;
     use crate::core::ics02_client::client_state::AnyClientState;
     use crate::core::ics02_client::msgs::{
         create_client::MsgCreateAnyClient, update_client::MsgUpdateAnyClient,
@@ -202,7 +201,6 @@ mod tests {
         ChannelMsg, PacketMsg,
     };
     use crate::events::IbcEvent;
-    use crate::test_utils::Crypto;
     use crate::{
         applications::transfer::msgs::transfer::test_util::get_dummy_msg_transfer,
         applications::transfer::msgs::transfer::MsgTransfer,
@@ -215,7 +213,7 @@ mod tests {
     use crate::core::ics26_routing::handler::dispatch;
     use crate::core::ics26_routing::msgs::Ics26Envelope;
     use crate::handler::HandlerOutputBuilder;
-    use crate::mock::client_def::{MockClient, TestGlobalDefs};
+    use crate::mock::client_def::TestGlobalDefs;
     use crate::mock::client_state::{MockClientState, MockConsensusState};
     use crate::mock::context::{MockContext, MockRouterBuilder};
     use crate::mock::header::MockHeader;

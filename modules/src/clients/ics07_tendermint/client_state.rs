@@ -382,18 +382,15 @@ mod tests {
     use core::time::Duration;
     use test_log::test;
 
-    use crate::clients::ClientTypesOf;
     use ibc_proto::ics23::ProofSpec as Ics23ProofSpec;
     use tendermint_rpc::endpoint::abci_query::AbciQuery;
 
     use crate::clients::ics07_tendermint::client_state::ClientState;
-    use crate::core::ics02_client::client_def::AnyGlobalDef;
     use crate::core::ics02_client::trust_threshold::TrustThreshold;
     use crate::core::ics23_commitment::specs::ProofSpecs;
     use crate::core::ics24_host::identifier::ChainId;
-    use crate::mock::client_def::{MockClient, TestGlobalDefs};
+    use crate::mock::client_def::TestGlobalDefs;
     use crate::test::test_serialization_roundtrip;
-    use crate::test_utils::Crypto;
     use crate::timestamp::{Timestamp, ZERO_DURATION};
 
     #[derive(Clone, Debug, PartialEq)]
@@ -688,12 +685,10 @@ pub mod test_util {
     use tendermint::block::Header;
 
     use crate::clients::ics07_tendermint::client_state::ClientState;
-    use crate::core::ics02_client::client_def::AnyGlobalDef;
     use crate::core::ics02_client::client_state::AnyClientState;
     use crate::core::ics02_client::height::Height;
     use crate::core::ics24_host::identifier::ChainId;
     use crate::mock::client_def::TestGlobalDefs;
-    use crate::test_utils::Crypto;
 
     pub fn get_dummy_tendermint_client_state(tm_header: Header) -> AnyClientState<TestGlobalDefs> {
         AnyClientState::Tendermint(

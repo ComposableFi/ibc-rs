@@ -338,7 +338,7 @@ where
             #[cfg(any(test, feature = "ics11_beefy"))]
             AnyClientState::Near(_) => todo!(),
             #[cfg(any(test, feature = "mocks"))]
-            AnyClientState::Mock(mock_state) => AnyClient::Mock(MockClient::default()),
+            AnyClientState::Mock(_mock_state) => AnyClient::Mock(MockClient::default()),
         }
     }
 

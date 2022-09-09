@@ -2,25 +2,14 @@ use core::convert::TryInto;
 use core::fmt::{Debug, Display};
 
 use crate::clients::host_functions::HostFunctionsManager;
-use crate::clients::{ClientStateOf, ClientTypesOf, ConsensusStateOf, GlobalDefs};
-use derivative::Derivative;
-use ibc_proto::google::protobuf::Any;
-use ibc_proto::ibc::core::commitment::v1::MerkleProof as RawMerkleProof;
-use prost::Message;
-
-use tendermint_light_client_verifier::types::{TrustedBlockState, UntrustedBlockState};
-use tendermint_light_client_verifier::{ProdVerifier, Verdict, Verifier};
-use tendermint_proto::Protobuf;
-
 use crate::clients::ics07_tendermint::client_state::ClientState;
 use crate::clients::ics07_tendermint::consensus_state::ConsensusState;
 use crate::clients::ics07_tendermint::error::Error;
 use crate::clients::ics07_tendermint::header::Header;
+use crate::clients::{ClientStateOf, ClientTypesOf, ConsensusStateOf, GlobalDefs};
 use crate::core::ics02_client::client_consensus::ConsensusState as _;
 use crate::core::ics02_client::client_def::{ClientDef, ConsensusUpdateResult};
-
 use crate::core::ics02_client::client_type::{ClientType, ClientTypes};
-use crate::core::ics02_client::context::ClientReader;
 use crate::core::ics02_client::error::Error as Ics02Error;
 use crate::core::ics03_connection::connection::ConnectionEnd;
 use crate::core::ics04_channel::channel::ChannelEnd;
@@ -38,6 +27,13 @@ use crate::core::ics24_host::path::{
 };
 use crate::core::ics24_host::Path;
 use crate::core::ics26_routing::context::ReaderContext;
+use derivative::Derivative;
+use ibc_proto::google::protobuf::Any;
+use ibc_proto::ibc::core::commitment::v1::MerkleProof as RawMerkleProof;
+use prost::Message;
+use tendermint_light_client_verifier::types::{TrustedBlockState, UntrustedBlockState};
+use tendermint_light_client_verifier::{ProdVerifier, Verdict, Verifier};
+use tendermint_proto::Protobuf;
 
 use crate::prelude::*;
 use crate::timestamp::Timestamp;

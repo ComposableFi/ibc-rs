@@ -1,6 +1,4 @@
 use crate::clients::{ClientTypesOf, GlobalDefs};
-
-use crate::core::ics02_client::context::ClientReader;
 use crate::core::ics04_channel::channel::State;
 use crate::core::ics04_channel::channel::{ChannelEnd, Counterparty, Order};
 use crate::core::ics04_channel::events::TimeoutOnClosePacket;
@@ -159,7 +157,6 @@ mod tests {
     use crate::mock::client_def::TestGlobalDefs;
     use crate::mock::context::MockContext;
     use crate::prelude::*;
-    use crate::test_utils::Crypto;
     use crate::timestamp::ZERO_DURATION;
 
     #[test]

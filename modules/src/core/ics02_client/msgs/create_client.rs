@@ -127,7 +127,6 @@ mod tests {
     use crate::clients::ics07_tendermint::client_state::test_util::get_dummy_tendermint_client_state;
     use crate::clients::ics07_tendermint::header::test_util::get_dummy_tendermint_header;
     use crate::core::ics02_client::client_consensus::AnyConsensusState;
-    use crate::core::ics02_client::client_def::AnyGlobalDef;
     use crate::core::ics02_client::msgs::MsgCreateAnyClient;
     use crate::mock::client_def::TestGlobalDefs;
     use crate::test_utils::get_dummy_account_id;

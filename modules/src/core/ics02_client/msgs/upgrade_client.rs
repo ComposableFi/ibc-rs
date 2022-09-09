@@ -128,9 +128,8 @@ where
 pub mod test_util {
     use ibc_proto::ibc::core::client::v1::MsgUpgradeClient as RawMsgUpgradeClient;
 
-    use crate::core::ics02_client::client_def::{AnyClient, AnyGlobalDef};
+    use crate::core::ics02_client::client_def::AnyClient;
     use crate::mock::client_def::TestGlobalDefs;
-    use crate::test_utils::Crypto;
     use crate::{
         core::{
             ics02_client::{

@@ -1,6 +1,5 @@
 //! Protocol logic specific to ICS4 messages of type `MsgChannelOpenInit`.
 
-use crate::core::ics02_client::context::ClientReader;
 use crate::core::ics04_channel::channel::{ChannelEnd, State};
 use crate::core::ics04_channel::error::Error;
 use crate::core::ics04_channel::events::Attributes;
@@ -105,7 +104,6 @@ mod tests {
     use crate::events::IbcEvent;
     use crate::mock::client_def::TestGlobalDefs;
     use crate::mock::context::MockContext;
-    use crate::test_utils::Crypto;
 
     #[test]
     fn chan_open_init_msg_processing() {

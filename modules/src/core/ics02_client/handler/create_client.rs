@@ -81,7 +81,7 @@ mod tests {
     use crate::clients::ics07_tendermint::client_state::ClientState as TendermintClientState;
     use crate::clients::ics07_tendermint::header::test_util::get_dummy_tendermint_header;
     use crate::core::ics02_client::client_consensus::AnyConsensusState;
-    use crate::core::ics02_client::client_state::{AnyClientState, ClientState};
+    use crate::core::ics02_client::client_state::AnyClientState;
     use crate::core::ics02_client::client_type::ClientType;
     use crate::core::ics02_client::context::ClientReader;
     use crate::core::ics02_client::handler::{dispatch, ClientResult};
@@ -92,11 +92,11 @@ mod tests {
     use crate::core::ics24_host::identifier::ClientId;
     use crate::events::IbcEvent;
     use crate::handler::HandlerOutput;
-    use crate::mock::client_def::{MockClient, TestGlobalDefs};
+    use crate::mock::client_def::TestGlobalDefs;
     use crate::mock::client_state::{MockClientState, MockConsensusState};
     use crate::mock::context::{MockContext, MockTypes};
     use crate::mock::header::MockHeader;
-    use crate::test_utils::{get_dummy_account_id, Crypto};
+    use crate::test_utils::get_dummy_account_id;
     use crate::Height;
 
     #[test]

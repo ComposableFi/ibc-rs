@@ -331,6 +331,7 @@ pub mod stub_mock {
     pub struct Stub;
     pub type MockConsensusState = Stub;
 }
+#[cfg(not(test))]
 use stub_mock::*;
 
 // ⚠️  Beware of the awful boilerplate below ⚠️

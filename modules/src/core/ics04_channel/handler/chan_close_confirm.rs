@@ -1,8 +1,6 @@
 //! Protocol logic specific to ICS4 messages of type `MsgChannelCloseConfirm`.
 
 use crate::clients::{ClientTypesOf, GlobalDefs};
-
-use crate::core::ics02_client::context::ClientReader;
 use crate::core::ics03_connection::connection::State as ConnectionState;
 use crate::core::ics04_channel::channel::{ChannelEnd, Counterparty, State};
 use crate::core::ics04_channel::error::Error;
@@ -132,7 +130,6 @@ mod tests {
     use crate::core::ics04_channel::Version;
     use crate::core::ics24_host::identifier::{ClientId, ConnectionId};
     use crate::mock::client_def::TestGlobalDefs;
-    use crate::test_utils::Crypto;
 
     use crate::mock::context::MockContext;
     use crate::timestamp::ZERO_DURATION;

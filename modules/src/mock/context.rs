@@ -19,7 +19,6 @@ use crate::clients::ics07_tendermint::client_state::test_util::get_dummy_tenderm
 use crate::clients::ics11_beefy::client_state::test_util::get_dummy_beefy_state;
 use crate::clients::ics11_beefy::consensus_state::test_util::get_dummy_beefy_consensus_state;
 use crate::core::ics02_client::client_consensus::{AnyConsensusState, AnyConsensusStateWithHeight};
-use crate::core::ics02_client::client_def::{AnyClient, AnyGlobalDef};
 use crate::core::ics02_client::client_state::AnyClientState;
 use crate::core::ics02_client::client_type::{ClientType, ClientTypes};
 use crate::core::ics02_client::context::{ClientKeeper, ClientReader};
@@ -44,14 +43,13 @@ use crate::core::ics26_routing::context::{
 use crate::core::ics26_routing::handler::{deliver, dispatch, MsgReceipt};
 use crate::core::ics26_routing::msgs::Ics26Envelope;
 use crate::events::IbcEvent;
-use crate::mock::client_def::{MockClient, TestGlobalDefs};
+use crate::mock::client_def::TestGlobalDefs;
 use crate::mock::client_state::{MockClientRecord, MockClientState, MockConsensusState};
 use crate::mock::header::MockHeader;
 use crate::mock::host::{HostBlock, HostType};
 use crate::relayer::ics18_relayer::context::Ics18Context;
 use crate::relayer::ics18_relayer::error::Error as Ics18Error;
 use crate::signer::Signer;
-use crate::test_utils::Crypto;
 use crate::timestamp::Timestamp;
 use crate::Height;
 
