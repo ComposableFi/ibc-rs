@@ -103,7 +103,7 @@ where
         &new_channel_end,
         &conn,
         &expected_channel_end,
-        &msg.proofs,
+        &msg.proofs.object_proof(),
     )?;
 
     output.log("success: channel open try ");

@@ -9,6 +9,7 @@ use crate::core::ics04_channel::channel::ChannelEnd;
 use crate::core::ics04_channel::error::Error;
 use crate::core::ics04_channel::msgs::acknowledgement::Acknowledgement;
 use crate::core::ics04_channel::packet::{Packet, Sequence};
+use crate::core::ics23_commitment::commitment::CommitmentProofBytes;
 use crate::core::ics26_routing::context::ReaderContext;
 use crate::prelude::*;
 use crate::proofs::Proofs;
@@ -21,7 +22,7 @@ pub fn verify_channel_proofs<G, Ctx>(
     channel_end: &ChannelEnd,
     connection_end: &ConnectionEnd,
     expected_chan: &ChannelEnd,
-    proofs: &Proofs,
+    proof: &CommitmentProofBytes,
 ) -> Result<(), Error>
 where
     G: GlobalDefs,
@@ -38,7 +39,7 @@ where
     }
 
     let consensus_state = ctx
-        .consensus_state(&client_id, proofs.height())
+        .consensus_state(&client_id, height)
         .map_err(|_| Error::error_invalid_consensus_state())?;
 
     let client_def = <G as GlobalDefs>::ClientDef::from_client_type(client_state.client_type());
@@ -52,7 +53,7 @@ where
             &client_state,
             height,
             connection_end.counterparty().prefix(),
-            proofs.object_proof(),
+            &proof,
             consensus_state.root(),
             channel_end.counterparty().port_id(),
             channel_end.counterparty().channel_id().unwrap(),
