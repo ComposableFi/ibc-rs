@@ -1,24 +1,14 @@
 use super::types::{CryptoHash, LightClientBlockView, ValidatorStakeView};
 
-use crate::clients::ics13_near::client_def::NearClient;
-use crate::clients::ics13_near::consensus_state::ConsensusState;
 use crate::core::{
     ics02_client::{client_state::ClientState, client_type::ClientType},
     ics24_host::identifier::ChainId,
 };
 use crate::prelude::*;
 
-use derivative::Derivative;
-use std::marker::PhantomData;
 use std::time::Duration;
 
-#[derive(Derivative)]
-#[derivative(
-    PartialEq(bound = ""),
-    Eq(bound = ""),
-    Debug(bound = ""),
-    Clone(bound = "")
-)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct NearClientState {
     chain_id: ChainId,
     head: LightClientBlockView,
@@ -49,11 +39,7 @@ impl NearClientState {
     }
 }
 
-impl ClientState for NearClientState
-where
-// ConsensusState: TryFrom<Ctx::AnyConsensusState, Error = Error>,
-// Ctx::AnyConsensusState: From<ConsensusState>,
-{
+impl ClientState for NearClientState {
     type UpgradeOptions = NearUpgradeOptions;
 
     fn chain_id(&self) -> ChainId {
@@ -91,15 +77,7 @@ where
         todo!()
     }
 
-    fn downcast<T: Clone + core::any::Any>(self) -> T {
-        todo!()
-    }
-
-    fn wrap(sub_state: &dyn core::any::Any) -> Self {
-        todo!()
-    }
-
     fn encode_to_vec(&self) -> Vec<u8> {
-        todo!()
+        todo!("implement encoding")
     }
 }

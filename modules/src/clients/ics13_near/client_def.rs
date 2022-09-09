@@ -20,18 +20,11 @@ use crate::core::ics26_routing::context::ReaderContext;
 use crate::prelude::*;
 use crate::Height;
 use borsh::BorshSerialize;
-use core::marker::PhantomData;
-use derivative::Derivative;
 
-#[derive(Derivative)]
-#[derivative(Debug(bound = ""), Clone(bound = ""))]
+#[derive(Debug, Clone)]
 pub struct NearClient;
 
-impl ClientDef for NearClient
-where
-// ConsensusState: TryFrom<Ctx::AnyConsensusState, Error = Error>,
-// Ctx::AnyConsensusState: From<ConsensusState>,
-{
+impl ClientDef for NearClient {
     /// The data that we need to update the [`ClientState`] to a new block height
     type Header = NearHeader;
 

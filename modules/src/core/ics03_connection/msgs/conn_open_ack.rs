@@ -168,7 +168,6 @@ pub mod test_util {
 
     use crate::core::ics03_connection::version::Version;
     use crate::core::ics24_host::identifier::ConnectionId;
-    use crate::mock::client_def::TestGlobalDefs;
     use crate::mock::client_state::MockClientState;
     use crate::mock::header::MockHeader;
     use crate::test_utils::{get_dummy_bech32_account, get_dummy_proof};
@@ -206,13 +205,12 @@ mod tests {
 
     use test_log::test;
 
-    use crate::clients::ClientTypesOf;
     use ibc_proto::ibc::core::client::v1::Height;
     use ibc_proto::ibc::core::connection::v1::MsgConnectionOpenAck as RawMsgConnectionOpenAck;
 
     use crate::core::ics03_connection::msgs::conn_open_ack::test_util::get_dummy_raw_msg_conn_open_ack;
     use crate::core::ics03_connection::msgs::conn_open_ack::MsgConnectionOpenAck;
-    use crate::mock::client_def::TestGlobalDefs;
+    use crate::mock::context::MockContext;
 
     #[test]
     fn parse_connection_open_ack_msg() {
@@ -274,7 +272,7 @@ mod tests {
         .collect();
 
         for test in tests {
-            let msg = MsgConnectionOpenAck::try_from(test.raw.clone());
+            let msg = MsgConnectionOpenAck::<MockContext>::try_from(test.raw.clone());
 
             assert_eq!(
                 test.want_pass,
@@ -290,7 +288,7 @@ mod tests {
     #[test]
     fn to_and_from() {
         let raw = get_dummy_raw_msg_conn_open_ack(5, 6);
-        let msg = MsgConnectionOpenAck::try_from(raw.clone()).unwrap();
+        let msg = MsgConnectionOpenAck::<MockContext>::try_from(raw.clone()).unwrap();
         let raw_back = RawMsgConnectionOpenAck::from(msg.clone());
         let msg_back = MsgConnectionOpenAck::try_from(raw_back.clone()).unwrap();
         assert_eq!(raw, raw_back);

@@ -171,7 +171,6 @@ mod tests {
     use crate::core::ics04_channel::msgs::recv_packet::MsgRecvPacket;
     use crate::core::ics04_channel::Version;
     use crate::core::ics24_host::identifier::{ChannelId, ClientId, ConnectionId, PortId};
-    use crate::mock::client_def::TestGlobalDefs;
     use crate::mock::context::MockContext;
     use crate::relayer::ics18_relayer::context::Ics18Context;
     use crate::test_utils::get_dummy_account_id;
@@ -283,7 +282,7 @@ mod tests {
         .collect();
 
         for test in tests {
-            let res = process::<TestGlobalDefs, _>(&test.ctx, &test.msg);
+            let res = process(&test.ctx, &test.msg);
             // Additionally check the events and the output objects in the result.
             match res {
                 Ok(proto_output) => {

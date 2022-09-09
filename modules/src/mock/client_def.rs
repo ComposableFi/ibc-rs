@@ -1,5 +1,5 @@
-use crate::clients::{ClientTypesOf, ConsensusStateOf, GlobalDefs};
-use crate::core::ics02_client::client_def::{AnyClient, ClientDef, ConsensusUpdateResult};
+use crate::core::ics02_client::client_consensus::ConsensusState;
+use crate::core::ics02_client::client_def::{ClientDef, ConsensusUpdateResult};
 use crate::core::ics02_client::client_type::ClientType;
 use crate::core::ics02_client::error::Error;
 use crate::core::ics03_connection::connection::ConnectionEnd;
@@ -15,53 +15,24 @@ use crate::core::ics24_host::path::ClientConsensusStatePath;
 use crate::core::ics24_host::Path;
 use crate::core::ics26_routing::context::ReaderContext;
 use crate::mock::client_state::{MockClientState, MockConsensusState};
-use crate::mock::context::MockTypes;
 use crate::mock::header::MockHeader;
 use crate::prelude::*;
-use crate::test_utils::Crypto;
 use crate::Height;
 use core::fmt::Debug;
-use derivative::Derivative;
-use std::marker::PhantomData;
 
-#[derive(Derivative, Debug, PartialEq, Eq)]
-#[derivative(Clone(bound = ""))]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct MockClient;
-
-#[derive(Clone, Debug, PartialEq, Eq, Default)]
-pub struct TestGlobalDefs;
-impl GlobalDefs for TestGlobalDefs {
-    type HostFunctions = Crypto;
-    type ClientTypes = MockTypes;
-    type ClientDef = AnyClient;
-}
-
-pub type TestMockClient = MockClient;
 
 impl Default for MockClient {
     fn default() -> Self {
-        Self(PhantomData::default())
+        Self
     }
 }
 
-impl ClientTypes for MockClient
-where
-    MockConsensusState: TryFrom<Ctx::AnyConsensusState, Error = Error>,
-    Ctx::AnyConsensusState: From<MockConsensusState>,
-{
+impl ClientDef for MockClient {
     type Header = MockHeader;
     type ClientState = MockClientState;
     type ConsensusState = MockConsensusState;
-}
-
-impl ClientDef for MockClient
-where
-    MockConsensusState: TryFrom<Ctx::AnyConsensusState, Error = Error>,
-    Ctx::AnyConsensusState: From<MockConsensusState>,
-
-    G: GlobalDefs + Clone,
-{
-    type G = G;
 
     fn update_state<Ctx: ReaderContext>(
         &self,
@@ -79,7 +50,9 @@ where
 
         Ok((
             MockClientState::new(header),
-            ConsensusUpdateResult::Single(MockConsensusState::new(header).into()),
+            ConsensusUpdateResult::Single(Ctx::AnyConsensusState::wrap(&MockConsensusState::new(
+                header,
+            ))),
         ))
     }
 
@@ -227,7 +200,7 @@ where
     ) -> Result<(Self::ClientState, ConsensusUpdateResult<Ctx>), Error> {
         Ok((
             *client_state,
-            ConsensusUpdateResult::Single(consensus_state.clone().into()),
+            ConsensusUpdateResult::Single(Ctx::AnyConsensusState::wrap(consensus_state)),
         ))
     }
 

@@ -106,14 +106,13 @@ mod tests {
 
     use test_log::test;
 
-    use crate::clients::ClientTypesOf;
     use ibc_proto::ibc::core::client::v1::MsgUpdateClient;
 
     use crate::clients::ics07_tendermint::header::test_util::get_dummy_ics07_header;
     use crate::core::ics02_client::header::AnyHeader;
     use crate::core::ics02_client::msgs::MsgUpdateAnyClient;
     use crate::core::ics24_host::identifier::ClientId;
-    use crate::mock::client_def::TestGlobalDefs;
+    use crate::mock::context::MockContext;
     use crate::test_utils::get_dummy_account_id;
 
     #[test]
@@ -123,7 +122,11 @@ mod tests {
 
         let header = get_dummy_ics07_header();
 
-        let msg = MsgUpdateAnyClient::new(client_id, AnyHeader::Tendermint(header), signer);
+        let msg = MsgUpdateAnyClient::<MockContext>::new(
+            client_id,
+            AnyHeader::Tendermint(header),
+            signer,
+        );
         let raw = MsgUpdateClient::from(msg.clone());
         let msg_back = MsgUpdateAnyClient::try_from(raw.clone()).unwrap();
         let raw_back = MsgUpdateClient::from(msg_back.clone());

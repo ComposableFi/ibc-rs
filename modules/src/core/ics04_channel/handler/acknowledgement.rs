@@ -139,7 +139,6 @@ mod tests {
     use crate::core::ics04_channel::Version;
     use crate::core::ics24_host::identifier::{ClientId, ConnectionId};
     use crate::events::IbcEvent;
-    use crate::mock::client_def::TestGlobalDefs;
     use crate::mock::context::MockContext;
     use crate::prelude::*;
     use crate::timestamp::ZERO_DURATION;
@@ -228,7 +227,7 @@ mod tests {
         .collect();
 
         for test in tests {
-            let res = process::<TestGlobalDefs, _>(&test.ctx, &test.msg);
+            let res = process(&test.ctx, &test.msg);
             // Additionally check the events and the output objects in the result.
             match res {
                 Ok(proto_output) => {

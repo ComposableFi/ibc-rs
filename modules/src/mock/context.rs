@@ -10,7 +10,6 @@ use core::ops::{Add, Sub};
 use core::time::Duration;
 use std::sync::Mutex;
 
-use crate::clients::ClientTypesOf;
 use ibc_proto::google::protobuf::Any;
 use sha2::Digest;
 use tracing::debug;
@@ -19,6 +18,7 @@ use crate::clients::ics07_tendermint::client_state::test_util::get_dummy_tenderm
 use crate::clients::ics11_beefy::client_state::test_util::get_dummy_beefy_state;
 use crate::clients::ics11_beefy::consensus_state::test_util::get_dummy_beefy_consensus_state;
 use crate::core::ics02_client::client_consensus::{AnyConsensusState, AnyConsensusStateWithHeight};
+use crate::core::ics02_client::client_def::AnyClient;
 use crate::core::ics02_client::client_state::AnyClientState;
 use crate::core::ics02_client::client_type::ClientType;
 use crate::core::ics02_client::context::{ClientKeeper, ClientReader};
@@ -43,13 +43,13 @@ use crate::core::ics26_routing::context::{
 use crate::core::ics26_routing::handler::{deliver, dispatch, MsgReceipt};
 use crate::core::ics26_routing::msgs::Ics26Envelope;
 use crate::events::IbcEvent;
-use crate::mock::client_def::TestGlobalDefs;
 use crate::mock::client_state::{MockClientRecord, MockClientState, MockConsensusState};
 use crate::mock::header::MockHeader;
 use crate::mock::host::{HostBlock, HostType};
 use crate::relayer::ics18_relayer::context::Ics18Context;
 use crate::relayer::ics18_relayer::error::Error as Ics18Error;
 use crate::signer::Signer;
+use crate::test_utils::Crypto;
 use crate::timestamp::Timestamp;
 use crate::Height;
 
@@ -469,8 +469,8 @@ impl MockContext {
     /// A datagram passes from the relayer to the IBC module (on host chain).
     /// Alternative method to `Ics18Context::send` that does not exercise any serialization.
     /// Used in testing the Ics18 algorithms, hence this may return a Ics18Error.
-    pub fn deliver(&mut self, msg: Ics26Envelope) -> Result<(), Ics18Error> {
-        dispatch::<_, TestGlobalDefs>(self, msg).map_err(Ics18Error::transaction_failed)?;
+    pub fn deliver(&mut self, msg: Ics26Envelope<MockContext>) -> Result<(), Ics18Error> {
+        dispatch(self, msg).map_err(Ics18Error::transaction_failed)?;
         // Create a new block.
         self.advance_host_chain_height();
         Ok(())
@@ -655,21 +655,6 @@ impl Router for MockRouter {
     fn has_route(&self, module_id: &impl Borrow<ModuleId>) -> bool {
         self.0.get(module_id.borrow()).is_some()
     }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
-pub struct MockTypes;
-
-impl ClientTypes for MockTypes {
-    type Header = AnyHeader;
-    type ClientState = AnyClientState;
-    type ConsensusState = AnyConsensusState;
-}
-
-impl ClientTypes for MockContext {
-    type Header = <MockTypes as ClientTypes>::Header;
-    type ClientState = <MockTypes as ClientTypes>::ClientState;
-    type ConsensusState = <MockTypes as ClientTypes>::ConsensusState;
 }
 
 impl ReaderContext for MockContext {}
@@ -1188,7 +1173,11 @@ impl ClientReader for MockContext {
 }
 
 impl ClientKeeper for MockContext {
-    type ClientTypes = MockTypes;
+    type AnyHeader = AnyHeader;
+    type AnyClientState = AnyClientState;
+    type AnyConsensusState = AnyConsensusState;
+    type HostFunctions = Crypto;
+    type ClientDef = AnyClient;
 
     fn store_client_type(
         &mut self,
@@ -1309,7 +1298,7 @@ impl Ics18Context for MockContext {
         let mut all_events = vec![];
         for msg in msgs {
             let MsgReceipt { mut events, .. } =
-                deliver::<_, TestGlobalDefs>(self, msg).map_err(Ics18Error::transaction_failed)?;
+                deliver(self, msg).map_err(Ics18Error::transaction_failed)?;
             all_events.append(&mut events);
         }
         self.advance_host_chain_height(); // Advance chain height

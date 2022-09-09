@@ -16,6 +16,7 @@ use crate::core::ics02_client::error::Error as Ics02Error;
 use crate::applications::transfer::context::{BankKeeper, Ics20Context, Ics20Keeper, Ics20Reader};
 use crate::applications::transfer::{error::Error as Ics20Error, PrefixedCoin};
 use crate::core::ics02_client::client_consensus::AnyConsensusState;
+use crate::core::ics02_client::client_def::AnyClient;
 use crate::core::ics02_client::client_state::AnyClientState;
 use crate::core::ics02_client::client_type::ClientType;
 use crate::core::ics03_connection::connection::ConnectionEnd;
@@ -30,8 +31,7 @@ use crate::core::ics05_port::context::PortReader;
 use crate::core::ics05_port::error::Error as PortError;
 use crate::core::ics24_host::identifier::{ChannelId, ClientId, ConnectionId, PortId};
 use crate::core::ics26_routing::context::{Module, ModuleId, ModuleOutputBuilder, ReaderContext};
-use crate::mock::client_def::TestGlobalDefs;
-use crate::mock::context::{MockIbcStore, MockTypes};
+use crate::mock::context::{MockContext, MockIbcStore};
 use crate::signer::Signer;
 use crate::timestamp::Timestamp;
 use crate::Height;
@@ -410,12 +410,6 @@ impl ConnectionReader for DummyTransferModule {
     }
 }
 
-impl ClientTypes for DummyTransferModule {
-    type Header = <MockTypes as ClientTypes>::Header;
-    type ClientState = <MockTypes as ClientTypes>::ClientState;
-    type ConsensusState = <MockTypes as ClientTypes>::ConsensusState;
-}
-
 impl ClientReader for DummyTransferModule {
     fn client_state(&self, client_id: &ClientId) -> Result<AnyClientState, Ics02Error> {
         match self.ibc_store.lock().unwrap().clients.get(client_id) {
@@ -584,7 +578,11 @@ impl ChannelReader for DummyTransferModule {
 }
 
 impl ClientKeeper for DummyTransferModule {
-    type ClientTypes = MockTypes;
+    type AnyHeader = <MockContext as ClientKeeper>::AnyHeader;
+    type AnyClientState = <MockContext as ClientKeeper>::AnyClientState;
+    type AnyConsensusState = <MockContext as ClientKeeper>::AnyConsensusState;
+    type HostFunctions = <MockContext as ClientKeeper>::HostFunctions;
+    type ClientDef = AnyClient;
 
     fn store_client_type(
         &mut self,

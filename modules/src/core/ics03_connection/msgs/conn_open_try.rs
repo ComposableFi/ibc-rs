@@ -188,11 +188,11 @@ where
 #[cfg(test)]
 pub mod test_util {
     use crate::core::ics02_client::client_state::AnyClientState;
+    use crate::core::ics02_client::context::ClientKeeper;
     use crate::core::ics03_connection::msgs::conn_open_try::MsgConnectionOpenTry;
     use crate::core::ics03_connection::msgs::test_util::get_dummy_raw_counterparty;
     use crate::core::ics03_connection::version::get_compatible_versions;
     use crate::core::ics24_host::identifier::ClientId;
-    use crate::mock::client_def::TestGlobalDefs;
     use crate::mock::client_state::MockClientState;
     use crate::mock::header::MockHeader;
     use crate::prelude::*;
@@ -254,7 +254,6 @@ mod tests {
 
     use test_log::test;
 
-    use crate::clients::ClientTypesOf;
     use ibc_proto::ibc::core::client::v1::Height;
     use ibc_proto::ibc::core::connection::v1::Counterparty as RawCounterparty;
     use ibc_proto::ibc::core::connection::v1::MsgConnectionOpenTry as RawMsgConnectionOpenTry;
@@ -262,7 +261,7 @@ mod tests {
     use crate::core::ics03_connection::msgs::conn_open_try::test_util::get_dummy_raw_msg_conn_open_try;
     use crate::core::ics03_connection::msgs::conn_open_try::MsgConnectionOpenTry;
     use crate::core::ics03_connection::msgs::test_util::get_dummy_raw_counterparty;
-    use crate::mock::client_def::TestGlobalDefs;
+    use crate::mock::context::MockContext;
 
     #[test]
     fn parse_connection_open_try_msg() {
@@ -360,7 +359,7 @@ mod tests {
             .collect();
 
         for test in tests {
-            let msg = MsgConnectionOpenTry::try_from(test.raw.clone());
+            let msg = MsgConnectionOpenTry::<MockContext>::try_from(test.raw.clone());
 
             assert_eq!(
                 test.want_pass,
@@ -376,7 +375,7 @@ mod tests {
     #[test]
     fn to_and_from() {
         let raw = get_dummy_raw_msg_conn_open_try(10, 34);
-        let msg = MsgConnectionOpenTry::try_from(raw.clone()).unwrap();
+        let msg = MsgConnectionOpenTry::<MockContext>::try_from(raw.clone()).unwrap();
         let raw_back = RawMsgConnectionOpenTry::from(msg.clone());
         let msg_back = MsgConnectionOpenTry::try_from(raw_back.clone()).unwrap();
         assert_eq!(raw, raw_back);

@@ -77,7 +77,6 @@ pub(crate) fn process<Ctx: ReaderContext>(
 mod tests {
     use crate::prelude::*;
 
-    use crate::clients::ClientTypesOf;
     use core::str::FromStr;
     use test_log::test;
 
@@ -91,7 +90,6 @@ mod tests {
     use crate::core::ics23_commitment::commitment::CommitmentPrefix;
     use crate::core::ics24_host::identifier::ClientId;
     use crate::events::IbcEvent;
-    use crate::mock::client_def::TestGlobalDefs;
     use crate::mock::context::MockContext;
     use crate::timestamp::ZERO_DURATION;
     use crate::Height;
@@ -101,7 +99,7 @@ mod tests {
         struct Test {
             name: String,
             ctx: MockContext,
-            msg: ConnectionMsg,
+            msg: ConnectionMsg<MockContext>,
             want_pass: bool,
         }
 
@@ -156,7 +154,7 @@ mod tests {
         .collect();
 
         for test in tests {
-            let res = dispatch::<_, TestGlobalDefs>(&test.ctx, test.msg.clone());
+            let res = dispatch(&test.ctx, test.msg.clone());
             // Additionally check the events and the output objects in the result.
             match res {
                 Ok(proto_output) => {

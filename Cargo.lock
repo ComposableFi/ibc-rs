@@ -1840,7 +1840,6 @@ dependencies = [
  "beefy-prover",
  "borsh",
  "bytes",
- "derivative",
  "derive_more",
  "env_logger",
  "flex-error",

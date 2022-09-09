@@ -128,8 +128,7 @@ where
 pub mod test_util {
     use ibc_proto::ibc::core::client::v1::MsgUpgradeClient as RawMsgUpgradeClient;
 
-    use crate::core::ics02_client::client_def::AnyClient;
-    use crate::mock::client_def::TestGlobalDefs;
+    use crate::mock::context::MockContext;
     use crate::{
         core::{
             ics02_client::{
@@ -147,7 +146,7 @@ pub mod test_util {
     use super::MsgUpgradeAnyClient;
 
     /// Extends the implementation with additional helper methods.
-    impl MsgUpgradeAnyClient<AnyClient> {
+    impl MsgUpgradeAnyClient<MockContext> {
         /// Setter for `client_id`. Amenable to chaining, since it consumes the input message.
         pub fn with_client_id(self, client_id: ClientId) -> Self {
             MsgUpgradeAnyClient { client_id, ..self }
@@ -177,8 +176,7 @@ mod tests {
     use alloc::vec::Vec;
     use ibc_proto::ibc::core::client::v1::MsgUpgradeClient as RawMsgUpgradeClient;
 
-    use crate::clients::ClientTypesOf;
-    use crate::mock::client_def::TestGlobalDefs;
+    use crate::mock::context::MockContext;
     use crate::{
         core::{
             ics02_client::{
@@ -209,7 +207,7 @@ mod tests {
         let proof = get_dummy_merkle_proof();
         let mut proof_buf = Vec::new();
         prost::Message::encode(&proof, &mut proof_buf).unwrap();
-        let msg = MsgUpgradeAnyClient::new(
+        let msg = MsgUpgradeAnyClient::<MockContext>::new(
             client_id,
             client_state,
             consensus_state,

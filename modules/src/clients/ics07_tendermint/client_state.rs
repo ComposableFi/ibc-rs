@@ -1,18 +1,14 @@
 use crate::prelude::*;
 
 use core::convert::{TryFrom, TryInto};
-use core::fmt::{Debug, Display};
+use core::fmt::Debug;
 use core::time::Duration;
-use derivative::Derivative;
-use std::marker::PhantomData;
 
-use ibc_proto::google::protobuf::Any;
 use serde::{Deserialize, Serialize};
 use tendermint_light_client_verifier::options::Options;
 use tendermint_proto::Protobuf;
 
 use crate::clients::ics07_tendermint::client_def::TendermintClient;
-use crate::clients::ics07_tendermint::consensus_state::ConsensusState;
 use ibc_proto::ibc::lightclients::tendermint::v1::ClientState as RawClientState;
 
 use crate::clients::ics07_tendermint::error::Error;
@@ -26,13 +22,7 @@ use crate::core::ics24_host::identifier::ChainId;
 use crate::timestamp::{Timestamp, ZERO_DURATION};
 use crate::Height;
 
-#[derive(Derivative, Serialize, Deserialize)]
-#[derivative(
-    PartialEq(bound = ""),
-    Eq(bound = ""),
-    Debug(bound = ""),
-    Clone(bound = "")
-)]
+#[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
 pub struct ClientState {
     pub chain_id: ChainId,
     pub trust_level: TrustThreshold,
@@ -249,23 +239,7 @@ pub struct UpgradeOptions {
     pub unbonding_period: Duration,
 }
 
-impl crate::core::ics02_client::client_state::ClientState for ClientState
-where
-// G: GlobalDefs + Clone,
-// ConsensusState: TryFrom<Ctx::AnyConsensusState, Error = Ics02Error>,
-// Ctx::AnyConsensusState: From<ConsensusState>,
-//
-// ConsensusState: TryFrom<Ctx::AnyConsensusState, Error = Ics02Error>,
-// Ctx::AnyConsensusState: From<ConsensusState>,
-// Ctx::AnyConsensusState: Protobuf<Any>,
-// <Ctx::AnyConsensusState as TryFrom<Any>>::Error: Display,
-// Any: From<Ctx::AnyConsensusState>,
-//
-// Ctx::AnyClientState: TryFrom<Any>,
-// Ctx::AnyClientState: Protobuf<Any>,
-// <Ctx::AnyClientState as TryFrom<Any>>::Error: Display,
-// Any: From<Ctx::AnyClientState>,
-{
+impl crate::core::ics02_client::client_state::ClientState for ClientState {
     type UpgradeOptions = UpgradeOptions;
 
     fn chain_id(&self) -> ChainId {
@@ -301,16 +275,8 @@ where
         self.expired(elapsed)
     }
 
-    fn downcast<T: Clone + core::any::Any>(self) -> T {
-        todo!()
-    }
-
-    fn wrap(sub_state: &dyn core::any::Any) -> Self {
-        todo!()
-    }
-
     fn encode_to_vec(&self) -> Vec<u8> {
-        todo!()
+        self.encode_vec()
     }
 }
 
@@ -394,7 +360,6 @@ mod tests {
     use crate::core::ics02_client::trust_threshold::TrustThreshold;
     use crate::core::ics23_commitment::specs::ProofSpecs;
     use crate::core::ics24_host::identifier::ChainId;
-    use crate::mock::client_def::TestGlobalDefs;
     use crate::test::test_serialization_roundtrip;
     use crate::timestamp::{Timestamp, ZERO_DURATION};
 
@@ -692,7 +657,6 @@ pub mod test_util {
     use crate::core::ics02_client::client_state::AnyClientState;
     use crate::core::ics02_client::height::Height;
     use crate::core::ics24_host::identifier::ChainId;
-    use crate::mock::client_def::TestGlobalDefs;
 
     pub fn get_dummy_tendermint_client_state(tm_header: Header) -> AnyClientState {
         AnyClientState::Tendermint(

@@ -124,7 +124,6 @@ mod tests {
     use crate::core::ics04_channel::handler::channel_dispatch;
     use crate::core::ics04_channel::Version;
     use crate::core::ics24_host::identifier::{ClientId, ConnectionId};
-    use crate::mock::client_def::TestGlobalDefs;
 
     use crate::mock::context::MockContext;
     use crate::timestamp::ZERO_DURATION;
@@ -169,7 +168,7 @@ mod tests {
                 chan_end,
             );
 
-        let (handler_output_builder, _) = channel_dispatch::<_, TestGlobalDefs>(
+        let (handler_output_builder, _) = channel_dispatch(
             &context,
             &ChannelMsg::ChannelCloseConfirm(msg_chan_close_confirm),
         )

@@ -96,7 +96,6 @@ mod tests {
     use crate::core::ics24_host::identifier::ClientId;
     use crate::events::IbcEvent;
     use crate::handler::HandlerOutput;
-    use crate::mock::client_def::TestGlobalDefs;
     use crate::mock::client_state::{MockClientState, MockConsensusState};
     use crate::mock::context::MockContext;
     use crate::mock::header::MockHeader;
@@ -119,7 +118,7 @@ mod tests {
             signer,
         };
 
-        let output = dispatch::<_, TestGlobalDefs>(&ctx, ClientMsg::UpgradeClient(msg.clone()));
+        let output = dispatch(&ctx, ClientMsg::UpgradeClient(msg.clone()));
 
         match output {
             Ok(HandlerOutput {
@@ -165,7 +164,7 @@ mod tests {
             signer,
         };
 
-        let output = dispatch::<_, TestGlobalDefs>(&ctx, ClientMsg::UpgradeClient(msg.clone()));
+        let output = dispatch(&ctx, ClientMsg::UpgradeClient(msg.clone()));
 
         match output {
             Err(Error(ErrorDetail::ClientNotFound(e), _)) => {
@@ -193,7 +192,7 @@ mod tests {
             signer,
         };
 
-        let output = dispatch::<_, TestGlobalDefs>(&ctx, ClientMsg::UpgradeClient(msg.clone()));
+        let output = dispatch(&ctx, ClientMsg::UpgradeClient(msg.clone()));
 
         match output {
             Err(Error(ErrorDetail::LowUpgradeHeight(e), _)) => {

@@ -1,7 +1,3 @@
-use crate::prelude::*;
-use core::fmt::{Debug, Display};
-use tendermint_proto::Protobuf;
-
 use crate::core::ics02_client::context::ClientKeeper;
 use crate::core::ics02_client::handler::dispatch as ics2_msg_dispatcher;
 use crate::core::ics03_connection::handler::dispatch as ics3_msg_dispatcher;
@@ -19,7 +15,9 @@ use crate::core::ics26_routing::error::Error;
 use crate::core::ics26_routing::msgs::Ics26Envelope::{
     self, Ics2Msg, Ics3Msg, Ics4ChannelMsg, Ics4PacketMsg,
 };
+use crate::prelude::*;
 use crate::{events::IbcEvent, handler::HandlerOutput};
+use core::fmt::Debug;
 use ibc_proto::google::protobuf::Any;
 
 /// Result of message execution - comprises of events emitted and logs entries created during the
@@ -37,14 +35,6 @@ where
     Ctx: Ics26Context + ReaderContext,
     Ics26Envelope<Ctx>: TryFrom<Any>,
     Error: From<<Ics26Envelope<Ctx> as TryFrom<Any>>::Error>,
-    // Ctx::AnyClientState: Protobuf<Any>,
-    // Any: From<Ctx::AnyClientState>,
-    // Ctx::AnyClientState: TryFrom<Any>,
-    // <Ctx::AnyClientState as TryFrom<Any>>::Error: Display,
-    // Ctx::AnyConsensusState: Protobuf<Any>,
-    // Any: From<Ctx::AnyConsensusState>,
-    // Ctx::AnyConsensusState: TryFrom<Any>,
-    // <Ctx::AnyConsensusState as TryFrom<Any>>::Error: Display,
 {
     // Decode the proto message into a domain message, creating an ICS26 envelope.
     let envelope = decode::<Ctx>(message)?;
@@ -73,14 +63,6 @@ where
 pub fn dispatch<Ctx>(ctx: &mut Ctx, msg: Ics26Envelope<Ctx>) -> Result<HandlerOutput<()>, Error>
 where
     Ctx: Ics26Context + ClientKeeper,
-    // Ctx::AnyClientState: Protobuf<Any>,
-    // Any: From<Ctx::AnyClientState>,
-    // Ctx::AnyClientState: TryFrom<Any>,
-    // <Ctx::AnyClientState as TryFrom<Any>>::Error: Display,
-    // Ctx::AnyConsensusState: Protobuf<Any>,
-    // Any: From<Ctx::AnyConsensusState>,
-    // Ctx::AnyConsensusState: TryFrom<Any>,
-    // <Ctx::AnyConsensusState as TryFrom<Any>>::Error: Display,
 {
     let output = match msg {
         Ics2Msg(msg) => {
@@ -162,7 +144,6 @@ mod tests {
 
     use crate::applications::transfer::context::test::deliver as ics20_deliver;
     use crate::applications::transfer::PrefixedCoin;
-    use crate::clients::ClientTypesOf;
     use crate::core::ics02_client::client_consensus::AnyConsensusState;
     use crate::core::ics02_client::client_state::AnyClientState;
     use crate::core::ics02_client::msgs::{
@@ -200,7 +181,6 @@ mod tests {
     use crate::core::ics26_routing::handler::dispatch;
     use crate::core::ics26_routing::msgs::Ics26Envelope;
     use crate::handler::HandlerOutputBuilder;
-    use crate::mock::client_def::TestGlobalDefs;
     use crate::mock::client_state::{MockClientState, MockConsensusState};
     use crate::mock::context::{MockContext, MockRouterBuilder};
     use crate::mock::header::MockHeader;
@@ -216,12 +196,12 @@ mod tests {
     fn routing_module_and_keepers() {
         #[derive(Clone, Debug)]
         enum TestMsg {
-            Ics26(Ics26Envelope),
+            Ics26(Ics26Envelope<MockContext>),
             Ics20(MsgTransfer<PrefixedCoin>),
         }
 
-        impl From<Ics26Envelope> for TestMsg {
-            fn from(msg: Ics26Envelope) -> Self {
+        impl From<Ics26Envelope<MockContext>> for TestMsg {
+            fn from(msg: Ics26Envelope<MockContext>) -> Self {
                 Self::Ics26(msg)
             }
         }
@@ -345,7 +325,7 @@ mod tests {
         let msg_recv_packet = MsgRecvPacket::try_from(get_dummy_raw_msg_recv_packet(35)).unwrap();
 
         // First, create a client..
-        let res = dispatch::<_, TestGlobalDefs>(
+        let res = dispatch(
             &mut ctx,
             Ics26Envelope::Ics2Msg(ClientMsg::CreateClient(create_client_msg.clone())),
         );
@@ -561,7 +541,7 @@ mod tests {
 
         for test in tests {
             let res = match test.msg.clone() {
-                TestMsg::Ics26(msg) => dispatch::<_, TestGlobalDefs>(&mut ctx, msg).map(|_| ()),
+                TestMsg::Ics26(msg) => dispatch(&mut ctx, msg).map(|_| ()),
                 TestMsg::Ics20(msg) => {
                     let transfer_module =
                         ctx.router_mut().get_route_mut(&transfer_module_id).unwrap();

@@ -45,9 +45,24 @@ pub trait ConsensusState: Clone + Debug + Send + Sync {
     /// Returns the timestamp of the state.
     fn timestamp(&self) -> Timestamp;
 
-    fn downcast<T: Clone + 'static>(self) -> T;
+    fn downcast<T: Clone + 'static>(self) -> T
+    where
+        Self: 'static,
+    {
+        <dyn core::any::Any>::downcast_ref(&self)
+            .cloned()
+            .expect("downcast failed")
+    }
 
-    fn wrap(sub_state: &dyn core::any::Any) -> Self;
+    fn wrap(sub_state: &dyn core::any::Any) -> Self
+    where
+        Self: 'static,
+    {
+        sub_state
+            .downcast_ref::<Self>()
+            .expect("ConsensusState wrap failed")
+            .clone()
+    }
 
     fn encode_to_vec(&self) -> Vec<u8>;
 }
@@ -192,15 +207,33 @@ impl ConsensusState for AnyConsensusState {
     }
 
     fn downcast<T: Clone + 'static>(self) -> T {
-        todo!()
+        match self {
+            Self::Tendermint(cs_state) => cs_state.downcast(),
+            #[cfg(any(test, feature = "ics11_beefy"))]
+            Self::Beefy(cs_state) => cs_state.downcast(),
+            #[cfg(any(test, feature = "mocks"))]
+            Self::Mock(mock_state) => mock_state.downcast(),
+        }
     }
 
     fn wrap(sub_state: &dyn core::any::Any) -> Self {
-        todo!()
+        if let Some(state) = sub_state.downcast_ref::<consensus_state::ConsensusState>() {
+            return AnyConsensusState::Tendermint(state.clone());
+        }
+        #[cfg(any(test, feature = "ics11_beefy"))]
+        if let Some(state) = sub_state.downcast_ref::<beefy_consensus_state::ConsensusState>() {
+            return AnyConsensusState::Beefy(state.clone());
+        }
+        // TODO: wrap near consensus state
+        #[cfg(any(test, feature = "mocks"))]
+        if let Some(state) = sub_state.downcast_ref::<MockConsensusState>() {
+            return AnyConsensusState::Mock(state.clone());
+        }
+        panic!("unknown consensus state type")
     }
 
     fn encode_to_vec(&self) -> Vec<u8> {
-        todo!()
+        self.encode_vec()
     }
 }
 

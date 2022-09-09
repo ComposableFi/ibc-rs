@@ -2,39 +2,24 @@ use core::fmt::{Debug, Display};
 use core::marker::{Send, Sync};
 use core::time::Duration;
 
-use derivative::Derivative;
 use ibc_proto::google::protobuf::Any;
 use serde::{Deserialize, Serialize};
 use tendermint_proto::Protobuf;
 
-use crate::clients::ics07_tendermint::client_def::TendermintClient;
 use crate::clients::ics07_tendermint::client_state;
 use crate::clients::ics07_tendermint::client_state::ClientState as TendermintClientState;
-use crate::clients::ics07_tendermint::consensus_state::ConsensusState as TendermintConsensusState;
 #[cfg(any(test, feature = "ics11_beefy"))]
 use crate::clients::ics11_beefy::client_state as beefy_client_state;
-#[cfg(any(test, feature = "ics11_beefy"))]
-use crate::clients::ics11_beefy::{
-    client_def::BeefyClient, consensus_state::ConsensusState as BeefyConsensusState,
-};
-use crate::core::ics02_client::client_def::{AnyClient, ClientDef};
 use crate::core::ics02_client::client_type::ClientType;
 use crate::core::ics02_client::error::Error;
 use crate::core::ics02_client::trust_threshold::TrustThreshold;
 use crate::core::ics24_host::error::ValidationError;
 use crate::core::ics24_host::identifier::{ChainId, ClientId};
 #[cfg(any(test, feature = "mocks"))]
-use crate::mock::client_def::MockClient;
-#[cfg(any(test, feature = "mocks"))]
-use crate::mock::client_state::{MockClientState, MockConsensusState};
+use crate::mock::client_state::MockClientState;
 use crate::prelude::*;
 use crate::Height;
 use ibc_proto::ibc::core::client::v1::IdentifiedClientState;
-
-#[cfg(not(feature = "ics11_beefy"))]
-use super::client_def::stub_beefy::*;
-#[cfg(not(test))]
-use super::client_def::stub_mock::*;
 
 pub const TENDERMINT_CLIENT_STATE_TYPE_URL: &str = "/ibc.lightclients.tendermint.v1.ClientState";
 pub const BEEFY_CLIENT_STATE_TYPE_URL: &str = "/ibc.lightclients.beefy.v1.ClientState";
@@ -77,9 +62,24 @@ pub trait ClientState: Clone + Debug + Send + Sync {
 
     /// Performs downcast of the client state from an "AnyClientState" type to T, otherwise
     /// panics. Downcast from `T` to `T` is always successful.
-    fn downcast<T: Clone + core::any::Any>(self) -> T;
+    fn downcast<T: Clone + 'static>(self) -> T
+    where
+        Self: 'static,
+    {
+        <dyn core::any::Any>::downcast_ref(&self)
+            .cloned()
+            .expect("downcast failed")
+    }
 
-    fn wrap(sub_state: &dyn core::any::Any) -> Self;
+    fn wrap(sub_state: &dyn core::any::Any) -> Self
+    where
+        Self: 'static,
+    {
+        sub_state
+            .downcast_ref::<Self>()
+            .expect("ClientState wrap failed")
+            .clone()
+    }
 
     fn encode_to_vec(&self) -> Vec<u8>;
 }
@@ -281,30 +281,7 @@ impl From<AnyClientState> for Any {
     }
 }
 
-impl ClientState for AnyClientState
-where
-// G: GlobalDefs + Clone,
-// Ctx::HostFunctions: Sync + Send + Clone + Debug + Eq,
-//
-// TendermintConsensusState: TryFrom<Ctx::AnyConsensusState, Error = Error>,
-// Ctx::AnyConsensusState: From<TendermintConsensusState>,
-//
-// BeefyConsensusState: TryFrom<Ctx::AnyConsensusState, Error = Error>,
-// Ctx::AnyConsensusState: From<BeefyConsensusState>,
-//
-// MockConsensusState: TryFrom<Ctx::AnyConsensusState, Error = Error>,
-// Ctx::AnyConsensusState: From<MockConsensusState>,
-//
-// Ctx::AnyConsensusState: Protobuf<Any>,
-// Ctx::AnyConsensusState: TryFrom<Any>,
-// <Ctx::AnyConsensusState as TryFrom<Any>>::Error: Display,
-// Any: From<Ctx::AnyConsensusState>,
-//
-// Ctx::AnyClientState: Protobuf<Any>,
-// Ctx::AnyClientState: TryFrom<Any>,
-// <Ctx::AnyClientState as TryFrom<Any>>::Error: Display,
-// Any: From<Ctx::AnyClientState>,
-{
+impl ClientState for AnyClientState {
     type UpgradeOptions = AnyUpgradeOptions;
 
     fn chain_id(&self) -> ChainId {
@@ -375,9 +352,15 @@ where
     }
 
     fn downcast<T: Clone + core::any::Any>(self) -> T {
-        <dyn core::any::Any>::downcast_ref(&self)
-            .cloned()
-            .expect("downcast failed")
+        match self {
+            AnyClientState::Tendermint(tm_state) => tm_state.downcast::<T>(),
+            #[cfg(any(test, feature = "ics11_beefy"))]
+            AnyClientState::Beefy(bf_state) => bf_state.downcast::<T>(),
+            #[cfg(any(test, feature = "ics11_beefy"))]
+            AnyClientState::Near(near_state) => near_state.downcast::<T>(),
+            #[cfg(any(test, feature = "mocks"))]
+            AnyClientState::Mock(mock_state) => mock_state.downcast::<T>(),
+        }
     }
 
     fn wrap(sub_state: &dyn core::any::Any) -> Self {
@@ -397,12 +380,11 @@ where
     }
 
     fn encode_to_vec(&self) -> Vec<u8> {
-        todo!()
+        self.encode_vec()
     }
 }
 
-#[derive(Derivative, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[derivative(Clone(bound = ""))]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub struct IdentifiedAnyClientState {
     pub client_id: ClientId,

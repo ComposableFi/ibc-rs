@@ -5,7 +5,6 @@ use alloc::collections::btree_map::BTreeMap as HashMap;
 use core::convert::Infallible;
 use core::fmt::Debug;
 use core::time::Duration;
-use std::marker::PhantomData;
 
 use serde::{Deserialize, Serialize};
 use tendermint_proto::Protobuf;
@@ -13,18 +12,16 @@ use tendermint_proto::Protobuf;
 use ibc_proto::ibc::mock::ClientState as RawMockClientState;
 use ibc_proto::ibc::mock::ConsensusState as RawMockConsensusState;
 
-use crate::clients::{ConsensusStateOf, GlobalDefs};
 use crate::core::ics02_client::client_consensus::{AnyConsensusState, ConsensusState};
 use crate::core::ics02_client::client_state::{AnyClientState, ClientState};
 use crate::core::ics02_client::client_type::ClientType;
 use crate::core::ics02_client::error::Error;
 use crate::core::ics23_commitment::commitment::CommitmentRoot;
 use crate::core::ics24_host::identifier::ChainId;
-use crate::mock::client_def::{MockClient, TestGlobalDefs};
+use crate::mock::client_def::MockClient;
 use crate::mock::header::MockHeader;
 use crate::timestamp::Timestamp;
 use crate::{downcast, Height};
-use derivative::Derivative;
 
 /// A mock of an IBC client record as it is stored in a mock context.
 /// For testing ICS02 handlers mostly, cf. `MockClientContext`.
@@ -42,14 +39,7 @@ pub struct MockClientRecord {
 
 /// A mock of a client state. For an example of a real structure that this mocks, you can see
 /// `ClientState` of ics07_tendermint/client_state.rs.
-#[derive(Serialize, Deserialize, Derivative)]
-#[derivative(
-    Copy(bound = ""),
-    Clone(bound = ""),
-    Debug(bound = ""),
-    PartialEq(bound = ""),
-    Eq(bound = "")
-)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, Copy)]
 pub struct MockClientState {
     pub header: MockHeader,
     pub frozen_height: Option<Height>,
@@ -62,7 +52,6 @@ impl MockClientState {
         Self {
             header,
             frozen_height: None,
-            _phantom: PhantomData,
         }
     }
 
@@ -96,13 +85,8 @@ impl From<MockClientState> for RawMockClientState {
     }
 }
 
-impl ClientState for MockClientState
-where
-    MockConsensusState: TryFrom<Ctx::AnyConsensusState, Error = Error>,
-    Ctx::AnyConsensusState: From<MockConsensusState>,
-{
+impl ClientState for MockClientState {
     type UpgradeOptions = ();
-    type ClientDef = MockClient;
 
     fn chain_id(&self) -> ChainId {
         self.chain_id()
@@ -110,10 +94,6 @@ where
 
     fn client_type(&self) -> ClientType {
         self.client_type()
-    }
-
-    fn client_def(&self) -> Self::ClientDef {
-        self.client_def()
     }
 
     fn latest_height(&self) -> Height {
@@ -130,6 +110,10 @@ where
 
     fn expired(&self, elapsed: Duration) -> bool {
         self.expired(elapsed)
+    }
+
+    fn encode_to_vec(&self) -> Vec<u8> {
+        self.encode_vec()
     }
 }
 
@@ -253,5 +237,9 @@ impl ConsensusState for MockConsensusState {
 
     fn timestamp(&self) -> Timestamp {
         self.timestamp()
+    }
+
+    fn encode_to_vec(&self) -> Vec<u8> {
+        self.encode_vec()
     }
 }

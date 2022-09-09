@@ -1,15 +1,12 @@
 //! This module implements the processing logic for ICS3 (connection open handshake) messages.
 
-use crate::core::ics02_client::context::ClientKeeper;
 use crate::core::ics03_connection::connection::ConnectionEnd;
 use crate::core::ics03_connection::error::Error;
 use crate::core::ics03_connection::msgs::ConnectionMsg;
 use crate::core::ics24_host::identifier::ConnectionId;
 use crate::core::ics26_routing::context::ReaderContext;
 use crate::handler::HandlerOutput;
-use core::fmt::{Debug, Display};
-use ibc_proto::google::protobuf::Any;
-use tendermint_proto::Protobuf;
+use core::fmt::Debug;
 
 pub mod conn_open_ack;
 pub mod conn_open_confirm;
@@ -48,18 +45,7 @@ pub struct ConnectionResult {
 pub fn dispatch<Ctx: ReaderContext>(
     ctx: &Ctx,
     msg: ConnectionMsg<Ctx>,
-) -> Result<HandlerOutput<ConnectionResult>, Error>
-where
-    // Ctx: ReaderContext + Eq,
-    // Ctx::AnyClientState: Protobuf<Any>,
-    // Any: From<Ctx::AnyClientState>,
-    // Ctx::AnyClientState: TryFrom<Any>,
-    // <Ctx::AnyClientState as TryFrom<Any>>::Error: Display,
-    // Ctx::AnyConsensusState: Protobuf<Any>,
-    // Any: From<Ctx::AnyConsensusState>,
-    // Ctx::AnyConsensusState: TryFrom<Any>,
-    // <Ctx::AnyConsensusState as TryFrom<Any>>::Error: Display,
-{
+) -> Result<HandlerOutput<ConnectionResult>, Error> {
     match msg {
         ConnectionMsg::ConnectionOpenInit(msg) => conn_open_init::process(ctx, msg),
         ConnectionMsg::ConnectionOpenTry(msg) => conn_open_try::process::<_>(ctx, *msg),

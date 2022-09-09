@@ -54,7 +54,6 @@ mod tests {
     use crate::core::ics02_client::header::{AnyHeader, Header};
     use crate::core::ics24_host::identifier::{ChainId, ClientId};
     use crate::core::ics26_routing::msgs::Ics26Envelope;
-    use crate::mock::client_def::TestGlobalDefs;
     use crate::mock::context::MockContext;
     use crate::mock::host::HostType;
     use crate::prelude::*;
@@ -116,11 +115,8 @@ mod tests {
                 ClientType::Mock
             );
 
-            let client_msg_b_res = build_client_update_datagram::<TestGlobalDefs, _>(
-                &ctx_b,
-                &client_on_b_for_a,
-                a_latest_header,
-            );
+            let client_msg_b_res =
+                build_client_update_datagram(&ctx_b, &client_on_b_for_a, a_latest_header);
 
             assert!(
                 client_msg_b_res.is_ok(),
@@ -176,11 +172,8 @@ mod tests {
                 ClientType::Tendermint
             );
 
-            let client_msg_a_res = build_client_update_datagram::<TestGlobalDefs, _>(
-                &ctx_a,
-                &client_on_a_for_b,
-                b_latest_header,
-            );
+            let client_msg_a_res =
+                build_client_update_datagram(&ctx_a, &client_on_a_for_b, b_latest_header);
 
             assert!(
                 client_msg_a_res.is_ok(),

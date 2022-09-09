@@ -1,5 +1,5 @@
 use core::convert::TryInto;
-use core::fmt::{Debug, Display};
+use core::fmt::Debug;
 
 use crate::clients::host_functions::HostFunctionsManager;
 use crate::clients::ics07_tendermint::client_state::ClientState;
@@ -28,8 +28,6 @@ use crate::core::ics24_host::path::{
 };
 use crate::core::ics24_host::Path;
 use crate::core::ics26_routing::context::ReaderContext;
-use derivative::Derivative;
-use ibc_proto::google::protobuf::Any;
 use ibc_proto::ibc::core::commitment::v1::MerkleProof as RawMerkleProof;
 use prost::Message;
 use tendermint_light_client_verifier::types::{TrustedBlockState, UntrustedBlockState};
@@ -43,43 +41,7 @@ use crate::Height;
 #[derive(Clone, Debug, PartialEq, Eq, Default)]
 pub struct TendermintClient;
 
-// impl ClientTypes for TendermintClient
-// where
-//     G: GlobalDefs + Clone,
-//     ConsensusState: TryFrom<Ctx::AnyConsensusState, Error = Ics02Error>,
-//     Ctx::AnyConsensusState: From<ConsensusState>,
-//
-//     Ctx::AnyConsensusState: Protobuf<Any>,
-//     Ctx::AnyConsensusState: TryFrom<Any>,
-//     <Ctx::AnyConsensusState as TryFrom<Any>>::Error: Display,
-//     Any: From<Ctx::AnyConsensusState>,
-//
-//     Ctx::AnyClientState: Protobuf<Any>,
-//     Ctx::AnyClientState: TryFrom<Any>,
-//     <Ctx::AnyClientState as TryFrom<Any>>::Error: Display,
-//     Any: From<Ctx::AnyClientState>,
-// {
-//     type Header = Header;
-//     type ClientState = ClientState;
-//     type ConsensusState = ConsensusState;
-// }
-
-impl ClientDef for TendermintClient
-where
-// G: GlobalDefs + Clone,
-// ConsensusState: TryFrom<Ctx::AnyConsensusState, Error = Ics02Error>,
-// Ctx::AnyConsensusState: From<ConsensusState>,
-//
-// Ctx::AnyConsensusState: Protobuf<Any>,
-// Ctx::AnyConsensusState: TryFrom<Any>,
-// <Ctx::AnyConsensusState as TryFrom<Any>>::Error: Display,
-// Any: From<Ctx::AnyConsensusState>,
-//
-// Ctx::AnyClientState: Protobuf<Any>,
-// Ctx::AnyClientState: TryFrom<Any>,
-// <Ctx::AnyClientState as TryFrom<Any>>::Error: Display,
-// Any: From<Ctx::AnyClientState>,
-{
+impl ClientDef for TendermintClient {
     type Header = Header;
     type ClientState = ClientState;
     type ConsensusState = ConsensusState;

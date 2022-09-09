@@ -73,7 +73,6 @@ where
 mod tests {
     use crate::prelude::*;
 
-    use crate::clients::ClientTypesOf;
     use core::time::Duration;
     use test_log::test;
 
@@ -91,9 +90,8 @@ mod tests {
     use crate::core::ics24_host::identifier::ClientId;
     use crate::events::IbcEvent;
     use crate::handler::HandlerOutput;
-    use crate::mock::client_def::TestGlobalDefs;
     use crate::mock::client_state::{MockClientState, MockConsensusState};
-    use crate::mock::context::{MockContext, MockTypes};
+    use crate::mock::context::MockContext;
     use crate::mock::header::MockHeader;
     use crate::test_utils::get_dummy_account_id;
     use crate::Height;
@@ -111,7 +109,7 @@ mod tests {
         )
         .unwrap();
 
-        let output = dispatch::<_, TestGlobalDefs>(&ctx, ClientMsg::CreateClient(msg.clone()));
+        let output = dispatch(&ctx, ClientMsg::CreateClient(msg.clone()));
 
         match output {
             Ok(HandlerOutput {
@@ -150,7 +148,7 @@ mod tests {
 
         let ctx = MockContext::default().with_client(&existing_client_id, height);
 
-        let create_client_msgs: Vec<MsgCreateAnyClient> = vec![
+        let create_client_msgs: Vec<MsgCreateAnyClient<MockContext>> = vec![
             MsgCreateAnyClient::new(
                 MockClientState::new(MockHeader::new(Height {
                     revision_height: 42,
@@ -203,7 +201,7 @@ mod tests {
         let expected_client_id = ClientId::new(ClientType::Mock, 0).unwrap();
 
         for msg in create_client_msgs {
-            let output = dispatch::<_, TestGlobalDefs>(&ctx, ClientMsg::CreateClient(msg.clone()));
+            let output = dispatch(&ctx, ClientMsg::CreateClient(msg.clone()));
 
             match output {
                 Ok(HandlerOutput {
@@ -256,14 +254,14 @@ mod tests {
             .unwrap(),
         );
 
-        let msg = MsgCreateAnyClient::<MockTypes>::new(
+        let msg = MsgCreateAnyClient::<MockContext>::new(
             tm_client_state,
             AnyConsensusState::Tendermint(tm_header.try_into().unwrap()),
             signer,
         )
         .unwrap();
 
-        let output = dispatch::<_, TestGlobalDefs>(&ctx, ClientMsg::CreateClient(msg.clone()));
+        let output = dispatch(&ctx, ClientMsg::CreateClient(msg.clone()));
 
         match output {
             Ok(HandlerOutput {

@@ -15,12 +15,8 @@ use crate::Height;
 use alloc::format;
 #[cfg(feature = "ics11_beefy")]
 use codec::{Decode, Encode};
-use core::fmt::Display;
-use ibc_proto::google::protobuf::Any;
 #[cfg(feature = "ics11_beefy")]
 use sp_std::vec::Vec;
-use tendermint_proto::Protobuf;
-
 #[cfg(feature = "ics11_beefy")]
 /// Connection proof type, used in relayer
 #[derive(Encode, Decode)]
@@ -94,13 +90,7 @@ pub fn verify_client_proof<Ctx: ReaderContext>(
     expected_client_state: Ctx::AnyClientState,
     proof_height: Height,
     proof: &CommitmentProofBytes,
-) -> Result<(), Error>
-where
-    // Ctx::AnyClientState: Protobuf<Any>,
-    // Any: From<Ctx::AnyClientState>,
-    // Ctx::AnyClientState: TryFrom<Any>,
-    // <Ctx::AnyClientState as TryFrom<Any>>::Error: Display,
-{
+) -> Result<(), Error> {
     // Fetch the local client state (IBC client running on the host chain).
     let client_state = ctx
         .client_state(connection_end.client_id())
@@ -137,13 +127,7 @@ pub fn verify_consensus_proof<Ctx: ReaderContext>(
     height: Height,
     connection_end: &ConnectionEnd,
     proof: &ConsensusProof,
-) -> Result<(), Error>
-where
-    // Ctx::AnyConsensusState: Protobuf<Any>,
-    // Any: From<Ctx::AnyConsensusState>,
-    // Ctx::AnyConsensusState: TryFrom<Any>,
-    // <Ctx::AnyConsensusState as TryFrom<Any>>::Error: Display,
-{
+) -> Result<(), Error> {
     // Fetch the client state (IBC client on the local chain).
     let client_state = ctx
         .client_state(connection_end.client_id())

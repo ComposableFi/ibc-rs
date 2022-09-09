@@ -97,7 +97,6 @@ mod tests {
     use crate::core::ics24_host::identifier::{ClientId, ConnectionId};
 
     use crate::core::ics02_client::context::ClientReader;
-    use crate::mock::client_def::TestGlobalDefs;
     use crate::mock::context::MockContext;
     use crate::timestamp::ZERO_DURATION;
 
@@ -142,11 +141,8 @@ mod tests {
                 )
         };
 
-        let (handler_output_builder, _) = channel_dispatch::<_, TestGlobalDefs>(
-            &context,
-            &ChannelMsg::ChannelCloseInit(msg_chan_close_init),
-        )
-        .unwrap();
+        let (handler_output_builder, _) =
+            channel_dispatch(&context, &ChannelMsg::ChannelCloseInit(msg_chan_close_init)).unwrap();
         let handler_output = handler_output_builder.with_result(());
 
         assert!(!handler_output.events.is_empty()); // Some events must exist.

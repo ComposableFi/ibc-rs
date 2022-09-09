@@ -1,12 +1,7 @@
-use crate::core::ics02_client::client_consensus::ConsensusState;
-
-use crate::core::ics02_client::client_state::ClientState;
-use crate::core::ics02_client::header::Header;
 use crate::prelude::*;
 use core::fmt;
 use core::fmt::Debug;
 
-use crate::core::ics02_client::client_def::ClientDef;
 use serde_derive::{Deserialize, Serialize};
 
 use super::error::Error;

@@ -143,7 +143,6 @@ mod tests {
     use crate::core::ics24_host::identifier::{ChainId, ClientId};
     use crate::events::IbcEvent;
     use crate::handler::HandlerOutput;
-    use crate::mock::client_def::TestGlobalDefs;
     use crate::mock::client_state::MockClientState;
     use crate::mock::context::MockContext;
     use crate::mock::header::MockHeader;
@@ -169,7 +168,7 @@ mod tests {
             signer,
         };
 
-        let output = dispatch::<_, TestGlobalDefs>(&ctx, ClientMsg::UpdateClient(msg.clone()));
+        let output = dispatch(&ctx, ClientMsg::UpdateClient(msg.clone()));
 
         match output {
             Ok(HandlerOutput {
@@ -217,7 +216,7 @@ mod tests {
             signer,
         };
 
-        let output = dispatch::<_, TestGlobalDefs>(&ctx, ClientMsg::UpdateClient(msg.clone()));
+        let output = dispatch(&ctx, ClientMsg::UpdateClient(msg.clone()));
 
         match output {
             Err(Error(ErrorDetail::ClientNotFound(e), _)) => {
@@ -253,7 +252,7 @@ mod tests {
                 signer: signer.clone(),
             };
 
-            let output = dispatch::<_, TestGlobalDefs>(&ctx, ClientMsg::UpdateClient(msg.clone()));
+            let output = dispatch(&ctx, ClientMsg::UpdateClient(msg.clone()));
 
             match output {
                 Ok(HandlerOutput {
@@ -322,7 +321,7 @@ mod tests {
             signer,
         };
 
-        let output = dispatch::<_, TestGlobalDefs>(&ctx, ClientMsg::UpdateClient(msg.clone()));
+        let output = dispatch(&ctx, ClientMsg::UpdateClient(msg.clone()));
 
         match output {
             Ok(HandlerOutput {
@@ -401,7 +400,7 @@ mod tests {
             signer,
         };
 
-        let output = dispatch::<_, TestGlobalDefs>(&ctx, ClientMsg::UpdateClient(msg.clone()));
+        let output = dispatch(&ctx, ClientMsg::UpdateClient(msg.clone()));
 
         match output {
             Ok(HandlerOutput {
@@ -481,7 +480,7 @@ mod tests {
             signer,
         };
 
-        let output = dispatch::<_, TestGlobalDefs>(&ctx, ClientMsg::UpdateClient(msg.clone()));
+        let output = dispatch(&ctx, ClientMsg::UpdateClient(msg.clone()));
 
         match output {
             Ok(HandlerOutput {
@@ -553,7 +552,7 @@ mod tests {
             signer,
         };
 
-        let output = dispatch::<_, TestGlobalDefs>(&ctx, ClientMsg::UpdateClient(msg));
+        let output = dispatch(&ctx, ClientMsg::UpdateClient(msg));
 
         match output {
             Ok(_) => {
@@ -714,8 +713,7 @@ mod tests {
         };
 
         // Create the client
-        let res =
-            dispatch::<_, TestGlobalDefs>(&ctx, ClientMsg::CreateClient(create_client)).unwrap();
+        let res = dispatch(&ctx, ClientMsg::CreateClient(create_client)).unwrap();
         ctx.store_client_result(res.result).unwrap();
         let mut subscription: Subscription<String> = client
             .rpc()
@@ -817,7 +815,7 @@ mod tests {
                 signer: signer.clone(),
             };
 
-            let res = dispatch::<_, TestGlobalDefs>(&ctx, ClientMsg::UpdateClient(msg.clone()));
+            let res = dispatch(&ctx, ClientMsg::UpdateClient(msg.clone()));
 
             match res {
                 Ok(HandlerOutput {

@@ -1,13 +1,11 @@
-use crate::clients::host_functions::HostFunctionsProvider;
 use crate::clients::ics07_tendermint::client_def::TendermintClient;
 use crate::clients::ics07_tendermint::consensus_state::ConsensusState as TendermintConsensusState;
 #[cfg(any(test, feature = "ics11_beefy"))]
-use crate::clients::ics11_beefy::{
-    client_def::BeefyClient, consensus_state::ConsensusState as BeefyConsensusState,
-};
+use crate::clients::ics11_beefy::client_def::BeefyClient;
 use crate::core::ics02_client::client_consensus::{AnyConsensusState, ConsensusState};
 use crate::core::ics02_client::client_state::{AnyClientState, ClientState};
 use crate::core::ics02_client::client_type::ClientType;
+use crate::core::ics02_client::context::ClientKeeper;
 use crate::core::ics02_client::error::Error;
 use crate::core::ics02_client::header::{AnyHeader, Header};
 use crate::core::ics03_connection::connection::ConnectionEnd;
@@ -20,16 +18,9 @@ use crate::core::ics23_commitment::commitment::{
 use crate::core::ics24_host::identifier::{ChannelId, ClientId, ConnectionId, PortId};
 use crate::core::ics26_routing::context::ReaderContext;
 use crate::downcast;
-#[cfg(any(test, feature = "mocks"))]
-use crate::mock::client_state::MockConsensusState;
 use crate::prelude::*;
 use crate::Height;
-use core::fmt::{Debug, Display};
-use derivative::Derivative;
-
-use ibc_proto::google::protobuf::Any;
-use std::marker::PhantomData;
-use tendermint_proto::Protobuf;
+use core::fmt::Debug;
 
 #[cfg(any(test, feature = "mocks"))]
 use crate::mock::client_def::MockClient;
@@ -258,81 +249,8 @@ impl AnyClient {
     }
 }
 
-// impl ClientTypes for AnyClient
-// where
-// TendermintConsensusState: TryFrom<Ctx::AnyConsensusState, Error = Error>,
-// Ctx::AnyConsensusState: From<TendermintConsensusState>,
-//
-// BeefyConsensusState: TryFrom<Ctx::AnyConsensusState, Error = Error>,
-// Ctx::AnyConsensusState: From<BeefyConsensusState>,
-//
-// MockConsensusState: TryFrom<Ctx::AnyConsensusState, Error = Error>,
-// Ctx::AnyConsensusState: From<MockConsensusState>,
-//
-// Ctx::AnyConsensusState: Protobuf<Any>,
-// Ctx::AnyConsensusState: TryFrom<Any>,
-// <Ctx::AnyConsensusState as TryFrom<Any>>::Error: Display,
-// Any: From<Ctx::AnyConsensusState>,
-//
-// Ctx::AnyClientState: Protobuf<Any>,
-// Ctx::AnyClientState: TryFrom<Any>,
-// <Ctx::AnyClientState as TryFrom<Any>>::Error: Display,
-// Any: From<Ctx::AnyClientState>,
-// {
-//     type Header = AnyHeader;
-//     type ClientState = AnyClientState;
-//     type ConsensusState = AnyConsensusState;
-// }
-
-#[derive(Derivative)]
-#[derivative(
-    Default(bound = ""),
-    Clone(bound = ""),
-    PartialEq(bound = ""),
-    Eq(bound = ""),
-    Debug(bound = "")
-)]
-pub struct AnyGlobalDef<H>(PhantomData<H>);
-
-pub mod stub_beefy {
-    pub struct Stub;
-    pub type BeefyConsensusState = Stub;
-}
-#[cfg(not(feature = "ics11_beefy"))]
-use stub_beefy::*;
-
-#[cfg(not(test))]
-pub mod stub_mock {
-    pub struct Stub;
-    pub type MockConsensusState = Stub;
-}
-use crate::core::ics02_client::context::ClientKeeper;
-#[cfg(not(test))]
-use stub_mock::*;
-
 // ⚠️  Beware of the awful boilerplate below ⚠️
-impl ClientDef for AnyClient
-where
-// Ctx::HostFunctions: HostFunctionsProvider + Clone + Debug + Eq,
-// TendermintConsensusState: TryFrom<Ctx::AnyConsensusState, Error = Error>,
-// Ctx::AnyConsensusState: From<TendermintConsensusState>,
-//
-// BeefyConsensusState: TryFrom<Ctx::AnyConsensusState, Error = Error>,
-// Ctx::AnyConsensusState: From<BeefyConsensusState>,
-//
-// MockConsensusState: TryFrom<Ctx::AnyConsensusState, Error = Error>,
-// Ctx::AnyConsensusState: From<MockConsensusState>,
-//
-// Ctx::AnyConsensusState: Protobuf<Any>,
-// Ctx::AnyConsensusState: TryFrom<Any>,
-// <Ctx::AnyConsensusState as TryFrom<Any>>::Error: Display,
-// Any: From<Ctx::AnyConsensusState>,
-//
-// Ctx::AnyClientState: Protobuf<Any>,
-// Ctx::AnyClientState: TryFrom<Any>,
-// <Ctx::AnyClientState as TryFrom<Any>>::Error: Display,
-// Any: From<Ctx::AnyClientState>,
-{
+impl ClientDef for AnyClient {
     type Header = AnyHeader;
     type ClientState = AnyClientState;
     type ConsensusState = AnyConsensusState;

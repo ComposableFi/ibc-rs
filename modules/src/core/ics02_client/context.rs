@@ -3,7 +3,7 @@
 //! "ADR 003: IBC protocol implementation" for more details.
 
 use crate::clients::host_functions::HostFunctionsProvider;
-use crate::core::ics02_client::client_consensus::{AnyConsensusState, ConsensusState};
+use crate::core::ics02_client::client_consensus::ConsensusState;
 use crate::core::ics02_client::client_def::{ClientDef, ConsensusUpdateResult};
 use crate::core::ics02_client::client_state::ClientState;
 use crate::core::ics02_client::client_type::ClientType;
@@ -14,9 +14,7 @@ use crate::core::ics24_host::identifier::ClientId;
 use crate::timestamp::Timestamp;
 use crate::Height;
 use alloc::vec::Vec;
-use core::fmt::{Debug, Display};
-use ibc_proto::google::protobuf::Any;
-use tendermint_proto::Protobuf;
+use core::fmt::Debug;
 
 /// Defines the read-only part of ICS2 (client functions) context.
 pub trait ClientReader: ClientKeeper {
@@ -92,7 +90,7 @@ where
 {
     type AnyHeader: Header;
     type AnyClientState: ClientState + Eq;
-    type AnyConsensusState: ConsensusState + Eq;
+    type AnyConsensusState: ConsensusState + Eq + 'static;
     type HostFunctions: HostFunctionsProvider;
 
     /// Client definition type (used for verification)
@@ -101,8 +99,6 @@ where
         ClientState = Self::AnyClientState,
         ConsensusState = Self::AnyConsensusState,
     >;
-
-    fn client_from_type(client_id: ClientType) -> Self;
 
     fn store_client_result<Ctx: ClientKeeper>(
         &mut self,

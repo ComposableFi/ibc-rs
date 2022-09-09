@@ -10,12 +10,9 @@ use core::time::Duration;
 use serde::{Deserialize, Serialize};
 use sp_core::H256;
 use sp_runtime::SaturatedConversion;
-use std::marker::PhantomData;
 use tendermint_proto::Protobuf;
 
 use crate::clients::ics11_beefy::client_def::BeefyClient;
-use crate::clients::ics11_beefy::consensus_state::ConsensusState;
-use crate::core::ics02_client::error::Error as Ics02Error;
 use ibc_proto::ibc::lightclients::beefy::v1::{BeefyAuthoritySet, ClientState as RawClientState};
 
 use crate::clients::ics11_beefy::error::Error;
@@ -25,16 +22,8 @@ use crate::core::ics02_client::client_type::ClientType;
 use crate::core::ics24_host::identifier::ChainId;
 use crate::timestamp::Timestamp;
 use crate::Height;
-use derivative::Derivative;
-use ibc_proto::google::protobuf::Any;
 
-#[derive(Derivative)]
-#[derivative(
-    PartialEq(bound = ""),
-    Eq(bound = ""),
-    Clone(bound = ""),
-    Debug(bound = "")
-)]
+#[derive(PartialEq, Eq, Clone, Debug)]
 pub struct ClientState {
     /// The chain id
     pub chain_id: ChainId,
@@ -246,21 +235,7 @@ impl ClientState {
     }
 }
 
-impl crate::core::ics02_client::client_state::ClientState for ClientState
-where
-// ConsensusState: TryFrom<Ctx::AnyConsensusState, Error = Ics02Error>,
-// Ctx::AnyConsensusState: From<ConsensusState>,
-//
-// Ctx::AnyConsensusState: Protobuf<Any>,
-// Ctx::AnyConsensusState: TryFrom<Any>,
-// <Ctx::AnyConsensusState as TryFrom<Any>>::Error: Display,
-// Any: From<Ctx::AnyConsensusState>,
-//
-// Ctx::AnyClientState: Protobuf<Any>,
-// Ctx::AnyClientState: TryFrom<Any>,
-// <Ctx::AnyClientState as TryFrom<Any>>::Error: Display,
-// Any: From<Ctx::AnyClientState>,
-{
+impl crate::core::ics02_client::client_state::ClientState for ClientState {
     type UpgradeOptions = UpgradeOptions;
 
     fn chain_id(&self) -> ChainId {
@@ -292,16 +267,8 @@ where
         self.expired(elapsed)
     }
 
-    fn downcast<T: Clone + core::any::Any>(self) -> T {
-        todo!()
-    }
-
-    fn wrap(sub_state: &dyn core::any::Any) -> Self {
-        todo!()
-    }
-
     fn encode_to_vec(&self) -> Vec<u8> {
-        todo!()
+        self.encode_vec()
     }
 }
 
@@ -466,7 +433,6 @@ impl FromStr for RelayChain {
 pub mod test_util {
     use super::*;
     use crate::core::ics02_client::client_state::AnyClientState;
-    use crate::mock::client_def::TestGlobalDefs;
 
     pub fn get_dummy_beefy_state() -> AnyClientState {
         AnyClientState::Beefy(

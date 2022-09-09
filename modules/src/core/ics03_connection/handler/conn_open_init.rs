@@ -85,8 +85,6 @@ mod tests {
     use crate::prelude::*;
     use crate::Height;
 
-    use crate::clients::ClientTypesOf;
-    use crate::mock::client_def::TestGlobalDefs;
     use ibc_proto::ibc::core::connection::v1::Version as RawVersion;
 
     #[test]
@@ -94,7 +92,7 @@ mod tests {
         struct Test {
             name: String,
             ctx: MockContext,
-            msg: ConnectionMsg,
+            msg: ConnectionMsg<MockContext>,
             expected_versions: Vec<Version>,
             want_pass: bool,
         }
@@ -153,7 +151,7 @@ mod tests {
         .collect();
 
         for test in tests {
-            let res = dispatch::<_, TestGlobalDefs>(&test.ctx, test.msg.clone());
+            let res = dispatch(&test.ctx, test.msg.clone());
             // Additionally check the events and the output objects in the result.
             match res {
                 Ok(proto_output) => {

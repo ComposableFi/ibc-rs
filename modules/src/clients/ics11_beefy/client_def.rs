@@ -1,8 +1,7 @@
 use beefy_client_primitives::ClientState as LightClientState;
 use beefy_client_primitives::{ParachainHeader, ParachainsUpdateProof};
 use codec::{Decode, Encode};
-use core::fmt::{Debug, Display};
-use derivative::Derivative;
+use core::fmt::Debug;
 use pallet_mmr_primitives::BatchProof;
 use sp_core::H256;
 use tendermint_proto::Protobuf;
@@ -36,11 +35,8 @@ use crate::core::ics26_routing::context::ReaderContext;
 use crate::downcast;
 use crate::prelude::*;
 use crate::Height;
-use core::marker::PhantomData;
-use ibc_proto::google::protobuf::Any;
 
-#[derive(Derivative, Debug, PartialEq, Eq)]
-#[derivative(Clone(bound = ""))]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct BeefyClient;
 
 impl Default for BeefyClient {
@@ -49,41 +45,7 @@ impl Default for BeefyClient {
     }
 }
 
-// impl ClientTypes for BeefyClient
-// where
-//     // ConsensusState: TryFrom<Ctx::AnyConsensusState, Error = Error>,
-//     // Ctx::AnyConsensusState: From<ConsensusState>,
-//
-//     // Ctx::AnyConsensusState: Protobuf<Any>,
-//     // Ctx::AnyConsensusState: TryFrom<Any>,
-//     // <Ctx::AnyConsensusState as TryFrom<Any>>::Error: Display,
-//     // Any: From<Ctx::AnyConsensusState>,
-//
-//     // Ctx::AnyClientState: Protobuf<Any>,
-//     // Ctx::AnyClientState: TryFrom<Any>,
-//     // <Ctx::AnyClientState as TryFrom<Any>>::Error: Display,
-//     // Any: From<Ctx::AnyClientState>,
-// {
-//     type Header = BeefyHeader;
-//     type ClientState = ClientState;
-//     type ConsensusState = ConsensusState;
-// }
-
-impl ClientDef for BeefyClient
-where
-// ConsensusState: TryFrom<Ctx::AnyConsensusState, Error = Error>,
-// Ctx::AnyConsensusState: From<ConsensusState>,
-//
-// Ctx::AnyConsensusState: Protobuf<Any>,
-// Ctx::AnyConsensusState: TryFrom<Any>,
-// <Ctx::AnyConsensusState as TryFrom<Any>>::Error: Display,
-// Any: From<Ctx::AnyConsensusState>,
-//
-// Ctx::AnyClientState: Protobuf<Any>,
-// Ctx::AnyClientState: TryFrom<Any>,
-// <Ctx::AnyClientState as TryFrom<Any>>::Error: Display,
-// Any: From<Ctx::AnyClientState>,
-{
+impl ClientDef for BeefyClient {
     type Header = BeefyHeader;
     type ClientState = ClientState;
     type ConsensusState = ConsensusState;

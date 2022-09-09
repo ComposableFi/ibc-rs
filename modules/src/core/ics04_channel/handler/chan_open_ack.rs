@@ -116,7 +116,6 @@ pub(crate) fn process<Ctx: ReaderContext>(
 mod tests {
     use core::str::FromStr;
 
-    use crate::clients::ClientTypesOf;
     use test_log::test;
 
     use crate::core::ics02_client::context::ClientReader;
@@ -137,7 +136,6 @@ mod tests {
     use crate::core::ics04_channel::msgs::ChannelMsg;
     use crate::core::ics24_host::identifier::ConnectionId;
     use crate::events::IbcEvent;
-    use crate::mock::client_def::TestGlobalDefs;
     use crate::mock::context::MockContext;
     use crate::prelude::*;
     use crate::Height;
@@ -188,11 +186,12 @@ mod tests {
             },
         );
 
-        let msg_conn_try = MsgConnectionOpenTry::try_from(get_dummy_raw_msg_conn_open_try(
-            client_consensus_state_height,
-            host_chain_height.revision_height,
-        ))
-        .unwrap();
+        let msg_conn_try =
+            MsgConnectionOpenTry::<MockContext>::try_from(get_dummy_raw_msg_conn_open_try(
+                client_consensus_state_height,
+                host_chain_height.revision_height,
+            ))
+            .unwrap();
 
         let msg_chan_ack =
             MsgChannelOpenAck::try_from(get_dummy_raw_msg_chan_open_ack(proof_height)).unwrap();
@@ -289,7 +288,7 @@ mod tests {
         .collect();
 
         for test in tests {
-            let res = channel_dispatch::<_, TestGlobalDefs>(&test.ctx, &test.msg);
+            let res = channel_dispatch(&test.ctx, &test.msg);
             // Additionally check the events and the output objects in the result.
             match res {
                 Ok((proto_output, res)) => {
