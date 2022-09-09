@@ -15,7 +15,7 @@ use alloc::vec::Vec;
 use core::fmt::Debug;
 
 /// Defines the read-only part of ICS2 (client functions) context.
-pub trait ClientReader: ClientTypes {
+pub trait ClientReader: ClientKeeper {
     fn client_type(&self, client_id: &ClientId) -> Result<ClientType, Error>;
     fn client_state(&self, client_id: &ClientId) -> Result<Self::ClientState, Error>;
 

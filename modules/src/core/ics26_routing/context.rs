@@ -29,16 +29,11 @@ type HeaderStateOf<C> = <C as ClientTypes>::Header;
 
 /// This trait captures all the functional dependencies of needed in light client implementations
 pub trait ReaderContext:
-    ClientKeeper<ClientTypes = <Self as ReaderContext>::ClientTypes>
-    + ClientReader<
-        ConsensusState = ConsensusStateOf<<Self as ReaderContext>::ClientTypes>,
-        ClientState = ClientStateOf<<Self as ReaderContext>::ClientTypes>,
-        Header = HeaderStateOf<<Self as ReaderContext>::ClientTypes>,
-    > + ConnectionReader
+    ClientKeeper
+    + ClientReader
+    + ConnectionReader
     + ChannelReader
-{
-    type ClientTypes: ClientTypes;
-}
+{}
 
 /// This trait captures all the functional dependencies (i.e., context) which the ICS26 module
 /// requires to be able to dispatch and process IBC messages. In other words, this is the
