@@ -16,6 +16,7 @@ pub mod ics13_near;
 pub trait GlobalDefs: Send + Sync {
     type HostFunctions: HostFunctionsProvider;
     type ClientTypes: ClientTypes + Debug + Eq + Clone;
+    // todo: use GATs to make this not the business of this trait once it's stable.
     type ClientDef: ClientDef<
             G = Self,
             ClientState = <Self::ClientTypes as ClientTypes>::ClientState,
