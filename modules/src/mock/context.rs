@@ -675,9 +675,7 @@ impl ClientTypes for MockContext {
     type ConsensusState = <MockTypes as ClientTypes>::ConsensusState;
 }
 
-impl ReaderContext for MockContext {
-    type ClientTypes = MockTypes;
-}
+impl ReaderContext for MockContext {}
 
 impl Ics26Context for MockContext {
     type Router = MockRouter;

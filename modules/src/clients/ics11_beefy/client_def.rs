@@ -171,13 +171,7 @@ where
         client_id: ClientId,
         client_state: Self::ClientState,
         header: Self::Header,
-    ) -> Result<
-        (
-            Self::ClientState,
-            ConsensusUpdateResult<<Ctx as ReaderContext>::ClientTypes>,
-        ),
-        Error,
-    > {
+    ) -> Result<(Self::ClientState, ConsensusUpdateResult<Ctx::ClientTypes>), Error> {
         let mut parachain_cs_states = vec![];
         // Extract the new client state from the verified header
         let mut client_state = client_state
@@ -259,13 +253,7 @@ where
         _consensus_state: &Self::ConsensusState,
         _proof_upgrade_client: Vec<u8>,
         _proof_upgrade_consensus_state: Vec<u8>,
-    ) -> Result<
-        (
-            Self::ClientState,
-            ConsensusUpdateResult<<Ctx as ReaderContext>::ClientTypes>,
-        ),
-        Error,
-    > {
+    ) -> Result<(Self::ClientState, ConsensusUpdateResult<Ctx::ClientTypes>), Error> {
         // TODO:
         Err(Error::beefy(BeefyError::implementation_specific(
             "Not implemented".to_string(),
@@ -282,7 +270,7 @@ where
         root: &CommitmentRoot,
         client_id: &ClientId,
         consensus_height: Height,
-        expected_consensus_state: &Ctx::ConsensusState,
+        expected_consensus_state: &<Ctx::ClientTypes as ClientTypes>::ConsensusState,
     ) -> Result<(), Error> {
         client_state.verify_height(height)?;
         let path = ClientConsensusStatePath {
@@ -341,7 +329,7 @@ where
         proof: &CommitmentProofBytes,
         root: &CommitmentRoot,
         client_id: &ClientId,
-        expected_client_state: &Ctx::ClientState,
+        expected_client_state: &<Ctx::ClientTypes as ClientTypes>::ClientState,
     ) -> Result<(), Error> {
         client_state.verify_height(height)?;
         let path = ClientStatePath(client_id.clone());

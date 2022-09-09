@@ -191,15 +191,9 @@ where
         _client_id: ClientId,
         client_state: Self::ClientState,
         header: Self::Header,
-    ) -> Result<
-        (
-            Self::ClientState,
-            ConsensusUpdateResult<<Ctx as ReaderContext>::ClientTypes>,
-        ),
-        Ics02Error,
-    > {
+    ) -> Result<(Self::ClientState, ConsensusUpdateResult<Ctx::ClientTypes>), Ics02Error> {
         let header_consensus_state = <ConsensusState as From<Header>>::from(header.clone());
-        let cs = Ctx::ConsensusState::from(header_consensus_state);
+        let cs = <Ctx::ClientTypes as ClientTypes>::ConsensusState::from(header_consensus_state);
         Ok((
             client_state.with_header(header),
             ConsensusUpdateResult::Single(cs),
@@ -305,13 +299,7 @@ where
         _consensus_state: &Self::ConsensusState,
         _proof_upgrade_client: Vec<u8>,
         _proof_upgrade_consensus_state: Vec<u8>,
-    ) -> Result<
-        (
-            Self::ClientState,
-            ConsensusUpdateResult<<Ctx as ReaderContext>::ClientTypes>,
-        ),
-        Ics02Error,
-    > {
+    ) -> Result<(Self::ClientState, ConsensusUpdateResult<Ctx::ClientTypes>), Ics02Error> {
         // TODO:
         Err(Ics02Error::implementation_specific(
             "Not implemented".to_string(),
@@ -328,7 +316,7 @@ where
         root: &CommitmentRoot,
         client_id: &ClientId,
         consensus_height: Height,
-        expected_consensus_state: &Ctx::ConsensusState,
+        expected_consensus_state: &<Ctx::ClientTypes as ClientTypes>::ConsensusState,
     ) -> Result<(), Ics02Error> {
         client_state.verify_height(height)?;
 
@@ -389,7 +377,7 @@ where
         proof: &CommitmentProofBytes,
         root: &CommitmentRoot,
         client_id: &ClientId,
-        expected_client_state: &Ctx::ClientState,
+        expected_client_state: &<Ctx::ClientTypes as ClientTypes>::ClientState,
     ) -> Result<(), Ics02Error> {
         client_state.verify_height(height)?;
 

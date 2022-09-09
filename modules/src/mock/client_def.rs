@@ -69,13 +69,7 @@ where
         _client_id: ClientId,
         client_state: Self::ClientState,
         header: Self::Header,
-    ) -> Result<
-        (
-            Self::ClientState,
-            ConsensusUpdateResult<<Ctx as ReaderContext>::ClientTypes>,
-        ),
-        Error,
-    > {
+    ) -> Result<(Self::ClientState, ConsensusUpdateResult<Ctx::ClientTypes>), Error> {
         if client_state.latest_height() >= header.height() {
             return Err(Error::low_header_height(
                 header.height(),
@@ -99,7 +93,7 @@ where
         _root: &CommitmentRoot,
         client_id: &ClientId,
         consensus_height: Height,
-        _expected_consensus_state: &Ctx::ConsensusState,
+        _expected_consensus_state: &<Ctx::ClientTypes as ClientTypes>::ConsensusState,
     ) -> Result<(), Error> {
         let client_prefixed_path = Path::ClientConsensusState(ClientConsensusStatePath {
             client_id: client_id.clone(),
@@ -153,7 +147,7 @@ where
         _proof: &CommitmentProofBytes,
         _root: &CommitmentRoot,
         _client_id: &ClientId,
-        _expected_client_state: &Ctx::ClientState,
+        _expected_client_state: &<Ctx::ClientTypes as ClientTypes>::ClientState,
     ) -> Result<(), Error> {
         Ok(())
     }
@@ -230,13 +224,7 @@ where
         consensus_state: &Self::ConsensusState,
         _proof_upgrade_client: Vec<u8>,
         _proof_upgrade_consensus_state: Vec<u8>,
-    ) -> Result<
-        (
-            Self::ClientState,
-            ConsensusUpdateResult<<Ctx as ReaderContext>::ClientTypes>,
-        ),
-        Error,
-    > {
+    ) -> Result<(Self::ClientState, ConsensusUpdateResult<Ctx::ClientTypes>), Error> {
         Ok((
             *client_state,
             ConsensusUpdateResult::Single(consensus_state.clone().into()),

@@ -32,7 +32,7 @@ pub struct Result<C: ClientTypes> {
 pub fn process<G, Ctx>(
     ctx: &Ctx,
     msg: MsgCreateAnyClient<G::ClientTypes>,
-) -> HandlerResult<ClientResult<<Ctx as ReaderContext>::ClientTypes>, Error>
+) -> HandlerResult<ClientResult<Ctx::ClientTypes>, Error>
 where
     G: GlobalDefs,
     Ctx: ReaderContext<ClientTypes = ClientTypesOf<G>> + Eq + Debug + Clone,

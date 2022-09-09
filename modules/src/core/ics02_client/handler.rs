@@ -26,8 +26,8 @@ where
 /// General entry point for processing any message related to ICS2 (client functions) protocols.
 pub fn dispatch<Ctx, G: GlobalDefs>(
     ctx: &Ctx,
-    msg: ClientMsg<<Ctx as ReaderContext>::ClientTypes>,
-) -> Result<HandlerOutput<ClientResult<<Ctx as ReaderContext>::ClientTypes>>, Error>
+    msg: ClientMsg<Ctx::ClientTypes>,
+) -> Result<HandlerOutput<ClientResult<Ctx::ClientTypes>>, Error>
 where
     Ctx: ReaderContext<ClientTypes = G::ClientTypes>,
 {

@@ -6,6 +6,7 @@ use crate::core::ics02_client::client_def::ClientDef;
 use crate::core::ics02_client::client_state::ClientState;
 #[cfg(feature = "ics11_beefy")]
 use crate::core::ics02_client::client_type::ClientType;
+use crate::core::ics02_client::client_type::ClientTypes;
 use crate::core::ics03_connection::connection::ConnectionEnd;
 use crate::core::ics03_connection::error::Error;
 use crate::core::ics23_commitment::commitment::CommitmentProofBytes;
@@ -95,7 +96,7 @@ pub fn verify_client_proof<G: GlobalDefs, Ctx: ReaderContext<ClientTypes = G::Cl
     ctx: &Ctx,
     height: Height,
     connection_end: &ConnectionEnd,
-    expected_client_state: Ctx::ClientState,
+    expected_client_state: <Ctx::ClientTypes as ClientTypes>::ClientState,
     proof_height: Height,
     proof: &CommitmentProofBytes,
 ) -> Result<(), Error>

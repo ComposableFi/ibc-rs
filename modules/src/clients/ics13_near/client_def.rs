@@ -87,13 +87,7 @@ where
         _client_id: ClientId,
         _client_state: Self::ClientState,
         _header: Self::Header,
-    ) -> Result<
-        (
-            Self::ClientState,
-            ConsensusUpdateResult<<Ctx as ReaderContext>::ClientTypes>,
-        ),
-        Error,
-    > {
+    ) -> Result<(Self::ClientState, ConsensusUpdateResult<Ctx::ClientTypes>), Error> {
         // 1. create new client state from this header, return that.
         // 2. as well as all the neccessary consensus states.
         //
@@ -131,13 +125,7 @@ where
         _consensus_state: &Self::ConsensusState,
         _proof_upgrade_client: Vec<u8>,
         _proof_upgrade_consensus_state: Vec<u8>,
-    ) -> Result<
-        (
-            Self::ClientState,
-            ConsensusUpdateResult<<Ctx as ReaderContext>::ClientTypes>,
-        ),
-        Error,
-    > {
+    ) -> Result<(Self::ClientState, ConsensusUpdateResult<Ctx::ClientTypes>), Error> {
         todo!()
     }
 
@@ -151,7 +139,7 @@ where
         _root: &CommitmentRoot,
         _client_id: &ClientId,
         _consensus_height: Height,
-        _expected_consensus_state: &Ctx::ConsensusState,
+        _expected_consensus_state: &<Ctx::ClientTypes as ClientTypes>::ConsensusState,
     ) -> Result<(), Error> {
         todo!()
     }
@@ -197,7 +185,7 @@ where
         _proof: &CommitmentProofBytes,
         _root: &CommitmentRoot,
         _client_id: &ClientId,
-        _expected_client_state: &Ctx::ClientState,
+        _expected_client_state: &<Ctx::ClientTypes as ClientTypes>::ClientState,
     ) -> Result<(), Error> {
         todo!()
     }

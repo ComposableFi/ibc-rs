@@ -32,7 +32,7 @@ pub struct Result<C: ClientTypes> {
 pub fn process<G: GlobalDefs, Ctx>(
     ctx: &Ctx,
     msg: MsgUpdateAnyClient<G::ClientTypes>,
-) -> HandlerResult<ClientResult<<Ctx as ReaderContext>::ClientTypes>, Error>
+) -> HandlerResult<ClientResult<Ctx::ClientTypes>, Error>
 where
     Ctx: ReaderContext<ClientTypes = ClientTypesOf<G>>,
 {
@@ -113,7 +113,7 @@ where
         .update_state(ctx, client_id.clone(), client_state, header)
         .map_err(|e| Error::header_verification_failure(e.to_string()))?;
 
-    let result = ClientResult::<<Ctx as ReaderContext>::ClientTypes>::Update(Result {
+    let result = ClientResult::<Ctx::ClientTypes>::Update(Result {
         client_id,
         client_state: new_client_state,
         consensus_state: Some(new_consensus_state),

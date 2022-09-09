@@ -27,8 +27,8 @@ pub struct Result<C: ClientTypes> {
 
 pub fn process<G, Ctx>(
     ctx: &Ctx,
-    msg: MsgUpgradeAnyClient<<Ctx as ReaderContext>::ClientTypes>,
-) -> HandlerResult<ClientResult<<Ctx as ReaderContext>::ClientTypes>, Error>
+    msg: MsgUpgradeAnyClient<Ctx::ClientTypes>,
+) -> HandlerResult<ClientResult<Ctx::ClientTypes>, Error>
 where
     G: GlobalDefs,
     Ctx: ReaderContext<ClientTypes = G::ClientTypes> + Eq + Debug + Clone,

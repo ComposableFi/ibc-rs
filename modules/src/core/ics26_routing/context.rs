@@ -1,14 +1,5 @@
 use crate::prelude::*;
 
-use alloc::borrow::{Borrow, Cow};
-use core::any::Any;
-use core::fmt::Debug;
-use core::{fmt, str::FromStr};
-
-use crate::core::ics02_client::client_type::ClientTypes;
-
-use serde::{Deserialize, Serialize};
-
 use crate::core::ics02_client::context::{ClientKeeper, ClientReader};
 use crate::core::ics03_connection::context::{ConnectionKeeper, ConnectionReader};
 use crate::core::ics04_channel::channel::{Counterparty, Order};
@@ -22,18 +13,14 @@ use crate::core::ics24_host::identifier::{ChannelId, ConnectionId, PortId};
 use crate::events::ModuleEvent;
 use crate::handler::HandlerOutputBuilder;
 use crate::signer::Signer;
-
-type ConsensusStateOf<C> = <C as ClientTypes>::ConsensusState;
-type ClientStateOf<C> = <C as ClientTypes>::ClientState;
-type HeaderStateOf<C> = <C as ClientTypes>::Header;
+use alloc::borrow::{Borrow, Cow};
+use core::any::Any;
+use core::fmt::Debug;
+use core::{fmt, str::FromStr};
+use serde::{Deserialize, Serialize};
 
 /// This trait captures all the functional dependencies of needed in light client implementations
-pub trait ReaderContext:
-    ClientKeeper
-    + ClientReader
-    + ConnectionReader
-    + ChannelReader
-{}
+pub trait ReaderContext: ClientKeeper + ClientReader + ConnectionReader + ChannelReader {}
 
 /// This trait captures all the functional dependencies (i.e., context) which the ICS26 module
 /// requires to be able to dispatch and process IBC messages. In other words, this is the

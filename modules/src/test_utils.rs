@@ -15,7 +15,6 @@ use crate::core::ics02_client::error::Error as Ics02Error;
 
 use crate::applications::transfer::context::{BankKeeper, Ics20Context, Ics20Keeper, Ics20Reader};
 use crate::applications::transfer::{error::Error as Ics20Error, PrefixedCoin};
-use crate::clients::ClientTypesOf;
 use crate::core::ics02_client::client_consensus::AnyConsensusState;
 use crate::core::ics02_client::client_state::AnyClientState;
 use crate::core::ics02_client::client_type::{ClientType, ClientTypes};
@@ -649,6 +648,4 @@ impl Ics20Context for DummyTransferModule {
     type AccountId = Signer;
 }
 
-impl ReaderContext for DummyTransferModule {
-    type ClientTypes = ClientTypesOf<TestGlobalDefs>;
-}
+impl ReaderContext for DummyTransferModule {}

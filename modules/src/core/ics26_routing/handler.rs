@@ -76,16 +76,10 @@ where
 /// the `Ctx` caused by all messages from the transaction that this `msg` is a part of.
 pub fn dispatch<Ctx, G: GlobalDefs>(
     ctx: &mut Ctx,
-    msg: Ics26Envelope<<Ctx as ReaderContext>::ClientTypes>,
+    msg: Ics26Envelope<Ctx::ClientTypes>,
 ) -> Result<HandlerOutput<()>, Error>
 where
-    Ctx: Ics26Context
-        + ClientTypes<
-            ConsensusState = ConsensusStateOf<G>,
-            ClientState = ClientStateOf<G>,
-            Header = <G::ClientTypes as ClientTypes>::Header,
-        > + ClientKeeper<ClientTypes = ClientTypesOf<G>>
-        + ReaderContext<ClientTypes = ClientTypesOf<G>>,
+    Ctx: Ics26Context + ClientKeeper<ClientTypes = ClientTypesOf<G>>,
     ClientStateOf<G>: Protobuf<Any>,
     Any: From<ClientStateOf<G>>,
     ClientStateOf<G>: TryFrom<Any>,

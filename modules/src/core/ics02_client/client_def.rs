@@ -72,13 +72,7 @@ pub trait ClientDef: ClientTypes + Clone {
         client_id: ClientId,
         client_state: Self::ClientState,
         header: Self::Header,
-    ) -> Result<
-        (
-            Self::ClientState,
-            ConsensusUpdateResult<<Ctx as ReaderContext>::ClientTypes>,
-        ),
-        Error,
-    >;
+    ) -> Result<(Self::ClientState, ConsensusUpdateResult<Ctx::ClientTypes>), Error>;
 
     fn update_state_on_misbehaviour(
         &self,
@@ -101,13 +95,7 @@ pub trait ClientDef: ClientTypes + Clone {
         consensus_state: &Self::ConsensusState,
         proof_upgrade_client: Vec<u8>,
         proof_upgrade_consensus_state: Vec<u8>,
-    ) -> Result<
-        (
-            Self::ClientState,
-            ConsensusUpdateResult<<Ctx as ReaderContext>::ClientTypes>,
-        ),
-        Error,
-    >;
+    ) -> Result<(Self::ClientState, ConsensusUpdateResult<Ctx::ClientTypes>), Error>;
 
     /// Verification functions as specified in:
     /// <https://github.com/cosmos/ibc/tree/master/spec/core/ics-002-client-semantics>
@@ -127,7 +115,7 @@ pub trait ClientDef: ClientTypes + Clone {
         root: &CommitmentRoot,
         client_id: &ClientId,
         consensus_height: Height,
-        expected_consensus_state: &Ctx::ConsensusState,
+        expected_consensus_state: &<Ctx::ClientTypes as ClientTypes>::ConsensusState,
     ) -> Result<(), Error>;
 
     /// Verify a `proof` that a connection state matches that of the input `connection_end`.
@@ -172,7 +160,7 @@ pub trait ClientDef: ClientTypes + Clone {
         proof: &CommitmentProofBytes,
         root: &CommitmentRoot,
         client_id: &ClientId,
-        expected_client_state: &Ctx::ClientState,
+        expected_client_state: &<Ctx::ClientTypes as ClientTypes>::ClientState,
     ) -> Result<(), Error>;
 
     /// Verify a `proof` that a packet has been commited.
@@ -424,13 +412,7 @@ where
         client_id: ClientId,
         client_state: Self::ClientState,
         header: AnyHeader,
-    ) -> Result<
-        (
-            Self::ClientState,
-            ConsensusUpdateResult<<Ctx as ReaderContext>::ClientTypes>,
-        ),
-        Error,
-    >
+    ) -> Result<(Self::ClientState, ConsensusUpdateResult<Ctx::ClientTypes>), Error>
     where
         Ctx: ReaderContext<ClientTypes = ClientTypesOf<Self::G>>,
     {
@@ -578,13 +560,7 @@ where
         consensus_state: &Self::ConsensusState,
         proof_upgrade_client: Vec<u8>,
         proof_upgrade_consensus_state: Vec<u8>,
-    ) -> Result<
-        (
-            Self::ClientState,
-            ConsensusUpdateResult<<Ctx as ReaderContext>::ClientTypes>,
-        ),
-        Error,
-    > {
+    ) -> Result<(Self::ClientState, ConsensusUpdateResult<Ctx::ClientTypes>), Error> {
         match self {
             Self::Tendermint(client) => {
                 let (client_state, consensus_state) = downcast!(
@@ -656,7 +632,7 @@ where
         root: &CommitmentRoot,
         client_id: &ClientId,
         consensus_height: Height,
-        expected_consensus_state: &Ctx::ConsensusState,
+        expected_consensus_state: &<Ctx::ClientTypes as ClientTypes>::ConsensusState,
     ) -> Result<(), Error> {
         match self {
             Self::Tendermint(client) => {
@@ -878,7 +854,7 @@ where
         proof: &CommitmentProofBytes,
         root: &CommitmentRoot,
         client_id: &ClientId,
-        client_state_on_counterparty: &Ctx::ClientState,
+        client_state_on_counterparty: &<Ctx::ClientTypes as ClientTypes>::ClientState,
     ) -> Result<(), Error> {
         match self {
             Self::Tendermint(client) => {

@@ -17,7 +17,10 @@ use core::fmt::Debug;
 /// Defines the read-only part of ICS2 (client functions) context.
 pub trait ClientReader: ClientKeeper {
     fn client_type(&self, client_id: &ClientId) -> Result<ClientType, Error>;
-    fn client_state(&self, client_id: &ClientId) -> Result<Self::ClientState, Error>;
+    fn client_state(
+        &self,
+        client_id: &ClientId,
+    ) -> Result<<Self::ClientTypes as ClientTypes>::ClientState, Error>;
 
     /// Retrieve the consensus state for the given client ID at the specified
     /// height.
@@ -27,7 +30,7 @@ pub trait ClientReader: ClientKeeper {
         &self,
         client_id: &ClientId,
         height: Height,
-    ) -> Result<Self::ConsensusState, Error>;
+    ) -> Result<<Self::ClientTypes as ClientTypes>::ConsensusState, Error>;
 
     /// This should return the host type.
     fn host_client_type(&self) -> ClientType;
@@ -38,7 +41,7 @@ pub trait ClientReader: ClientKeeper {
         &self,
         client_id: &ClientId,
         height: Height,
-    ) -> Result<Option<Self::ConsensusState>, Error> {
+    ) -> Result<Option<<Self::ClientTypes as ClientTypes>::ConsensusState>, Error> {
         match self.consensus_state(client_id, height) {
             Ok(cs) => Ok(Some(cs)),
             Err(e) => match e.detail() {
@@ -53,14 +56,14 @@ pub trait ClientReader: ClientKeeper {
         &self,
         client_id: &ClientId,
         height: Height,
-    ) -> Result<Option<Self::ConsensusState>, Error>;
+    ) -> Result<Option<<Self::ClientTypes as ClientTypes>::ConsensusState>, Error>;
 
     /// Search for the highest consensus state lower than `height`.
     fn prev_consensus_state(
         &self,
         client_id: &ClientId,
         height: Height,
-    ) -> Result<Option<Self::ConsensusState>, Error>;
+    ) -> Result<Option<<Self::ClientTypes as ClientTypes>::ConsensusState>, Error>;
 
     /// Returns the current height of the local chain.
     fn host_height(&self) -> Height;
@@ -74,7 +77,7 @@ pub trait ClientReader: ClientKeeper {
         &self,
         height: Height,
         proof: Option<Vec<u8>>,
-    ) -> Result<Self::ConsensusState, Error>;
+    ) -> Result<<Self::ClientTypes as ClientTypes>::ConsensusState, Error>;
 
     /// Returns a natural number, counting how many clients have been created thus far.
     /// The value of this counter should increase only via method `ClientKeeper::increase_client_counter`.
@@ -84,7 +87,7 @@ pub trait ClientReader: ClientKeeper {
 /// Defines the write-only part of ICS2 (client functions) context.
 pub trait ClientKeeper
 where
-    Self: Sized + Clone + Debug + Eq,
+    Self: Clone + Debug + Eq,
 {
     type ClientTypes: ClientTypes + Eq + Clone + Debug;
 
