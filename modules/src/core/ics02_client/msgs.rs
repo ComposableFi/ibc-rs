@@ -4,10 +4,10 @@
 //! subsequently calls into the chain-specific (e.g., ICS 07) client handler. See:
 //! <https://github.com/cosmos/ibc/tree/master/spec/core/ics-002-client-semantics#create>.
 
-use crate::core::ics02_client::msgs::create_client::MsgCreateAnyClient;
-use crate::core::ics02_client::msgs::misbehavior::MsgSubmitAnyMisbehaviour;
-use crate::core::ics02_client::msgs::update_client::MsgUpdateAnyClient;
-use crate::core::ics02_client::msgs::upgrade_client::MsgUpgradeAnyClient;
+use crate::core::ics02_client::msgs::{
+	create_client::MsgCreateAnyClient, misbehavior::MsgSubmitAnyMisbehaviour,
+	update_client::MsgUpdateAnyClient, upgrade_client::MsgUpgradeAnyClient,
+};
 
 pub mod create_client;
 pub mod misbehavior;
@@ -17,8 +17,8 @@ pub mod upgrade_client;
 #[allow(clippy::large_enum_variant)]
 #[derive(Clone, Debug)]
 pub enum ClientMsg {
-    CreateClient(MsgCreateAnyClient),
-    UpdateClient(MsgUpdateAnyClient),
-    Misbehaviour(MsgSubmitAnyMisbehaviour),
-    UpgradeClient(MsgUpgradeAnyClient),
+	CreateClient(MsgCreateAnyClient),
+	UpdateClient(MsgUpdateAnyClient),
+	Misbehaviour(MsgSubmitAnyMisbehaviour),
+	UpgradeClient(MsgUpgradeAnyClient),
 }
