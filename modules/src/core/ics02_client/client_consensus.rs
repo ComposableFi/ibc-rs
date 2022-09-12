@@ -39,9 +39,6 @@ pub trait ConsensusState: Clone + Debug + Send + Sync {
     /// Commitment root of the consensus state, which is used for key-value pair verification.
     fn root(&self) -> &CommitmentRoot;
 
-    /// Wrap into an `AnyConsensusState`
-    fn wrap_any(self) -> AnyConsensusState;
-
     /// Returns the timestamp of the state.
     fn timestamp(&self) -> Timestamp;
 
@@ -190,10 +187,6 @@ impl ConsensusState for AnyConsensusState {
             #[cfg(any(test, feature = "mocks"))]
             Self::Mock(mock_state) => mock_state.root(),
         }
-    }
-
-    fn wrap_any(self) -> AnyConsensusState {
-        self
     }
 
     fn timestamp(&self) -> Timestamp {

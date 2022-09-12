@@ -145,11 +145,6 @@ impl ClientState {
         ClientType::Tendermint
     }
 
-    pub fn client_def(&self) -> TendermintClient
-where {
-        TendermintClient::default()
-    }
-
     pub fn frozen_height(&self) -> Option<Height> {
         self.frozen_height
     }

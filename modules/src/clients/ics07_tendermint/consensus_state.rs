@@ -8,14 +8,12 @@ use tendermint::{hash::Algorithm, time::Time, Hash};
 use tendermint_proto::google::protobuf as tpb;
 use tendermint_proto::Protobuf;
 
-use ibc_proto::ibc::lightclients::tendermint::v1::ConsensusState as RawConsensusState;
-
 use crate::clients::ics07_tendermint::error::Error;
 use crate::clients::ics07_tendermint::header::Header;
-use crate::core::ics02_client::client_consensus::AnyConsensusState;
 use crate::core::ics02_client::client_type::ClientType;
 use crate::core::ics23_commitment::commitment::CommitmentRoot;
 use crate::timestamp::Timestamp;
+use ibc_proto::ibc::lightclients::tendermint::v1::ConsensusState as RawConsensusState;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct ConsensusState {
@@ -43,10 +41,6 @@ impl crate::core::ics02_client::client_consensus::ConsensusState for ConsensusSt
 
     fn root(&self) -> &CommitmentRoot {
         &self.root
-    }
-
-    fn wrap_any(self) -> AnyConsensusState {
-        AnyConsensusState::Tendermint(self)
     }
 
     fn timestamp(&self) -> Timestamp {

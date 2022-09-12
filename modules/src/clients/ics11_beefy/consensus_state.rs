@@ -11,7 +11,6 @@ use ibc_proto::ibc::lightclients::beefy::v1::ConsensusState as RawConsensusState
 
 use crate::clients::ics11_beefy::error::Error;
 use crate::clients::ics11_beefy::header::ParachainHeader;
-use crate::core::ics02_client::client_consensus::AnyConsensusState;
 use crate::core::ics02_client::client_type::ClientType;
 use crate::core::ics23_commitment::commitment::CommitmentRoot;
 use crate::timestamp::Timestamp;
@@ -69,10 +68,6 @@ impl crate::core::ics02_client::client_consensus::ConsensusState for ConsensusSt
         &self.root
     }
 
-    fn wrap_any(self) -> AnyConsensusState {
-        AnyConsensusState::Beefy(self)
-    }
-
     fn timestamp(&self) -> Timestamp {
         self.timestamp.into()
     }
@@ -118,6 +113,7 @@ impl From<ConsensusState> for RawConsensusState {
 #[cfg(any(test, feature = "mocks"))]
 pub mod test_util {
     use super::*;
+    use crate::core::ics02_client::client_consensus::AnyConsensusState;
 
     pub fn get_dummy_beefy_consensus_state() -> AnyConsensusState {
         AnyConsensusState::Beefy(ConsensusState {

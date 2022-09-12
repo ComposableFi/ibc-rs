@@ -126,10 +126,6 @@ impl MockClientState {
         ClientType::Mock
     }
 
-    pub fn client_def(&self) -> MockClient {
-        todo!()
-    }
-
     pub fn latest_height(&self) -> Height {
         self.header.height()
     }
@@ -229,10 +225,6 @@ impl ConsensusState for MockConsensusState {
 
     fn root(&self) -> &CommitmentRoot {
         &self.root
-    }
-
-    fn wrap_any(self) -> AnyConsensusState {
-        AnyConsensusState::Mock(self)
     }
 
     fn timestamp(&self) -> Timestamp {

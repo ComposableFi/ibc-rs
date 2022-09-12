@@ -1,5 +1,5 @@
 use super::error::Error;
-use crate::core::ics02_client::client_consensus::{self, AnyConsensusState};
+use crate::core::ics02_client::client_consensus::{self};
 use crate::core::ics02_client::client_type::ClientType;
 use crate::core::ics23_commitment::commitment::CommitmentRoot;
 use crate::timestamp::Timestamp;
@@ -18,10 +18,6 @@ impl client_consensus::ConsensusState for ConsensusState {
 
     fn root(&self) -> &CommitmentRoot {
         &self.commitment_root
-    }
-
-    fn wrap_any(self) -> AnyConsensusState {
-        todo!()
     }
 
     fn timestamp(&self) -> Timestamp {

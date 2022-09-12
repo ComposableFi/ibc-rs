@@ -207,10 +207,6 @@ impl ClientState {
         ClientType::Beefy
     }
 
-    pub fn client_def(&self) -> BeefyClient {
-        todo!()
-    }
-
     pub fn frozen_height(&self) -> Option<Height> {
         self.frozen_height
     }
