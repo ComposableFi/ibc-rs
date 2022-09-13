@@ -170,10 +170,7 @@ fn client_data_with_discriminants(variant: &syn::Variant) -> ClientData {
     let attrs = variant
         .attrs
         .iter()
-        .filter(|attr| {
-            let string = format!("{}", attr.path.segments.first().unwrap().ident);
-            string == "cfg"
-        })
+        .filter(|attr| attr.path.segments.first().unwrap().ident == "cfg")
         .cloned()
         .collect();
 

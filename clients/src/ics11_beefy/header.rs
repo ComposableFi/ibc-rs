@@ -1,9 +1,7 @@
 use prost::Message;
 use tendermint_proto::Protobuf;
 
-use crate::clients::ics11_beefy::error::Error;
-use crate::core::ics02_client::client_type::ClientType;
-use crate::Height;
+use crate::ics11_beefy::error::Error;
 use alloc::string::ToString;
 use alloc::vec;
 use alloc::vec::Vec;
@@ -16,6 +14,8 @@ use beefy_primitives::mmr::{MmrLeaf, MmrLeafVersion};
 use beefy_primitives::{Commitment, Payload};
 use bytes::Buf;
 use codec::{Compact, Decode, Encode};
+use ibc::core::ics02_client::client_type::ClientType;
+use ibc::Height;
 use ibc_proto::ibc::lightclients::beefy::v1::{
     BeefyAuthoritySet as RawBeefyAuthoritySet, BeefyMmrLeaf as RawBeefyMmrLeaf,
     BeefyMmrLeafPartial as RawBeefyMmrLeafPartial, ClientStateUpdateProof as RawMmrUpdateProof,
@@ -41,7 +41,7 @@ pub struct ParachainHeadersWithProof {
     pub mmr_size: u64,                 // The latest mmr size
 }
 
-impl crate::core::ics02_client::header::Header for BeefyHeader {
+impl ibc::core::ics02_client::header::Header for BeefyHeader {
     fn client_type(&self) -> ClientType {
         ClientType::Beefy
     }

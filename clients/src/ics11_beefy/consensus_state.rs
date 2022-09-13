@@ -1,4 +1,4 @@
-use crate::prelude::*;
+use ibc::prelude::*;
 
 use core::convert::Infallible;
 use core::fmt::Debug;
@@ -9,11 +9,11 @@ use tendermint_proto::Protobuf;
 
 use ibc_proto::ibc::lightclients::beefy::v1::ConsensusState as RawConsensusState;
 
-use crate::clients::ics11_beefy::error::Error;
-use crate::clients::ics11_beefy::header::ParachainHeader;
-use crate::core::ics02_client::client_type::ClientType;
-use crate::core::ics23_commitment::commitment::CommitmentRoot;
-use crate::timestamp::Timestamp;
+use crate::ics11_beefy::error::Error;
+use crate::ics11_beefy::header::ParachainHeader;
+use ibc::core::ics02_client::client_type::ClientType;
+use ibc::core::ics23_commitment::commitment::CommitmentRoot;
+use ibc::timestamp::Timestamp;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct ConsensusState {
@@ -30,7 +30,7 @@ impl ConsensusState {
     }
 
     pub fn from_header(header: ParachainHeader) -> Result<Self, Error> {
-        use crate::clients::ics11_beefy::header::decode_timestamp_extrinsic;
+        use crate::ics11_beefy::header::decode_timestamp_extrinsic;
         use sp_runtime::SaturatedConversion;
         let root = header.parachain_header.state_root.0.to_vec();
 
@@ -57,7 +57,7 @@ impl ConsensusState {
     }
 }
 
-impl crate::core::ics02_client::client_consensus::ConsensusState for ConsensusState {
+impl ibc::core::ics02_client::client_consensus::ConsensusState for ConsensusState {
     type Error = Infallible;
 
     fn client_type(&self) -> ClientType {
@@ -113,7 +113,7 @@ impl From<ConsensusState> for RawConsensusState {
 #[cfg(any(test, feature = "mocks"))]
 pub mod test_util {
     use super::*;
-    use crate::core::ics02_client::client_consensus::AnyConsensusState;
+    use ibc::core::ics02_client::client_consensus::AnyConsensusState;
 
     pub fn get_dummy_beefy_consensus_state() -> AnyConsensusState {
         AnyConsensusState::Beefy(ConsensusState {

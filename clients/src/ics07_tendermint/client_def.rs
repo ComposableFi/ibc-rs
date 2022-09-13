@@ -1,42 +1,42 @@
 use core::convert::TryInto;
 use core::fmt::Debug;
 
-use crate::clients::host_functions::HostFunctionsManager;
-use crate::clients::ics07_tendermint::client_state::ClientState;
-use crate::clients::ics07_tendermint::consensus_state::ConsensusState;
-use crate::clients::ics07_tendermint::error::Error;
-use crate::clients::ics07_tendermint::header::Header;
-use crate::core::ics02_client::client_consensus::ConsensusState as _;
-use crate::core::ics02_client::client_def::{ClientDef, ConsensusUpdateResult};
-use crate::core::ics02_client::client_state::ClientState as _;
-use crate::core::ics02_client::client_type::ClientType;
-use crate::core::ics02_client::context::ClientKeeper;
-use crate::core::ics02_client::error::Error as Ics02Error;
-use crate::core::ics03_connection::connection::ConnectionEnd;
-use crate::core::ics04_channel::channel::ChannelEnd;
-use crate::core::ics04_channel::commitment::{AcknowledgementCommitment, PacketCommitment};
-use crate::core::ics04_channel::packet::Sequence;
-use crate::core::ics23_commitment::commitment::{
+use crate::host_functions::HostFunctionsManager;
+use crate::ics07_tendermint::client_state::ClientState;
+use crate::ics07_tendermint::consensus_state::ConsensusState;
+use crate::ics07_tendermint::error::Error;
+use crate::ics07_tendermint::header::Header;
+use ibc::core::ics02_client::client_consensus::ConsensusState as _;
+use ibc::core::ics02_client::client_def::{ClientDef, ConsensusUpdateResult};
+use ibc::core::ics02_client::client_state::ClientState as _;
+use ibc::core::ics02_client::client_type::ClientType;
+use ibc::core::ics02_client::context::ClientKeeper;
+use ibc::core::ics02_client::error::Error as Ics02Error;
+use ibc::core::ics03_connection::connection::ConnectionEnd;
+use ibc::core::ics04_channel::channel::ChannelEnd;
+use ibc::core::ics04_channel::commitment::{AcknowledgementCommitment, PacketCommitment};
+use ibc::core::ics04_channel::packet::Sequence;
+use ibc::core::ics23_commitment::commitment::{
     CommitmentPrefix, CommitmentProofBytes, CommitmentRoot,
 };
-use crate::core::ics23_commitment::merkle::{apply_prefix, MerkleProof};
-use crate::core::ics24_host::identifier::ConnectionId;
-use crate::core::ics24_host::identifier::{ChannelId, ClientId, PortId};
-use crate::core::ics24_host::path::{
+use ibc::core::ics23_commitment::merkle::{apply_prefix, MerkleProof};
+use ibc::core::ics24_host::identifier::ConnectionId;
+use ibc::core::ics24_host::identifier::{ChannelId, ClientId, PortId};
+use ibc::core::ics24_host::path::{
     AcksPath, ChannelEndsPath, ClientConsensusStatePath, ClientStatePath, CommitmentsPath,
     ConnectionsPath, ReceiptsPath, SeqRecvsPath,
 };
-use crate::core::ics24_host::Path;
-use crate::core::ics26_routing::context::ReaderContext;
+use ibc::core::ics24_host::Path;
+use ibc::core::ics26_routing::context::ReaderContext;
 use ibc_proto::ibc::core::commitment::v1::MerkleProof as RawMerkleProof;
 use prost::Message;
 use tendermint_light_client_verifier::types::{TrustedBlockState, UntrustedBlockState};
 use tendermint_light_client_verifier::{ProdVerifier, Verdict, Verifier};
 use tendermint_proto::Protobuf;
 
-use crate::prelude::*;
-use crate::timestamp::Timestamp;
-use crate::Height;
+use ibc::prelude::*;
+use ibc::timestamp::Timestamp;
+use ibc::Height;
 
 #[derive(Clone, Debug, PartialEq, Eq, Default)]
 pub struct TendermintClient;
@@ -57,11 +57,13 @@ impl ClientDef for TendermintClient {
         Ctx: ReaderContext,
     {
         if header.height().revision_number != client_state.chain_id.version() {
-            return Err(Ics02Error::tendermint_handler_error(
+            return Err(Ics02Error::client_error(
+                client_state.client_type(),
                 Error::mismatched_revisions(
                     client_state.chain_id.version(),
                     header.height().revision_number,
-                ),
+                )
+                .to_string(),
             ));
         }
 
@@ -97,9 +99,10 @@ impl ClientDef for TendermintClient {
                 .revision_height
                 .try_into()
                 .map_err(|_| {
-                    Ics02Error::tendermint_handler_error(Error::invalid_header_height(
-                        header.trusted_height,
-                    ))
+                    Ics02Error::client_error(
+                        client_state.client_type(),
+                        Error::invalid_header_height(header.trusted_height).to_string(),
+                    )
                 })?,
             next_validators: &header.trusted_validator_set,
             next_validators_hash: trusted_consensus_state.next_validators_hash,
@@ -133,11 +136,7 @@ impl ClientDef for TendermintClient {
                 ))
                 .into())
             }
-            Verdict::Invalid(detail) => {
-                return Err(Ics02Error::tendermint_handler_error(
-                    Error::verification_error(detail),
-                ))
-            }
+            Verdict::Invalid(detail) => return Err(Error::verification_error(detail).into()),
         }
 
         Ok(())
@@ -218,12 +217,11 @@ impl ClientDef for TendermintClient {
                 if Timestamp::from(header.signed_header.header().time).nanoseconds()
                     > next_cs.timestamp().nanoseconds()
                 {
-                    return Err(Ics02Error::tendermint_handler_error(
-                        Error::header_timestamp_too_high(
-                            header.signed_header.header().time.to_string(),
-                            next_cs.timestamp().to_string(),
-                        ),
-                    ));
+                    return Err(Error::header_timestamp_too_high(
+                        header.signed_header.header().time.to_string(),
+                        next_cs.timestamp().to_string(),
+                    )
+                    .into());
                 }
             }
         }
@@ -237,12 +235,11 @@ impl ClientDef for TendermintClient {
                 // New (untrusted) header timestamp cannot occur before the
                 // previous consensus state's height
                 if header.signed_header.header().time < prev_cs.timestamp {
-                    return Err(Ics02Error::tendermint_handler_error(
-                        Error::header_timestamp_too_low(
-                            header.signed_header.header().time.to_string(),
-                            prev_cs.timestamp.to_string(),
-                        ),
-                    ));
+                    return Err(Error::header_timestamp_too_low(
+                        header.signed_header.header().time.to_string(),
+                        prev_cs.timestamp.to_string(),
+                    )
+                    .into());
                 }
             }
         }
@@ -500,7 +497,7 @@ where
             value,
             0,
         )
-        .map_err(|e| Ics02Error::tendermint(Error::ics23_error(e)))
+        .map_err(|e| Error::ics23_error(e).into())
 }
 
 fn verify_non_membership<Ctx: ClientKeeper, P>(
@@ -520,7 +517,7 @@ where
 
     merkle_proof
         .verify_non_membership(&client_state.proof_specs, root.clone().into(), merkle_path)
-        .map_err(|e| Ics02Error::tendermint(Error::ics23_error(e)))
+        .map_err(|e| Error::ics23_error(e).into())
 }
 
 fn verify_delay_passed<Ctx: ReaderContext>(

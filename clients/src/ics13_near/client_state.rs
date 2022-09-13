@@ -1,12 +1,13 @@
 use super::types::{CryptoHash, LightClientBlockView, ValidatorStakeView};
-
-use crate::core::{
+use ibc::core::{
     ics02_client::{client_state::ClientState, client_type::ClientType},
     ics24_host::identifier::ChainId,
 };
-use crate::prelude::*;
-
+use ibc::prelude::*;
+use ibc::Height;
+use serde::{Deserialize, Serialize};
 use std::time::Duration;
+use tendermint_proto::Protobuf;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct NearClientState {
@@ -18,6 +19,7 @@ pub struct NearClientState {
     next_validators: Vec<ValidatorStakeView>,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct NearUpgradeOptions {}
 
 impl NearClientState {
@@ -51,7 +53,7 @@ impl ClientState for NearClientState {
         // ClientType::Near
     }
 
-    fn latest_height(&self) -> crate::Height {
+    fn latest_height(&self) -> Height {
         self.head.get_height()
     }
 
@@ -59,14 +61,14 @@ impl ClientState for NearClientState {
         self.frozen_height().is_some()
     }
 
-    fn frozen_height(&self) -> Option<crate::Height> {
+    fn frozen_height(&self) -> Option<Height> {
         // TODO: validate this
         Some(self.head.get_height())
     }
 
     fn upgrade(
         self,
-        _upgrade_height: crate::Height,
+        _upgrade_height: Height,
         _upgrade_options: Self::UpgradeOptions,
         _chain_id: ChainId,
     ) -> Self {
@@ -80,5 +82,19 @@ impl ClientState for NearClientState {
 
     fn encode_to_vec(&self) -> Vec<u8> {
         todo!("implement encoding")
+    }
+}
+
+impl Protobuf<()> for NearClientState {}
+
+impl From<NearClientState> for () {
+    fn from(_: NearClientState) -> Self {
+        todo!()
+    }
+}
+
+impl From<()> for NearClientState {
+    fn from(_: ()) -> Self {
+        todo!()
     }
 }

@@ -1,12 +1,9 @@
-use crate::clients::ics07_tendermint::client_def::TendermintClient;
-#[cfg(any(test, feature = "ics11_beefy"))]
-use crate::clients::ics11_beefy::client_def::BeefyClient;
-use crate::core::ics02_client::client_consensus::{AnyConsensusState, ConsensusState};
-use crate::core::ics02_client::client_state::{AnyClientState, ClientState};
+use crate::core::ics02_client::client_consensus::ConsensusState;
+use crate::core::ics02_client::client_state::ClientState;
 use crate::core::ics02_client::client_type::ClientType;
 use crate::core::ics02_client::context::ClientKeeper;
 use crate::core::ics02_client::error::Error;
-use crate::core::ics02_client::header::{AnyHeader, Header};
+use crate::core::ics02_client::header::Header;
 use crate::core::ics03_connection::connection::ConnectionEnd;
 use crate::core::ics04_channel::channel::ChannelEnd;
 use crate::core::ics04_channel::commitment::{AcknowledgementCommitment, PacketCommitment};
@@ -16,13 +13,9 @@ use crate::core::ics23_commitment::commitment::{
 };
 use crate::core::ics24_host::identifier::{ChannelId, ClientId, ConnectionId, PortId};
 use crate::core::ics26_routing::context::ReaderContext;
-use crate::downcast;
 use crate::prelude::*;
 use crate::Height;
 use core::fmt::Debug;
-
-#[cfg(any(test, feature = "mocks"))]
-use crate::mock::client_def::MockClient;
 
 #[derive(PartialEq, Eq, Clone, Debug)]
 pub enum ConsensusUpdateResult<C: ClientKeeper> {
@@ -221,16 +214,4 @@ pub trait ClientDef: Clone {
     ) -> Result<(), Error>;
 
     fn from_client_type(client_type: ClientType) -> Self;
-}
-
-#[derive(Clone, Debug, PartialEq, Eq, derive::ClientDef)]
-#[ibc(client_type = "ClientType")]
-pub enum AnyClient {
-    Tendermint(TendermintClient),
-    #[cfg(any(test, feature = "ics11_beefy"))]
-    Beefy(BeefyClient),
-    // #[cfg(any(test, feature = "ics11_beefy"))]
-    // Near(BeefyClient),
-    #[cfg(any(test, feature = "mocks"))]
-    Mock(MockClient),
 }

@@ -1,4 +1,3 @@
-use crate::prelude::*;
 use beefy_primitives::known_payload_ids::MMR_ROOT_ID;
 use beefy_primitives::mmr::BeefyNextAuthoritySet;
 use codec::{Decode, Encode};
@@ -7,6 +6,7 @@ use core::fmt;
 use core::fmt::{Debug, Display, Formatter};
 use core::str::FromStr;
 use core::time::Duration;
+use ibc::prelude::*;
 use serde::{Deserialize, Serialize};
 use sp_core::H256;
 use sp_runtime::SaturatedConversion;
@@ -14,13 +14,13 @@ use tendermint_proto::Protobuf;
 
 use ibc_proto::ibc::lightclients::beefy::v1::{BeefyAuthoritySet, ClientState as RawClientState};
 
-use crate::clients::ics11_beefy::error::Error;
-use crate::clients::ics11_beefy::header::BeefyHeader;
+use crate::ics11_beefy::error::Error;
+use crate::ics11_beefy::header::BeefyHeader;
 
-use crate::core::ics02_client::client_type::ClientType;
-use crate::core::ics24_host::identifier::ChainId;
-use crate::timestamp::Timestamp;
-use crate::Height;
+use ibc::core::ics02_client::client_type::ClientType;
+use ibc::core::ics24_host::identifier::ChainId;
+use ibc::timestamp::Timestamp;
+use ibc::Height;
 
 #[derive(PartialEq, Eq, Clone, Debug)]
 pub struct ClientState {
@@ -230,7 +230,7 @@ impl ClientState {
     }
 }
 
-impl crate::core::ics02_client::client_state::ClientState for ClientState {
+impl ibc::core::ics02_client::client_state::ClientState for ClientState {
     type UpgradeOptions = UpgradeOptions;
 
     fn chain_id(&self) -> ChainId {
@@ -427,7 +427,7 @@ impl FromStr for RelayChain {
 #[cfg(any(test, feature = "mocks"))]
 pub mod test_util {
     use super::*;
-    use crate::core::ics02_client::client_state::AnyClientState;
+    use ibc::core::ics02_client::client_state::AnyClientState;
 
     pub fn get_dummy_beefy_state() -> AnyClientState {
         AnyClientState::Beefy(

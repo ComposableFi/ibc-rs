@@ -1,0 +1,127 @@
+use crate::ics07_tendermint::client_state;
+#[cfg(any(test, feature = "ics11_beefy"))]
+use crate::ics11_beefy::client_state as beefy_client_state;
+#[cfg(any(test, feature = "ics11_beefy"))]
+use crate::ics13_near::client_state as near_client_state;
+#[cfg(any(test, feature = "mocks"))]
+use crate::mock::client_state::MockClientState;
+use core::fmt::{Debug, Display};
+use core::time::Duration;
+use ibc::core::ics02_client::client_state::ClientState;
+use ibc::core::ics02_client::client_type::ClientType;
+use ibc::core::ics02_client::error::Error;
+use ibc::core::ics24_host::error::ValidationError;
+use ibc::core::ics24_host::identifier::{ChainId, ClientId};
+use ibc::prelude::*;
+use ibc::{downcast, Height};
+use ibc_proto::google::protobuf::Any;
+use ibc_proto::ibc::core::client::v1::IdentifiedClientState;
+use serde::{Deserialize, Serialize};
+use tendermint_proto::Protobuf;
+
+pub const TENDERMINT_CLIENT_STATE_TYPE_URL: &str = "/ibc.lightclients.tendermint.v1.ClientState";
+pub const BEEFY_CLIENT_STATE_TYPE_URL: &str = "/ibc.lightclients.beefy.v1.ClientState";
+pub const NEAR_CLIENT_STATE_TYPE_URL: &str = "/ibc.lightclients.near.v1.ClientState";
+pub const MOCK_CLIENT_STATE_TYPE_URL: &str = "/ibc.mock.ClientState";
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "type")]
+pub enum AnyUpgradeOptions {
+    Tendermint(client_state::UpgradeOptions),
+    #[cfg(any(test, feature = "ics11_beefy"))]
+    Beefy(beefy_client_state::UpgradeOptions),
+    #[cfg(any(test, feature = "ics11_beefy"))]
+    Near(near_client_state::NearUpgradeOptions),
+    #[cfg(any(test, feature = "mocks"))]
+    Mock(()),
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, ClientState, Protobuf)]
+#[serde(tag = "type")]
+pub enum AnyClientState {
+    #[ibc(proto_url = "TENDERMINT_CLIENT_STATE_TYPE_URL")]
+    Tendermint(client_state::ClientState),
+    #[cfg(any(test, feature = "ics11_beefy"))]
+    #[serde(skip)]
+    #[ibc(proto_url = "BEEFY_CLIENT_STATE_TYPE_URL")]
+    Beefy(beefy_client_state::ClientState),
+    #[cfg(any(test, feature = "ics11_beefy"))]
+    #[serde(skip)]
+    #[ibc(proto_url = "NEAR_CLIENT_STATE_TYPE_URL")]
+    Near(near_client_state::NearClientState),
+    #[cfg(any(test, feature = "mocks"))]
+    #[ibc(proto_url = "MOCK_CLIENT_STATE_TYPE_URL")]
+    Mock(MockClientState),
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "type")]
+pub struct IdentifiedAnyClientState {
+    pub client_id: ClientId,
+    pub client_state: AnyClientState,
+}
+
+impl IdentifiedAnyClientState {
+    pub fn new(client_id: ClientId, client_state: AnyClientState) -> Self {
+        IdentifiedAnyClientState {
+            client_id,
+            client_state,
+        }
+    }
+}
+
+impl Protobuf<IdentifiedClientState> for IdentifiedAnyClientState
+where
+    IdentifiedAnyClientState: TryFrom<IdentifiedClientState>,
+    <IdentifiedAnyClientState as TryFrom<IdentifiedClientState>>::Error: Display,
+{
+}
+
+impl TryFrom<IdentifiedClientState> for IdentifiedAnyClientState
+where
+    AnyClientState: TryFrom<Any>,
+    Error: From<<AnyClientState as TryFrom<Any>>::Error>,
+{
+    type Error = Error;
+
+    fn try_from(raw: IdentifiedClientState) -> Result<Self, Self::Error> {
+        Ok(IdentifiedAnyClientState {
+            client_id: raw.client_id.parse().map_err(|e: ValidationError| {
+                Error::invalid_raw_client_id(raw.client_id.clone(), e)
+            })?,
+            client_state: raw
+                .client_state
+                .ok_or_else(Error::missing_raw_client_state)?
+                .try_into()?,
+        })
+    }
+}
+
+impl From<IdentifiedAnyClientState> for IdentifiedClientState {
+    fn from(value: IdentifiedAnyClientState) -> Self {
+        IdentifiedClientState {
+            client_id: value.client_id.to_string(),
+            client_state: Some(value.client_state.into()),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+
+    use ibc_proto::google::protobuf::Any;
+    use test_log::test;
+
+    use crate::ics07_tendermint::client_state::test_util::get_dummy_tendermint_client_state;
+    use crate::ics07_tendermint::header::test_util::get_dummy_tendermint_header;
+    use ibc::core::ics02_client::client_state::AnyClientState;
+
+    #[test]
+    fn any_client_state_serialization() {
+        let tm_client_state = get_dummy_tendermint_client_state(get_dummy_tendermint_header());
+
+        let raw: Any = tm_client_state.clone().into();
+        let tm_client_state_back = AnyClientState::try_from(raw).unwrap();
+        assert_eq!(tm_client_state, tm_client_state_back);
+    }
+}

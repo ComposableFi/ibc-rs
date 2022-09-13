@@ -20,6 +20,6 @@ pub mod upgrade_client;
 pub enum ClientMsg<C: ClientKeeper> {
     CreateClient(MsgCreateAnyClient<C>),
     UpdateClient(MsgUpdateAnyClient<C>),
-    Misbehaviour(MsgSubmitAnyMisbehaviour),
+    Misbehaviour(MsgSubmitAnyMisbehaviour<C>),
     UpgradeClient(MsgUpgradeAnyClient<C>),
 }

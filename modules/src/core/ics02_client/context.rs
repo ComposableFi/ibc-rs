@@ -2,7 +2,6 @@
 //! that any host chain must implement to be able to process any `ClientMsg`. See
 //! "ADR 003: IBC protocol implementation" for more details.
 
-use crate::clients::host_functions::HostFunctionsProvider;
 use crate::core::ics02_client::client_consensus::ConsensusState;
 use crate::core::ics02_client::client_def::{ClientDef, ConsensusUpdateResult};
 use crate::core::ics02_client::client_state::ClientState;
@@ -10,7 +9,9 @@ use crate::core::ics02_client::client_type::ClientType;
 use crate::core::ics02_client::error::{Error, ErrorDetail};
 use crate::core::ics02_client::handler::ClientResult::{self, Create, Update, Upgrade};
 use crate::core::ics02_client::header::Header;
+use crate::core::ics02_client::misbehaviour::Misbehaviour;
 use crate::core::ics24_host::identifier::ClientId;
+use crate::host_functions::HostFunctionsProvider;
 use crate::timestamp::Timestamp;
 use crate::Height;
 use alloc::vec::Vec;
@@ -91,7 +92,8 @@ where
     type AnyHeader: Header;
     type AnyClientState: ClientState + Eq;
     type AnyConsensusState: ConsensusState + Eq + 'static;
-    type HostFunctions: HostFunctionsProvider;
+    type AnyMisbehaviour: Misbehaviour;
+    type HostFunctions: HostFunctionsProvider + ics23::HostFunctionsProvider;
 
     /// Client definition type (used for verification)
     type ClientDef: ClientDef<

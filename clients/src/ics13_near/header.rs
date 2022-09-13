@@ -1,5 +1,6 @@
-use crate::core::ics02_client::{client_type::ClientType, header::Header};
-use crate::Height;
+use ibc::core::ics02_client::{client_type::ClientType, header::Header};
+use ibc::Height;
+use tendermint_proto::Protobuf;
 
 use super::types::LightClientBlockView;
 
@@ -25,6 +26,20 @@ impl Header for NearHeader {
     }
 
     fn height(&self) -> Height {
+        todo!()
+    }
+}
+
+impl Protobuf<()> for NearHeader {}
+
+impl From<NearHeader> for () {
+    fn from(_: NearHeader) -> Self {
+        todo!()
+    }
+}
+
+impl From<()> for NearHeader {
+    fn from(_: ()) -> Self {
         todo!()
     }
 }

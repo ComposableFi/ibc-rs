@@ -1,4 +1,4 @@
-use crate::prelude::*;
+use ibc::prelude::*;
 
 use core::convert::{TryFrom, TryInto};
 use core::fmt::Debug;
@@ -10,16 +10,16 @@ use tendermint_proto::Protobuf;
 
 use ibc_proto::ibc::lightclients::tendermint::v1::ClientState as RawClientState;
 
-use crate::clients::ics07_tendermint::error::Error;
-use crate::clients::ics07_tendermint::header::Header;
+use crate::ics07_tendermint::error::Error;
+use crate::ics07_tendermint::header::Header;
 
-use crate::core::ics02_client::client_type::ClientType;
-use crate::core::ics02_client::error::Error as Ics02Error;
-use crate::core::ics02_client::trust_threshold::TrustThreshold;
-use crate::core::ics23_commitment::specs::ProofSpecs;
-use crate::core::ics24_host::identifier::ChainId;
-use crate::timestamp::{Timestamp, ZERO_DURATION};
-use crate::Height;
+use ibc::core::ics02_client::client_type::ClientType;
+use ibc::core::ics02_client::error::Error as Ics02Error;
+use ibc::core::ics02_client::trust_threshold::TrustThreshold;
+use ibc::core::ics23_commitment::specs::ProofSpecs;
+use ibc::core::ics24_host::identifier::ChainId;
+use ibc::timestamp::{Timestamp, ZERO_DURATION};
+use ibc::Height;
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
 pub struct ClientState {
@@ -233,7 +233,7 @@ pub struct UpgradeOptions {
     pub unbonding_period: Duration,
 }
 
-impl crate::core::ics02_client::client_state::ClientState for ClientState {
+impl ibc::core::ics02_client::client_state::ClientState for ClientState {
     type UpgradeOptions = UpgradeOptions;
 
     fn chain_id(&self) -> ChainId {
@@ -342,20 +342,20 @@ impl From<ClientState> for RawClientState {
 
 #[cfg(test)]
 mod tests {
-    use crate::prelude::*;
-    use crate::Height;
     use core::time::Duration;
+    use ibc::prelude::*;
+    use ibc::Height;
     use test_log::test;
 
     use ibc_proto::ics23::ProofSpec as Ics23ProofSpec;
     use tendermint_rpc::endpoint::abci_query::AbciQuery;
 
-    use crate::clients::ics07_tendermint::client_state::ClientState;
-    use crate::core::ics02_client::trust_threshold::TrustThreshold;
-    use crate::core::ics23_commitment::specs::ProofSpecs;
-    use crate::core::ics24_host::identifier::ChainId;
+    use crate::ics07_tendermint::client_state::ClientState;
     use crate::test::test_serialization_roundtrip;
-    use crate::timestamp::{Timestamp, ZERO_DURATION};
+    use ibc::core::ics02_client::trust_threshold::TrustThreshold;
+    use ibc::core::ics23_commitment::specs::ProofSpecs;
+    use ibc::core::ics24_host::identifier::ChainId;
+    use ibc::timestamp::{Timestamp, ZERO_DURATION};
 
     #[derive(Clone, Debug, PartialEq)]
     struct ClientStateParams {
@@ -642,15 +642,15 @@ mod tests {
 
 #[cfg(any(test, feature = "mocks"))]
 pub mod test_util {
-    use crate::prelude::*;
     use core::time::Duration;
+    use ibc::prelude::*;
 
     use tendermint::block::Header;
 
-    use crate::clients::ics07_tendermint::client_state::ClientState;
-    use crate::core::ics02_client::client_state::AnyClientState;
-    use crate::core::ics02_client::height::Height;
-    use crate::core::ics24_host::identifier::ChainId;
+    use crate::ics07_tendermint::client_state::ClientState;
+    use ibc::core::ics02_client::client_state::AnyClientState;
+    use ibc::core::ics02_client::height::Height;
+    use ibc::core::ics24_host::identifier::ChainId;
 
     pub fn get_dummy_tendermint_client_state(tm_header: Header) -> AnyClientState {
         AnyClientState::Tendermint(

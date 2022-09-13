@@ -2,14 +2,14 @@ use crate::prelude::*;
 use core::marker::PhantomData;
 use tendermint::merkle::proof::Proof as TendermintProof;
 
-use crate::clients::host_functions::{HostFunctionsManager, HostFunctionsProvider};
+// use crate::host_functions::HostFunctionsProvider;
 use ibc_proto::ibc::core::commitment::v1::MerklePath;
 use ibc_proto::ibc::core::commitment::v1::MerkleProof as RawMerkleProof;
 use ibc_proto::ibc::core::commitment::v1::MerkleRoot;
 use ics23::commitment_proof::Proof;
 use ics23::{
     calculate_existence_root, verify_membership, verify_non_membership, CommitmentProof,
-    NonExistenceProof,
+    HostFunctionsProvider, NonExistenceProof,
 };
 
 use crate::core::ics23_commitment::commitment::{CommitmentPrefix, CommitmentRoot};
@@ -113,15 +113,9 @@ impl<H: HostFunctionsProvider> MerkleProof<H> {
         {
             match &proof.proof {
                 Some(Proof::Exist(existence_proof)) => {
-                    subroot = calculate_existence_root::<HostFunctionsManager<H>>(existence_proof)
+                    subroot = calculate_existence_root::<H>(existence_proof)
                         .map_err(|_| Error::invalid_merkle_proof())?;
-                    if !verify_membership::<HostFunctionsManager<H>>(
-                        proof,
-                        spec,
-                        &subroot,
-                        key.as_bytes(),
-                        &value,
-                    ) {
+                    if !verify_membership::<H>(proof, spec, &subroot, key.as_bytes(), &value) {
                         return Err(Error::verification_failure());
                     }
                     value = subroot.clone();
@@ -170,12 +164,7 @@ impl<H: HostFunctionsProvider> MerkleProof<H> {
         match &proof.proof {
             Some(Proof::Nonexist(non_existence_proof)) => {
                 let subroot = calculate_non_existence_root::<H>(non_existence_proof)?;
-                if !verify_non_membership::<HostFunctionsManager<H>>(
-                    proof,
-                    spec,
-                    &subroot,
-                    key.as_bytes(),
-                ) {
+                if !verify_non_membership::<H>(proof, spec, &subroot, key.as_bytes()) {
                     return Err(Error::verification_failure());
                 }
                 // verify membership proofs starting from index 1 with value = subroot
@@ -191,11 +180,9 @@ fn calculate_non_existence_root<H: HostFunctionsProvider>(
     proof: &NonExistenceProof,
 ) -> Result<Vec<u8>, Error> {
     if let Some(left) = &proof.left {
-        calculate_existence_root::<HostFunctionsManager<H>>(left)
-            .map_err(|_| Error::invalid_merkle_proof())
+        calculate_existence_root::<H>(left).map_err(|_| Error::invalid_merkle_proof())
     } else if let Some(right) = &proof.right {
-        calculate_existence_root::<HostFunctionsManager<H>>(right)
-            .map_err(|_| Error::invalid_merkle_proof())
+        calculate_existence_root::<H>(right).map_err(|_| Error::invalid_merkle_proof())
     } else {
         Err(Error::invalid_merkle_proof())
     }

@@ -42,6 +42,7 @@ where
 impl<C> Msg for MsgUpdateAnyClient<C>
 where
     C: ClientKeeper + Clone,
+    C::AnyHeader: Clone,
     Any: From<C::AnyHeader>,
 {
     type ValidationError = ValidationError;
@@ -59,6 +60,7 @@ where
 impl<C> Protobuf<RawMsgUpdateClient> for MsgUpdateAnyClient<C>
 where
     C: ClientKeeper + Clone,
+    C::AnyHeader: Clone,
     Any: From<C::AnyHeader>,
     MsgUpdateAnyClient<C>: TryFrom<MsgUpdateClient>,
     <MsgUpdateAnyClient<C> as TryFrom<MsgUpdateClient>>::Error: Display,

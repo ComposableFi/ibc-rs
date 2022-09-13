@@ -3,25 +3,25 @@ use super::consensus_state::ConsensusState;
 use super::error::Error as NearError;
 use super::header::NearHeader;
 use super::types::{ApprovalInner, CryptoHash, LightClientBlockView};
-use crate::clients::host_functions::HostFunctionsProvider;
-use crate::core::ics02_client::client_def::{ClientDef, ConsensusUpdateResult};
-use crate::core::ics02_client::client_type::ClientType;
-use crate::core::ics02_client::context::ClientKeeper;
-use crate::core::ics02_client::error::Error;
-use crate::core::ics03_connection::connection::ConnectionEnd;
-use crate::core::ics04_channel::channel::ChannelEnd;
-use crate::core::ics04_channel::commitment::{AcknowledgementCommitment, PacketCommitment};
-use crate::core::ics04_channel::packet::Sequence;
-use crate::core::ics23_commitment::commitment::{
+use borsh::BorshSerialize;
+use ibc::core::ics02_client::client_def::{ClientDef, ConsensusUpdateResult};
+use ibc::core::ics02_client::client_type::ClientType;
+use ibc::core::ics02_client::context::ClientKeeper;
+use ibc::core::ics02_client::error::Error;
+use ibc::core::ics03_connection::connection::ConnectionEnd;
+use ibc::core::ics04_channel::channel::ChannelEnd;
+use ibc::core::ics04_channel::commitment::{AcknowledgementCommitment, PacketCommitment};
+use ibc::core::ics04_channel::packet::Sequence;
+use ibc::core::ics23_commitment::commitment::{
     CommitmentPrefix, CommitmentProofBytes, CommitmentRoot,
 };
-use crate::core::ics24_host::identifier::{ChannelId, ClientId, ConnectionId, PortId};
-use crate::core::ics26_routing::context::ReaderContext;
-use crate::prelude::*;
-use crate::Height;
-use borsh::BorshSerialize;
+use ibc::core::ics24_host::identifier::{ChannelId, ClientId, ConnectionId, PortId};
+use ibc::core::ics26_routing::context::ReaderContext;
+use ibc::host_functions::HostFunctionsProvider;
+use ibc::prelude::*;
+use ibc::Height;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct NearClient;
 
 impl ClientDef for NearClient {

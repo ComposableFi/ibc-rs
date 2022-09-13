@@ -24,8 +24,8 @@ pub enum ClientType {
     Tendermint = 7,
     #[cfg(any(test, feature = "ics11_beefy"))]
     Beefy = 11,
-    // #[cfg(any(test, feature = "ics11_beefy"))]
-    // Near = 13,
+    #[cfg(any(test, feature = "ics11_beefy"))]
+    Near = 13,
     #[cfg(any(test, feature = "mocks"))]
     Mock = 9999,
 }

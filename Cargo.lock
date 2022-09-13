@@ -642,6 +642,58 @@ dependencies = [
 ]
 
 [[package]]
+name = "clients"
+version = "0.1.0"
+dependencies = [
+ "beefy-light-client",
+ "beefy-primitives",
+ "beefy-prover",
+ "borsh",
+ "bytes",
+ "derive_more",
+ "env_logger",
+ "flex-error",
+ "frame-support",
+ "ibc",
+ "ibc-derive",
+ "ibc-proto",
+ "ics23",
+ "modelator",
+ "num-traits",
+ "parity-scale-codec",
+ "primitive-types",
+ "primitives",
+ "prost",
+ "prost-types",
+ "ripemd",
+ "safe-regex",
+ "serde",
+ "serde_derive",
+ "serde_json",
+ "sha2 0.10.2",
+ "sha3 0.10.2",
+ "sp-core 6.0.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.24)",
+ "sp-io 6.0.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.24)",
+ "sp-mmr-primitives",
+ "sp-runtime 6.0.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.24)",
+ "sp-std 4.0.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.24)",
+ "sp-trie 6.0.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.24)",
+ "subtle-encoding",
+ "subxt",
+ "tendermint",
+ "tendermint-light-client-verifier",
+ "tendermint-proto",
+ "tendermint-rpc",
+ "tendermint-testgen",
+ "test-log",
+ "time",
+ "tokio",
+ "tracing",
+ "tracing-subscriber 0.3.15",
+ "uint",
+]
+
+[[package]]
 name = "cmake"
 version = "0.1.48"
 source = "registry+https://github.com/rust-lang/crates.io-index"

@@ -1,13 +1,13 @@
-use crate::prelude::*;
+use ibc::prelude::*;
 
 use tendermint_proto::Protobuf;
 
 use ibc_proto::ibc::lightclients::tendermint::v1::Misbehaviour as RawMisbehaviour;
 
-use crate::clients::ics07_tendermint::error::Error;
-use crate::clients::ics07_tendermint::header::Header;
-use crate::core::ics24_host::identifier::ClientId;
-use crate::Height;
+use crate::ics07_tendermint::error::Error;
+use crate::ics07_tendermint::header::Header;
+use ibc::core::ics24_host::identifier::ClientId;
+use ibc::Height;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Misbehaviour {
@@ -16,7 +16,7 @@ pub struct Misbehaviour {
     pub header2: Header,
 }
 
-impl crate::core::ics02_client::misbehaviour::Misbehaviour for Misbehaviour {
+impl ibc::core::ics02_client::misbehaviour::Misbehaviour for Misbehaviour {
     fn client_id(&self) -> &ClientId {
         &self.client_id
     }

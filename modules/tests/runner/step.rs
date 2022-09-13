@@ -1,6 +1,6 @@
+use crate::core::ics03_connection::connection::State as ConnectionState;
 use alloc::collections::btree_map::BTreeMap as HashMap;
 use core::fmt::Debug;
-use ibc::core::ics03_connection::connection::State as ConnectionState;
 use serde::{Deserialize, Deserializer};
 
 use ibc::Height;

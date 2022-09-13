@@ -6,35 +6,35 @@ use pallet_mmr_primitives::BatchProof;
 use sp_core::H256;
 use tendermint_proto::Protobuf;
 
-use crate::clients::host_functions::{HostFunctionsManager, HostFunctionsProvider};
-use crate::clients::ics11_beefy::client_state::ClientState;
-use crate::clients::ics11_beefy::consensus_state::ConsensusState;
-use crate::clients::ics11_beefy::error::Error as BeefyError;
-use crate::clients::ics11_beefy::header::BeefyHeader;
-use crate::core::ics02_client::client_consensus::{AnyConsensusState, ConsensusState as _};
-use crate::core::ics02_client::client_def::{ClientDef, ConsensusUpdateResult};
-use crate::core::ics02_client::client_state::ClientState as _;
-use crate::core::ics02_client::client_type::ClientType;
-use crate::core::ics02_client::context::ClientKeeper;
-use crate::core::ics02_client::error::Error;
-use crate::core::ics03_connection::connection::ConnectionEnd;
-use crate::core::ics04_channel::channel::ChannelEnd;
-use crate::core::ics04_channel::commitment::{AcknowledgementCommitment, PacketCommitment};
-use crate::core::ics04_channel::packet::Sequence;
-use crate::core::ics23_commitment::commitment::{
+use crate::host_functions::HostFunctionsManager;
+use crate::ics11_beefy::client_state::ClientState;
+use crate::ics11_beefy::consensus_state::ConsensusState;
+use crate::ics11_beefy::error::Error as BeefyError;
+use crate::ics11_beefy::header::BeefyHeader;
+use ibc::core::ics02_client::client_consensus::ConsensusState as _;
+use ibc::core::ics02_client::client_def::{ClientDef, ConsensusUpdateResult};
+use ibc::core::ics02_client::client_state::ClientState as _;
+use ibc::core::ics02_client::client_type::ClientType;
+use ibc::core::ics02_client::context::ClientKeeper;
+use ibc::core::ics02_client::error::Error;
+use ibc::core::ics03_connection::connection::ConnectionEnd;
+use ibc::core::ics04_channel::channel::ChannelEnd;
+use ibc::core::ics04_channel::commitment::{AcknowledgementCommitment, PacketCommitment};
+use ibc::core::ics04_channel::packet::Sequence;
+use ibc::core::ics23_commitment::commitment::{
     CommitmentPrefix, CommitmentProofBytes, CommitmentRoot,
 };
-use crate::core::ics24_host::identifier::ConnectionId;
-use crate::core::ics24_host::identifier::{ChannelId, ClientId, PortId};
-use crate::core::ics24_host::path::{
+use ibc::core::ics24_host::identifier::ConnectionId;
+use ibc::core::ics24_host::identifier::{ChannelId, ClientId, PortId};
+use ibc::core::ics24_host::path::{
     AcksPath, ChannelEndsPath, ClientConsensusStatePath, ClientStatePath, CommitmentsPath,
     ConnectionsPath, ReceiptsPath, SeqRecvsPath,
 };
-use crate::core::ics24_host::Path;
-use crate::core::ics26_routing::context::ReaderContext;
-use crate::downcast;
-use crate::prelude::*;
-use crate::Height;
+use ibc::core::ics24_host::Path;
+use ibc::core::ics26_routing::context::ReaderContext;
+use ibc::host_functions::HostFunctionsProvider;
+use ibc::prelude::*;
+use ibc::Height;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct BeefyClient;
@@ -71,7 +71,7 @@ impl ClientDef for BeefyClient {
                 light_client_state,
                 mmr_update,
             )
-            .map_err(|e| Error::beefy(BeefyError::invalid_mmr_update(format!("{:?}", e))))?
+            .map_err(|e| BeefyError::invalid_mmr_update(format!("{:?}", e)))?
         } else {
             light_client_state
         };
@@ -111,9 +111,8 @@ impl ClientDef for BeefyClient {
                         .mmr_proofs
                         .into_iter()
                         .map(|item| {
-                            H256::decode(&mut &*item).map_err(|e| {
-                                Error::beefy(BeefyError::invalid_mmr_update(format!("{:?}", e)))
-                            })
+                            H256::decode(&mut &*item)
+                                .map_err(|e| BeefyError::invalid_mmr_update(format!("{:?}", e)))
                         })
                         .collect::<Result<Vec<_>, _>>()?,
                 },
@@ -124,7 +123,7 @@ impl ClientDef for BeefyClient {
                 light_client_state,
                 parachain_update_proof,
             )
-            .map_err(|e| Error::beefy(BeefyError::invalid_mmr_update(format!("{:?}", e))))?
+            .map_err(|e| BeefyError::invalid_mmr_update(format!("{:?}", e)))?
         }
 
         Ok(())
@@ -139,9 +138,7 @@ impl ClientDef for BeefyClient {
     ) -> Result<(Self::ClientState, ConsensusUpdateResult<Ctx>), Error> {
         let mut parachain_cs_states = vec![];
         // Extract the new client state from the verified header
-        let mut client_state = client_state
-            .from_header(header.clone())
-            .map_err(Error::beefy)?;
+        let mut client_state = client_state.from_header(header.clone())?;
         let mut latest_para_height = client_state.latest_para_height;
 
         if let Some(parachain_headers) = header.headers_with_proof {
@@ -199,7 +196,7 @@ impl ClientDef for BeefyClient {
             ));
         client_state
             .with_frozen_height(frozen_height)
-            .map_err(|e| Error::beefy(BeefyError::implementation_specific(e.to_string())))
+            .map_err(|e| BeefyError::implementation_specific(e.to_string()).into())
     }
 
     fn check_for_misbehaviour<Ctx: ReaderContext>(
@@ -220,9 +217,7 @@ impl ClientDef for BeefyClient {
         _proof_upgrade_consensus_state: Vec<u8>,
     ) -> Result<(Self::ClientState, ConsensusUpdateResult<Ctx>), Error> {
         // TODO:
-        Err(Error::beefy(BeefyError::implementation_specific(
-            "Not implemented".to_string(),
-        )))
+        Err(BeefyError::implementation_specific("Not implemented".to_string()).into())
     }
 
     fn verify_client_consensus_state<Ctx: ReaderContext>(
@@ -438,15 +433,15 @@ where
     P: Into<Path>,
 {
     if root.as_bytes().len() != 32 {
-        return Err(Error::beefy(BeefyError::invalid_commitment_root()));
+        return Err(BeefyError::invalid_commitment_root().into());
     }
     let path: Path = path.into();
     let path = path.to_string();
     let mut key = prefix.as_bytes().to_vec();
     key.extend(path.as_bytes());
     let trie_proof: Vec<u8> = proof.clone().into();
-    let trie_proof: Vec<Vec<u8>> = codec::Decode::decode(&mut &*trie_proof)
-        .map_err(|e| Error::beefy(BeefyError::scale_decode(e)))?;
+    let trie_proof: Vec<Vec<u8>> =
+        codec::Decode::decode(&mut &*trie_proof).map_err(|e| BeefyError::scale_decode(e))?;
     let root = H256::from_slice(root.as_bytes());
     Ctx::HostFunctions::verify_membership_trie_proof(
         root.as_fixed_bytes(),
@@ -466,15 +461,15 @@ where
     P: Into<Path>,
 {
     if root.as_bytes().len() != 32 {
-        return Err(Error::beefy(BeefyError::invalid_commitment_root()));
+        return Err(BeefyError::invalid_commitment_root().into());
     }
     let path: Path = path.into();
     let path = path.to_string();
     let mut key = prefix.as_bytes().to_vec();
     key.extend(path.as_bytes());
     let trie_proof: Vec<u8> = proof.clone().into();
-    let trie_proof: Vec<Vec<u8>> = codec::Decode::decode(&mut &*trie_proof)
-        .map_err(|e| Error::beefy(BeefyError::scale_decode(e)))?;
+    let trie_proof: Vec<Vec<u8>> =
+        codec::Decode::decode(&mut &*trie_proof).map_err(|e| BeefyError::scale_decode(e))?;
     let root = H256::from_slice(root.as_bytes());
     Ctx::HostFunctions::verify_non_membership_trie_proof(root.as_fixed_bytes(), &trie_proof, &key)
 }
@@ -488,18 +483,12 @@ fn verify_delay_passed<Ctx: ReaderContext>(
     let current_height = ctx.host_height();
 
     let client_id = connection_end.client_id();
-    let processed_time = ctx.client_update_time(client_id, height).map_err(|_| {
-        Error::beefy(BeefyError::processed_time_not_found(
-            client_id.clone(),
-            height,
-        ))
-    })?;
-    let processed_height = ctx.client_update_height(client_id, height).map_err(|_| {
-        Error::beefy(BeefyError::processed_height_not_found(
-            client_id.clone(),
-            height,
-        ))
-    })?;
+    let processed_time = ctx
+        .client_update_time(client_id, height)
+        .map_err(|_| BeefyError::processed_time_not_found(client_id.clone(), height))?;
+    let processed_height = ctx
+        .client_update_height(client_id, height)
+        .map_err(|_| BeefyError::processed_height_not_found(client_id.clone(), height))?;
 
     let delay_period_time = connection_end.delay_period();
     let delay_period_height = ctx.block_delay(delay_period_time);
@@ -513,11 +502,4 @@ fn verify_delay_passed<Ctx: ReaderContext>(
         delay_period_height,
     )
     .map_err(|e| e.into())
-}
-
-pub fn downcast_consensus_state(cs: AnyConsensusState) -> Result<ConsensusState, Error> {
-    downcast!(
-        cs => AnyConsensusState::Beefy
-    )
-    .ok_or_else(|| Error::client_args_type_mismatch(ClientType::Beefy))
 }

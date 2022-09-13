@@ -48,14 +48,14 @@ extern crate alloc;
 #[cfg(feature = "std")]
 extern crate std;
 
-mod prelude;
+pub mod prelude;
 
 pub mod applications;
 pub mod bigint;
-pub mod clients;
 pub mod core;
 pub mod events;
 pub mod handler;
+pub mod host_functions;
 pub mod keys;
 pub mod macros;
 pub mod proofs;
@@ -64,12 +64,12 @@ pub mod query;
 pub mod relayer;
 pub mod signer;
 pub mod timestamp;
-pub mod tx_msg;
+pub mod tx_msg; // Context mock, the underlying host chain, and client types: for testing all handlers.
 
 mod serializers;
 
 /// Re-export of ICS 002 Height domain type
-pub type Height = crate::core::ics02_client::height::Height;
+pub type Height = core::ics02_client::height::Height;
 
 #[cfg(test)]
 mod test;
@@ -78,4 +78,4 @@ mod test;
 pub mod test_utils;
 
 #[cfg(any(test, feature = "mocks"))]
-pub mod mock; // Context mock, the underlying host chain, and client types: for testing all handlers.
+pub mod mock;

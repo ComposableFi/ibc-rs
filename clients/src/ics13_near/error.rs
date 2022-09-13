@@ -1,5 +1,7 @@
 use super::types::CryptoHash;
 use flex_error::define_error;
+use ibc::core::ics02_client::client_type::ClientType;
+use ibc::core::ics02_client::error::Error as Ics02Error;
 
 define_error! {
     #[derive(Debug, PartialEq, Eq)]
@@ -27,5 +29,11 @@ define_error! {
         | _ | { format_args!(
             "unavailable block producers")
         },
+    }
+}
+
+impl From<Error> for Ics02Error {
+    fn from(e: Error) -> Self {
+        Ics02Error::client_error(ClientType::Near, e.to_string())
     }
 }

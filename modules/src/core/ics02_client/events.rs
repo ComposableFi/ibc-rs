@@ -1,16 +1,12 @@
 //! Types for the IBC events emitted from Tendermint Websocket by the client module.
 
-use serde_derive::{Deserialize, Serialize};
-use tendermint::abci::Event as AbciEvent;
-use tendermint::abci::EventAttribute;
-
 use crate::core::ics02_client::client_type::ClientType;
-use crate::core::ics02_client::error::Error;
-use crate::core::ics02_client::header::AnyHeader;
 use crate::core::ics02_client::height::Height;
 use crate::core::ics24_host::identifier::ClientId;
-use crate::events::{IbcEvent, IbcEventType};
+use crate::events::IbcEvent;
 use crate::prelude::*;
+use serde_derive::{Deserialize, Serialize};
+use tendermint::abci::EventAttribute;
 
 /// The content of the `key` field for the attribute containing the height.
 const HEIGHT_ATTRIBUTE_KEY: &str = "height";
@@ -23,77 +19,6 @@ const CLIENT_TYPE_ATTRIBUTE_KEY: &str = "client_type";
 
 /// The content of the `key` field for the attribute containing the height.
 const CONSENSUS_HEIGHT_ATTRIBUTE_KEY: &str = "consensus_height";
-
-/// The content of the `key` field for the header in update client event.
-const HEADER_ATTRIBUTE_KEY: &str = "header";
-
-pub fn try_from_tx(event: &AbciEvent) -> Option<IbcEvent> {
-    match event.kind.parse() {
-        Ok(IbcEventType::CreateClient) => extract_attributes_from_tx(event)
-            .map(CreateClient)
-            .map(IbcEvent::CreateClient)
-            .ok(),
-        Ok(IbcEventType::UpdateClient) => match extract_attributes_from_tx(event) {
-            Ok(attributes) => Some(IbcEvent::UpdateClient(UpdateClient {
-                common: attributes,
-                header: extract_header_from_tx(event).ok(),
-            })),
-            Err(_) => None,
-        },
-        Ok(IbcEventType::ClientMisbehaviour) => extract_attributes_from_tx(event)
-            .map(ClientMisbehaviour)
-            .map(IbcEvent::ClientMisbehaviour)
-            .ok(),
-        Ok(IbcEventType::UpgradeClient) => extract_attributes_from_tx(event)
-            .map(UpgradeClient)
-            .map(IbcEvent::UpgradeClient)
-            .ok(),
-        _ => None,
-    }
-}
-
-fn extract_attributes_from_tx(event: &AbciEvent) -> Result<Attributes, Error> {
-    let mut attr = Attributes::default();
-
-    for tag in &event.attributes {
-        let key = tag.key.as_ref();
-        let value = tag.value.as_str();
-        match key {
-            HEIGHT_ATTRIBUTE_KEY => {
-                attr.height = value
-                    .parse()
-                    .map_err(|e| Error::invalid_string_as_height(value.to_string(), e))?
-            }
-            CLIENT_ID_ATTRIBUTE_KEY => {
-                attr.client_id = value.parse().map_err(Error::invalid_client_identifier)?
-            }
-            CLIENT_TYPE_ATTRIBUTE_KEY => {
-                attr.client_type = value
-                    .parse()
-                    .map_err(|_| Error::unknown_client_type(value.to_string()))?
-            }
-            CONSENSUS_HEIGHT_ATTRIBUTE_KEY => {
-                attr.consensus_height = value
-                    .parse()
-                    .map_err(|e| Error::invalid_string_as_height(value.to_string(), e))?
-            }
-            _ => {}
-        }
-    }
-
-    Ok(attr)
-}
-
-pub fn extract_header_from_tx(event: &AbciEvent) -> Result<AnyHeader, Error> {
-    for tag in &event.attributes {
-        let key = tag.key.as_str();
-        let value = tag.value.as_str();
-        if key == HEADER_ATTRIBUTE_KEY {
-            return AnyHeader::decode_from_string(value);
-        }
-    }
-    Err(Error::missing_raw_header())
-}
 
 /// NewBlock event signals the committing & execution of a new block.
 // TODO - find a better place for NewBlock
@@ -211,16 +136,6 @@ impl From<CreateClient> for IbcEvent {
     }
 }
 
-impl From<CreateClient> for AbciEvent {
-    fn from(v: CreateClient) -> Self {
-        let attributes = Vec::<EventAttribute>::from(v.0);
-        AbciEvent {
-            kind: IbcEventType::CreateClient.as_str().to_string(),
-            attributes,
-        }
-    }
-}
-
 impl core::fmt::Display for CreateClient {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> Result<(), core::fmt::Error> {
         write!(f, "{}", self.0)
@@ -228,10 +143,11 @@ impl core::fmt::Display for CreateClient {
 }
 
 /// UpdateClient event signals a recent update of an on-chain client (IBC Client).
+// TODO: use generic header type
 #[derive(Deserialize, Serialize, Clone, PartialEq, Eq)]
 pub struct UpdateClient {
     pub common: Attributes,
-    pub header: Option<AnyHeader>,
+    pub header: Option<String>,
 }
 
 impl UpdateClient {
@@ -267,24 +183,6 @@ impl From<Attributes> for UpdateClient {
 impl From<UpdateClient> for IbcEvent {
     fn from(v: UpdateClient) -> Self {
         IbcEvent::UpdateClient(v)
-    }
-}
-
-impl From<UpdateClient> for AbciEvent {
-    fn from(v: UpdateClient) -> Self {
-        let mut attributes = Vec::<EventAttribute>::from(v.common);
-        if let Some(h) = v.header {
-            let header = EventAttribute {
-                key: HEADER_ATTRIBUTE_KEY.parse().unwrap(),
-                value: h.encode_to_string().parse().unwrap(),
-                index: false,
-            };
-            attributes.push(header);
-        }
-        AbciEvent {
-            kind: IbcEventType::UpdateClient.as_str().to_string(),
-            attributes,
-        }
     }
 }
 
@@ -329,16 +227,6 @@ impl From<ClientMisbehaviour> for IbcEvent {
     }
 }
 
-impl From<ClientMisbehaviour> for AbciEvent {
-    fn from(v: ClientMisbehaviour) -> Self {
-        let attributes = Vec::<EventAttribute>::from(v.0);
-        AbciEvent {
-            kind: IbcEventType::ClientMisbehaviour.as_str().to_string(),
-            attributes,
-        }
-    }
-}
-
 /// Signals a recent upgrade of an on-chain client (IBC Client).
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Deserialize, Serialize)]
 pub struct UpgradeClient(pub Attributes);
@@ -358,60 +246,5 @@ impl UpgradeClient {
 impl From<Attributes> for UpgradeClient {
     fn from(attrs: Attributes) -> Self {
         UpgradeClient(attrs)
-    }
-}
-
-impl From<UpgradeClient> for AbciEvent {
-    fn from(v: UpgradeClient) -> Self {
-        let attributes = Vec::<EventAttribute>::from(v.0);
-        AbciEvent {
-            kind: IbcEventType::UpgradeClient.as_str().to_string(),
-            attributes,
-        }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::core::ics02_client::header::Header;
-    use crate::mock::header::MockHeader;
-
-    #[test]
-    fn client_event_to_abci_event() {
-        let height = Height::new(1, 1);
-        let attributes = Attributes {
-            height,
-            client_id: "test_client".parse().unwrap(),
-            client_type: ClientType::Tendermint,
-            consensus_height: height,
-        };
-        let mut abci_events = vec![];
-        let create_client = CreateClient::from(attributes.clone());
-        abci_events.push(AbciEvent::from(create_client.clone()));
-        let client_misbehaviour = ClientMisbehaviour::from(attributes.clone());
-        abci_events.push(AbciEvent::from(client_misbehaviour.clone()));
-        let upgrade_client = UpgradeClient::from(attributes.clone());
-        abci_events.push(AbciEvent::from(upgrade_client.clone()));
-        let mut update_client = UpdateClient::from(attributes);
-        let header = AnyHeader::Mock(MockHeader::new(height));
-        update_client.header = Some(header);
-        abci_events.push(AbciEvent::from(update_client.clone()));
-
-        for event in abci_events {
-            match try_from_tx(&event) {
-                Some(e) => match e {
-                    IbcEvent::CreateClient(e) => assert_eq!(e.0, create_client.0),
-                    IbcEvent::ClientMisbehaviour(e) => assert_eq!(e.0, client_misbehaviour.0),
-                    IbcEvent::UpgradeClient(e) => assert_eq!(e.0, upgrade_client.0),
-                    IbcEvent::UpdateClient(e) => {
-                        assert_eq!(e.common, update_client.common);
-                        assert_eq!(e.header, update_client.header);
-                    }
-                    _ => panic!("unexpected event type"),
-                },
-                None => panic!("converted event was wrong"),
-            }
-        }
     }
 }
