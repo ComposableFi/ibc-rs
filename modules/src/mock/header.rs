@@ -74,12 +74,12 @@ impl Header for MockHeader {
         ClientType::Mock
     }
 
-    fn wrap_any(self) -> AnyHeader {
-        AnyHeader::Mock(self)
-    }
-
     fn height(&self) -> Height {
         self.height()
+    }
+
+    fn encode_to_vec(&self) -> Vec<u8> {
+        self.encode_vec()
     }
 }
 
@@ -96,7 +96,7 @@ mod tests {
     #[test]
     fn encode_any() {
         let header = MockHeader::new(Height::new(1, 10)).with_timestamp(Timestamp::none());
-        let bytes = header.wrap_any().encode_vec();
+        let bytes = AnyHeader::Mock(header).encode_vec();
 
         assert_eq!(
             &bytes,

@@ -617,7 +617,7 @@ mod tests {
 
     #[test]
     fn test_parse_client_paths_fn() {
-        let path = "clients/07-tendermint-0/clientType";
+        let path = "clients/7-tendermint-0/clientType";
         let components: Vec<&str> = path.split('/').collect();
 
         assert_eq!(
@@ -625,7 +625,7 @@ mod tests {
             Some(Path::ClientType(ClientTypePath(ClientId::default())))
         );
 
-        let path = "clients/07-tendermint-0/clientState";
+        let path = "clients/7-tendermint-0/clientState";
         let components: Vec<&str> = path.split('/').collect();
 
         assert_eq!(
@@ -633,7 +633,7 @@ mod tests {
             Some(Path::ClientState(ClientStatePath(ClientId::default())))
         );
 
-        let path = "clients/07-tendermint-0/consensusStates/15-31";
+        let path = "clients/7-tendermint-0/consensusStates/15-31";
         let components: Vec<&str> = path.split('/').collect();
 
         assert_eq!(
@@ -648,7 +648,7 @@ mod tests {
 
     #[test]
     fn client_type_path_parses() {
-        let path = "clients/07-tendermint-0/clientType";
+        let path = "clients/7-tendermint-0/clientType";
         let path = Path::from_str(path);
 
         assert!(path.is_ok());
@@ -660,7 +660,7 @@ mod tests {
 
     #[test]
     fn client_state_path_parses() {
-        let path = "clients/07-tendermint-0/clientState";
+        let path = "clients/7-tendermint-0/clientState";
         let path = Path::from_str(path);
 
         assert!(path.is_ok());
@@ -672,7 +672,7 @@ mod tests {
 
     #[test]
     fn client_consensus_state_path_parses() {
-        let path = "clients/07-tendermint-0/consensusStates/15-31";
+        let path = "clients/7-tendermint-0/consensusStates/15-31";
         let path = Path::from_str(path);
 
         assert!(path.is_ok());
@@ -688,7 +688,7 @@ mod tests {
 
     #[test]
     fn client_connections_path_parses() {
-        let path = "clients/07-tendermint-0/connections";
+        let path = "clients/7-tendermint-0/connections";
         let path = Path::from_str(path);
 
         assert!(path.is_ok());

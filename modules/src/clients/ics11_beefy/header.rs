@@ -3,7 +3,6 @@ use tendermint_proto::Protobuf;
 
 use crate::clients::ics11_beefy::error::Error;
 use crate::core::ics02_client::client_type::ClientType;
-use crate::core::ics02_client::header::AnyHeader;
 use crate::Height;
 use alloc::string::ToString;
 use alloc::vec;
@@ -47,8 +46,8 @@ impl crate::core::ics02_client::header::Header for BeefyHeader {
         ClientType::Beefy
     }
 
-    fn wrap_any(self) -> AnyHeader {
-        AnyHeader::Beefy(self)
+    fn encode_to_vec(&self) -> Vec<u8> {
+        self.encode_vec()
     }
 
     fn height(&self) -> Height {

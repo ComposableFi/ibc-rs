@@ -8,7 +8,6 @@ use serde::{Deserialize, Serialize};
 use tendermint_light_client_verifier::options::Options;
 use tendermint_proto::Protobuf;
 
-use crate::clients::ics07_tendermint::client_def::TendermintClient;
 use ibc_proto::ibc::lightclients::tendermint::v1::ClientState as RawClientState;
 
 use crate::clients::ics07_tendermint::error::Error;

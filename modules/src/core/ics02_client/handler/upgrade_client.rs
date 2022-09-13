@@ -87,6 +87,7 @@ mod tests {
 
     use core::str::FromStr;
 
+    use crate::core::ics02_client::client_state::ClientState;
     use crate::core::ics02_client::context::ClientReader;
     use crate::core::ics02_client::error::{Error, ErrorDetail};
     use crate::core::ics02_client::handler::dispatch;

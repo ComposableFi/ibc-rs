@@ -80,6 +80,7 @@ mod tests {
     use crate::clients::ics07_tendermint::header::test_util::get_dummy_tendermint_header;
     use crate::core::ics02_client::client_consensus::AnyConsensusState;
     use crate::core::ics02_client::client_state::AnyClientState;
+    use crate::core::ics02_client::client_state::ClientState;
     use crate::core::ics02_client::client_type::ClientType;
     use crate::core::ics02_client::context::ClientReader;
     use crate::core::ics02_client::handler::{dispatch, ClientResult};

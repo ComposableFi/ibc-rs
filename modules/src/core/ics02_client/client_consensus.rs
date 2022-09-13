@@ -64,78 +64,17 @@ pub trait ConsensusState: Clone + Debug + Send + Sync {
     fn encode_to_vec(&self) -> Vec<u8>;
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, derive::ConsensusState, derive::Protobuf)]
 #[serde(tag = "type")]
 pub enum AnyConsensusState {
+    #[ibc(proto_url = "TENDERMINT_CONSENSUS_STATE_TYPE_URL")]
     Tendermint(consensus_state::ConsensusState),
     #[cfg(any(test, feature = "ics11_beefy"))]
+    #[ibc(proto_url = "BEEFY_CONSENSUS_STATE_TYPE_URL")]
     Beefy(beefy_consensus_state::ConsensusState),
     #[cfg(any(test, feature = "mocks"))]
+    #[ibc(proto_url = "MOCK_CONSENSUS_STATE_TYPE_URL")]
     Mock(MockConsensusState),
-}
-
-impl AnyConsensusState {
-    pub fn client_type(&self) -> ClientType {
-        match self {
-            AnyConsensusState::Tendermint(_cs) => ClientType::Tendermint,
-            #[cfg(any(test, feature = "ics11_beefy"))]
-            AnyConsensusState::Beefy(_) => ClientType::Beefy,
-            #[cfg(any(test, feature = "mocks"))]
-            AnyConsensusState::Mock(_cs) => ClientType::Mock,
-        }
-    }
-}
-
-impl Protobuf<Any> for AnyConsensusState {}
-
-impl TryFrom<Any> for AnyConsensusState {
-    type Error = Error;
-
-    fn try_from(value: Any) -> Result<Self, Self::Error> {
-        match value.type_url.as_str() {
-            "" => Err(Error::empty_consensus_state_response()),
-
-            TENDERMINT_CONSENSUS_STATE_TYPE_URL => Ok(AnyConsensusState::Tendermint(
-                consensus_state::ConsensusState::decode_vec(&value.value)
-                    .map_err(Error::decode_raw_client_state)?,
-            )),
-
-            #[cfg(any(test, feature = "ics11_beefy"))]
-            BEEFY_CONSENSUS_STATE_TYPE_URL => Ok(AnyConsensusState::Beefy(
-                beefy_consensus_state::ConsensusState::decode_vec(&value.value)
-                    .map_err(Error::decode_raw_client_state)?,
-            )),
-
-            #[cfg(any(test, feature = "mocks"))]
-            MOCK_CONSENSUS_STATE_TYPE_URL => Ok(AnyConsensusState::Mock(
-                MockConsensusState::decode_vec(&value.value)
-                    .map_err(Error::decode_raw_client_state)?,
-            )),
-
-            _ => Err(Error::unknown_consensus_state_type(value.type_url)),
-        }
-    }
-}
-
-impl From<AnyConsensusState> for Any {
-    fn from(value: AnyConsensusState) -> Self {
-        match value {
-            AnyConsensusState::Tendermint(value) => Any {
-                type_url: TENDERMINT_CONSENSUS_STATE_TYPE_URL.to_string(),
-                value: value.encode_to_vec(),
-            },
-            #[cfg(any(test, feature = "ics11_beefy"))]
-            AnyConsensusState::Beefy(value) => Any {
-                type_url: BEEFY_CONSENSUS_STATE_TYPE_URL.to_string(),
-                value: value.encode_to_vec(),
-            },
-            #[cfg(any(test, feature = "mocks"))]
-            AnyConsensusState::Mock(value) => Any {
-                type_url: MOCK_CONSENSUS_STATE_TYPE_URL.to_string(),
-                value: value.encode_to_vec(),
-            },
-        }
-    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
@@ -169,64 +108,6 @@ impl From<AnyConsensusStateWithHeight> for ConsensusStateWithHeight {
             height: Some(value.height.into()),
             consensus_state: Some(value.consensus_state.into()),
         }
-    }
-}
-
-impl ConsensusState for AnyConsensusState {
-    type Error = Infallible;
-
-    fn client_type(&self) -> ClientType {
-        self.client_type()
-    }
-
-    fn root(&self) -> &CommitmentRoot {
-        match self {
-            Self::Tendermint(cs_state) => cs_state.root(),
-            #[cfg(any(test, feature = "ics11_beefy"))]
-            Self::Beefy(cs_state) => cs_state.root(),
-            #[cfg(any(test, feature = "mocks"))]
-            Self::Mock(mock_state) => mock_state.root(),
-        }
-    }
-
-    fn timestamp(&self) -> Timestamp {
-        match self {
-            Self::Tendermint(cs_state) => cs_state.timestamp(),
-            #[cfg(any(test, feature = "ics11_beefy"))]
-            Self::Beefy(cs_state) => cs_state.timestamp(),
-            #[cfg(any(test, feature = "mocks"))]
-            Self::Mock(mock_state) => mock_state.timestamp(),
-        }
-    }
-
-    fn downcast<T: Clone + 'static>(self) -> T {
-        match self {
-            Self::Tendermint(cs_state) => cs_state.downcast(),
-            #[cfg(any(test, feature = "ics11_beefy"))]
-            Self::Beefy(cs_state) => cs_state.downcast(),
-            #[cfg(any(test, feature = "mocks"))]
-            Self::Mock(mock_state) => mock_state.downcast(),
-        }
-    }
-
-    fn wrap(sub_state: &dyn core::any::Any) -> Self {
-        if let Some(state) = sub_state.downcast_ref::<consensus_state::ConsensusState>() {
-            return AnyConsensusState::Tendermint(state.clone());
-        }
-        #[cfg(any(test, feature = "ics11_beefy"))]
-        if let Some(state) = sub_state.downcast_ref::<beefy_consensus_state::ConsensusState>() {
-            return AnyConsensusState::Beefy(state.clone());
-        }
-        // TODO: wrap near consensus state
-        #[cfg(any(test, feature = "mocks"))]
-        if let Some(state) = sub_state.downcast_ref::<MockConsensusState>() {
-            return AnyConsensusState::Mock(state.clone());
-        }
-        panic!("unknown consensus state type")
-    }
-
-    fn encode_to_vec(&self) -> Vec<u8> {
-        self.encode_vec()
     }
 }
 

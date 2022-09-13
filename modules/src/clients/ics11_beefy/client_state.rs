@@ -12,7 +12,6 @@ use sp_core::H256;
 use sp_runtime::SaturatedConversion;
 use tendermint_proto::Protobuf;
 
-use crate::clients::ics11_beefy::client_def::BeefyClient;
 use ibc_proto::ibc::lightclients::beefy::v1::{BeefyAuthoritySet, ClientState as RawClientState};
 
 use crate::clients::ics11_beefy::error::Error;

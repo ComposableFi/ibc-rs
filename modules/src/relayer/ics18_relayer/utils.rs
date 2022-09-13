@@ -50,6 +50,7 @@ where
 
 #[cfg(test)]
 mod tests {
+    use crate::core::ics02_client::client_state::ClientState;
     use crate::core::ics02_client::client_type::ClientType;
     use crate::core::ics02_client::header::{AnyHeader, Header};
     use crate::core::ics24_host::identifier::{ChainId, ClientId};
@@ -158,10 +159,9 @@ mod tests {
                     let th = header.height();
                     let mut hheader = header.clone();
                     hheader.trusted_height = th.decrement().unwrap();
-                    hheader.wrap_any()
+                    AnyHeader::Tendermint(hheader)
                 }
-                AnyHeader::Beefy(h) => h.wrap_any(),
-                AnyHeader::Mock(header) => header.wrap_any(),
+                other => other,
             };
 
             assert_eq!(

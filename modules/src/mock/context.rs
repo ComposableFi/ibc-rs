@@ -20,6 +20,7 @@ use crate::clients::ics11_beefy::consensus_state::test_util::get_dummy_beefy_con
 use crate::core::ics02_client::client_consensus::{AnyConsensusState, AnyConsensusStateWithHeight};
 use crate::core::ics02_client::client_def::AnyClient;
 use crate::core::ics02_client::client_state::AnyClientState;
+use crate::core::ics02_client::client_state::ClientState;
 use crate::core::ics02_client::client_type::ClientType;
 use crate::core::ics02_client::context::{ClientKeeper, ClientReader};
 use crate::core::ics02_client::error::Error as Ics02Error;
@@ -230,7 +231,6 @@ impl MockContext {
                 // Return the tuple.
                 (Some(client_state), consensus_state)
             }
-            ClientType::Near => todo!(),
         };
         let consensus_states = vec![(cs_height, consensus_state)].into_iter().collect();
 
@@ -288,7 +288,6 @@ impl MockContext {
                 // Return the tuple.
                 (Some(client_state), consensus_state)
             }
-            ClientType::Near => todo!(),
         };
 
         let prev_consensus_state = match client_type {
@@ -304,7 +303,6 @@ impl MockContext {
                 );
                 AnyConsensusState::from(light_block)
             }
-            ClientType::Near => todo!(),
         };
 
         let consensus_states = vec![

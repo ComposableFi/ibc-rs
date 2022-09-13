@@ -152,7 +152,7 @@ impl ClientId {
     /// # use ibc::core::ics02_client::client_type::ClientType;
     /// let tm_client_id = ClientId::new(ClientType::Tendermint, 0);
     /// assert!(tm_client_id.is_ok());
-    /// tm_client_id.map(|id| { assert_eq!(&id, "07-tendermint-0") });
+    /// tm_client_id.map(|id| { assert_eq!(&id, "7-tendermint-0") });
     /// ```
     pub fn new(ctype: ClientType, counter: u64) -> Result<Self, ValidationError> {
         let prefix = Self::prefix(ctype);
@@ -173,8 +173,8 @@ impl ClientId {
             ClientType::Tendermint => ClientType::Tendermint.as_str(),
             #[cfg(any(test, feature = "ics11_beefy"))]
             ClientType::Beefy => ClientType::Beefy.as_str(),
-            #[cfg(any(test, feature = "ics11_beefy"))]
-            ClientType::Near => ClientType::Near.as_str(),
+            // #[cfg(any(test, feature = "ics11_beefy"))]
+            // ClientType::Near => ClientType::Near.as_str(),
             #[cfg(any(test, feature = "mocks"))]
             ClientType::Mock => ClientType::Mock.as_str(),
         }

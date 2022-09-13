@@ -116,6 +116,14 @@ define_error! {
             [ TraceError<TendermintProtoError> ]
             | _ | { "error decoding raw client state" },
 
+        DecodeRawHeader
+            [ TraceError<TendermintProtoError> ]
+            | _ | { "error decoding raw header" },
+
+        DecodeRawConsensusState
+            [ TraceError<TendermintProtoError> ]
+            | _ | { "error decoding raw header" },
+
         MissingRawClientState
             | _ | { "missing raw client state" },
 
@@ -378,6 +386,14 @@ define_error! {
         DecodeRawClientState
             [ TraceError<TendermintProtoError> ]
             | _ | { "error decoding raw client state" },
+
+        DecodeRawHeader
+            [ TraceError<TendermintProtoError> ]
+            | _ | { "error decoding raw header" },
+
+        DecodeRawConsensusState
+            [ TraceError<TendermintProtoError> ]
+            | _ | { "error decoding raw header" },
 
         MissingRawClientState
             | _ | { "missing raw client state" },

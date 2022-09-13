@@ -13,7 +13,6 @@ use ibc_proto::ibc::lightclients::tendermint::v1::Header as RawHeader;
 
 use crate::clients::ics07_tendermint::error::Error;
 use crate::core::ics02_client::client_type::ClientType;
-use crate::core::ics02_client::header::AnyHeader;
 use crate::core::ics24_host::identifier::ChainId;
 use crate::timestamp::Timestamp;
 use crate::Height;
@@ -76,8 +75,8 @@ impl crate::core::ics02_client::header::Header for Header {
         ClientType::Tendermint
     }
 
-    fn wrap_any(self) -> AnyHeader {
-        AnyHeader::Tendermint(self)
+    fn encode_to_vec(&self) -> Vec<u8> {
+        self.encode_vec()
     }
 
     fn height(&self) -> Height {

@@ -6,68 +6,33 @@ use serde_derive::{Deserialize, Serialize};
 
 use super::error::Error;
 
-// Client types other traits depend on (client configuration).
-// pub trait ClientTypes {
-//     type Header: Header;
-//     type ClientState: ClientState + Eq;
-//     type ConsensusState: ConsensusState + Eq;
-//     type ClientDef: ClientDef;
-// }
-
 /// Type of the client, depending on the specific consensus algorithm.
-#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(
+    Copy,
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Serialize,
+    Deserialize,
+    derive::ClientType,
+)]
 pub enum ClientType {
-    Tendermint = 1,
+    Tendermint = 7,
     #[cfg(any(test, feature = "ics11_beefy"))]
-    Beefy = 2,
-    #[cfg(any(test, feature = "ics11_beefy"))]
-    Near = 3,
+    Beefy = 11,
+    // #[cfg(any(test, feature = "ics11_beefy"))]
+    // Near = 13,
     #[cfg(any(test, feature = "mocks"))]
     Mock = 9999,
-}
-
-impl ClientType {
-    const TENDERMINT_STR: &'static str = "07-tendermint";
-    #[cfg(any(test, feature = "ics11_beefy"))]
-    const BEEFY_STR: &'static str = "11-beefy";
-    #[cfg(any(test, feature = "ics11_beefy"))]
-    const NEAR_STR: &'static str = "11-beefy";
-
-    #[cfg_attr(not(test), allow(dead_code))]
-    const MOCK_STR: &'static str = "9999-mock";
-
-    /// Yields the identifier of this client type as a string
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            Self::Tendermint => Self::TENDERMINT_STR,
-            #[cfg(any(test, feature = "ics11_beefy"))]
-            Self::Beefy => Self::BEEFY_STR,
-            #[cfg(any(test, feature = "ics11_beefy"))]
-            Self::Near => Self::NEAR_STR,
-            #[cfg(any(test, feature = "mocks"))]
-            Self::Mock => Self::MOCK_STR,
-        }
-    }
 }
 
 impl fmt::Display for ClientType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "ClientType({})", self.as_str())
-    }
-}
-
-impl core::str::FromStr for ClientType {
-    type Err = Error;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            Self::TENDERMINT_STR => Ok(Self::Tendermint),
-            #[cfg(any(test, feature = "ics11_beefy"))]
-            Self::BEEFY_STR => Ok(Self::Beefy),
-            #[cfg(any(test, feature = "mocks"))]
-            Self::MOCK_STR => Ok(Self::Mock),
-            _ => Err(Error::unknown_client_type(s.to_string())),
-        }
     }
 }
 
@@ -81,7 +46,7 @@ mod tests {
 
     #[test]
     fn parse_tendermint_client_type() {
-        let client_type = ClientType::from_str("07-tendermint");
+        let client_type = ClientType::from_str("7-tendermint");
 
         match client_type {
             Ok(ClientType::Tendermint) => (),

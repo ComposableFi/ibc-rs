@@ -1,7 +1,4 @@
-use crate::core::ics02_client::{
-    client_type::ClientType,
-    header::{AnyHeader, Header},
-};
+use crate::core::ics02_client::{client_type::ClientType, header::Header};
 use crate::Height;
 
 use super::types::LightClientBlockView;
@@ -19,11 +16,12 @@ impl NearHeader {
 
 impl Header for NearHeader {
     fn client_type(&self) -> ClientType {
-        ClientType::Near
+        todo!("implement client_type for NEAR")
+        // ClientType::Near
     }
 
-    fn wrap_any(self) -> AnyHeader {
-        todo!()
+    fn encode_to_vec(&self) -> Vec<u8> {
+        unimplemented!()
     }
 
     fn height(&self) -> Height {

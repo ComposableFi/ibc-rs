@@ -47,7 +47,8 @@ impl ClientState for NearClientState {
     }
 
     fn client_type(&self) -> ClientType {
-        ClientType::Near
+        todo!("implement client type for NEAR")
+        // ClientType::Near
     }
 
     fn latest_height(&self) -> crate::Height {

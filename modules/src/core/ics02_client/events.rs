@@ -394,7 +394,7 @@ mod tests {
         let upgrade_client = UpgradeClient::from(attributes.clone());
         abci_events.push(AbciEvent::from(upgrade_client.clone()));
         let mut update_client = UpdateClient::from(attributes);
-        let header = MockHeader::new(height).wrap_any();
+        let header = AnyHeader::Mock(MockHeader::new(height));
         update_client.header = Some(header);
         abci_events.push(AbciEvent::from(update_client.clone()));
 
