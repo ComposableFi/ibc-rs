@@ -313,12 +313,12 @@ pub(crate) mod test {
     use crate::applications::transfer::PrefixedCoin;
     use crate::core::ics04_channel::error::Error;
     use crate::handler::HandlerOutputBuilder;
-    use crate::mock::context::MockIbcStore;
+    use crate::mock::context::{ClientTypes, MockClientTypes, MockIbcStore};
     use crate::prelude::*;
     use crate::test_utils::DummyTransferModule;
 
-    pub(crate) fn deliver(
-        ctx: &mut DummyTransferModule,
+    pub(crate) fn deliver<C: ClientTypes>(
+        ctx: &mut DummyTransferModule<C>,
         output: &mut HandlerOutputBuilder<()>,
         msg: MsgTransfer<PrefixedCoin>,
     ) -> Result<(), Error> {
@@ -331,7 +331,7 @@ pub(crate) mod test {
             let port_id = port_id.parse().unwrap();
             let channel_id = channel_id.parse().unwrap();
             let gen_address = {
-                let ibc_store = MockIbcStore::default();
+                let ibc_store = MockIbcStore::<MockClientTypes>::default();
                 let ctx = DummyTransferModule::new(Arc::new(Mutex::new(ibc_store)));
                 let addr = cosmos_adr028_escrow_address(&ctx, &port_id, channel_id);
                 bech32::encode("cosmos", addr)

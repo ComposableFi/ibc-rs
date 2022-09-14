@@ -115,39 +115,3 @@ where
         }
     }
 }
-
-#[cfg(test)]
-mod tests {
-
-    use test_log::test;
-
-    use ibc_proto::ibc::core::client::v1::MsgCreateClient;
-
-    use crate::clients::ics07_tendermint::client_state::test_util::get_dummy_tendermint_client_state;
-    use crate::clients::ics07_tendermint::header::test_util::get_dummy_tendermint_header;
-    use crate::core::ics02_client::client_consensus::AnyConsensusState;
-    use crate::core::ics02_client::msgs::MsgCreateAnyClient;
-    use crate::mock::context::MockContext;
-    use crate::test_utils::get_dummy_account_id;
-
-    #[test]
-    fn msg_create_client_serialization() {
-        let signer = get_dummy_account_id();
-
-        let tm_header = get_dummy_tendermint_header();
-        let tm_client_state = get_dummy_tendermint_client_state(tm_header.clone());
-
-        let msg = MsgCreateAnyClient::<MockContext>::new(
-            tm_client_state,
-            AnyConsensusState::Tendermint(tm_header.try_into().unwrap()),
-            signer,
-        )
-        .unwrap();
-
-        let raw = MsgCreateClient::from(msg.clone());
-        let msg_back = MsgCreateAnyClient::<MockContext>::try_from(raw.clone()).unwrap();
-        let raw_back = MsgCreateClient::from(msg_back.clone());
-        assert_eq!(msg, msg_back);
-        assert_eq!(raw, raw_back);
-    }
-}

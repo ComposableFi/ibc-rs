@@ -158,7 +158,7 @@ mod tests {
     use crate::core::ics04_channel::Version;
     use crate::core::ics24_host::identifier::{ChannelId, ClientId, ConnectionId, PortId};
     use crate::events::IbcEvent;
-    use crate::mock::context::MockContext;
+    use crate::mock::context::{MockClientTypes, MockContext};
     use crate::prelude::*;
     use crate::timestamp::ZERO_DURATION;
 
@@ -166,7 +166,7 @@ mod tests {
     fn timeout_packet_processing() {
         struct Test {
             name: String,
-            ctx: MockContext,
+            ctx: MockContext<MockClientTypes>,
             msg: MsgTimeout,
             want_pass: bool,
         }

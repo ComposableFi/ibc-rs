@@ -161,7 +161,7 @@ where
 
 #[cfg(test)]
 pub mod test_util {
-    use crate::core::ics02_client::client_state::AnyClientState;
+    use crate::mock::client_state::AnyClientState;
     use crate::prelude::*;
     use ibc_proto::ibc::core::client::v1::Height;
     use ibc_proto::ibc::core::connection::v1::MsgConnectionOpenAck as RawMsgConnectionOpenAck;
@@ -210,7 +210,7 @@ mod tests {
 
     use crate::core::ics03_connection::msgs::conn_open_ack::test_util::get_dummy_raw_msg_conn_open_ack;
     use crate::core::ics03_connection::msgs::conn_open_ack::MsgConnectionOpenAck;
-    use crate::mock::context::MockContext;
+    use crate::mock::context::{MockClientTypes, MockContext};
 
     #[test]
     fn parse_connection_open_ack_msg() {
@@ -272,7 +272,8 @@ mod tests {
         .collect();
 
         for test in tests {
-            let msg = MsgConnectionOpenAck::<MockContext>::try_from(test.raw.clone());
+            let msg =
+                MsgConnectionOpenAck::<MockContext<MockClientTypes>>::try_from(test.raw.clone());
 
             assert_eq!(
                 test.want_pass,
@@ -288,7 +289,8 @@ mod tests {
     #[test]
     fn to_and_from() {
         let raw = get_dummy_raw_msg_conn_open_ack(5, 6);
-        let msg = MsgConnectionOpenAck::<MockContext>::try_from(raw.clone()).unwrap();
+        let msg =
+            MsgConnectionOpenAck::<MockContext<MockClientTypes>>::try_from(raw.clone()).unwrap();
         let raw_back = RawMsgConnectionOpenAck::from(msg.clone());
         let msg_back = MsgConnectionOpenAck::try_from(raw_back.clone()).unwrap();
         assert_eq!(raw, raw_back);

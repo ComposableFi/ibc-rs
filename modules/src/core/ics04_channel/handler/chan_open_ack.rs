@@ -136,7 +136,7 @@ mod tests {
     use crate::core::ics04_channel::msgs::ChannelMsg;
     use crate::core::ics24_host::identifier::ConnectionId;
     use crate::events::IbcEvent;
-    use crate::mock::context::MockContext;
+    use crate::mock::context::{MockClientTypes, MockContext};
     use crate::prelude::*;
     use crate::Height;
 
@@ -146,7 +146,7 @@ mod tests {
     fn chan_open_ack_msg_processing() {
         struct Test {
             name: String,
-            ctx: MockContext,
+            ctx: MockContext<MockClientTypes>,
             msg: ChannelMsg,
             want_pass: bool,
         }
@@ -186,12 +186,13 @@ mod tests {
             },
         );
 
-        let msg_conn_try =
-            MsgConnectionOpenTry::<MockContext>::try_from(get_dummy_raw_msg_conn_open_try(
+        let msg_conn_try = MsgConnectionOpenTry::<MockContext<MockClientTypes>>::try_from(
+            get_dummy_raw_msg_conn_open_try(
                 client_consensus_state_height,
                 host_chain_height.revision_height,
-            ))
-            .unwrap();
+            ),
+        )
+        .unwrap();
 
         let msg_chan_ack =
             MsgChannelOpenAck::try_from(get_dummy_raw_msg_chan_open_ack(proof_height)).unwrap();

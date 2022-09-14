@@ -152,11 +152,9 @@ pub mod test_util {
     use ibc::Height;
 
     pub fn get_dummy_tendermint_header() -> tendermint::block::Header {
-        serde_json::from_str::<SignedHeader>(include_str!(
-            "../../../tests/support/signed_header.json"
-        ))
-        .unwrap()
-        .header
+        serde_json::from_str::<SignedHeader>(include_str!("mock/signed_header.json"))
+            .unwrap()
+            .header
     }
 
     // TODO: This should be replaced with a ::default() or ::produce().
@@ -175,10 +173,8 @@ pub mod test_util {
     //   i.e. `trusted_validator_set` = `validator_set`
     pub fn get_dummy_ics07_header() -> Header {
         // Build a SignedHeader from a JSON file.
-        let shdr = serde_json::from_str::<SignedHeader>(include_str!(
-            "../../../tests/support/signed_header.json"
-        ))
-        .unwrap();
+        let shdr =
+            serde_json::from_str::<SignedHeader>(include_str!("mock/signed_header.json")).unwrap();
 
         // Build a set of validators.
         // Below are test values inspired form `test_validator_set()` in tendermint-rs.

@@ -113,7 +113,7 @@ impl From<ConsensusState> for RawConsensusState {
 #[cfg(any(test, feature = "mocks"))]
 pub mod test_util {
     use super::*;
-    use ibc::core::ics02_client::client_consensus::AnyConsensusState;
+    use crate::ics11_beefy::mock::AnyConsensusState;
 
     pub fn get_dummy_beefy_consensus_state() -> AnyConsensusState {
         AnyConsensusState::Beefy(ConsensusState {

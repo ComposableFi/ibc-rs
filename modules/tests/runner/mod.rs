@@ -32,7 +32,7 @@ use crate::core::ics26_routing::msgs::Ics26Envelope;
 use ibc::mock::client_state::{MockClientState, MockConsensusState};
 use ibc::mock::context::MockContext;
 use ibc::mock::header::MockHeader;
-use ibc::mock::host::HostType;
+use ibc::mock::host::MockHostType;
 use ibc::proofs::{ConsensusProof, Proofs};
 use ibc::relayer::ics18_relayer::context::Ics18Context;
 use ibc::relayer::ics18_relayer::error as relayer_error;
@@ -63,7 +63,7 @@ impl IbcTestRunner {
         let max_history_size = usize::MAX;
         let ctx = MockContext::new(
             chain_id_struct,
-            HostType::Mock,
+            MockHostType::Mock,
             max_history_size,
             initial_height,
         );

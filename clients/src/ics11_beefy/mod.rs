@@ -6,3 +6,7 @@ pub mod consensus_state;
 pub mod error;
 pub mod header;
 pub mod misbehaviour;
+#[cfg(any(test, feature = "mocks"))]
+mod mock;
+#[cfg(any(test, feature = "mocks"))]
+mod tests;

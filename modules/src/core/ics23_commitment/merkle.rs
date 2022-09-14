@@ -2,7 +2,6 @@ use crate::prelude::*;
 use core::marker::PhantomData;
 use tendermint::merkle::proof::Proof as TendermintProof;
 
-// use crate::host_functions::HostFunctionsProvider;
 use ibc_proto::ibc::core::commitment::v1::MerklePath;
 use ibc_proto::ibc::core::commitment::v1::MerkleProof as RawMerkleProof;
 use ibc_proto::ibc::core::commitment::v1::MerkleRoot;

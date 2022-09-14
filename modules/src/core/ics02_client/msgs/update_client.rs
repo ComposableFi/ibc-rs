@@ -103,6 +103,7 @@ where
     }
 }
 
+/*
 #[cfg(test)]
 mod tests {
 
@@ -136,3 +137,4 @@ mod tests {
         assert_eq!(raw, raw_back);
     }
 }
+ */

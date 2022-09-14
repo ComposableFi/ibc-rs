@@ -5,19 +5,29 @@ use tendermint_proto::Protobuf;
 use ibc_proto::ibc::mock::Misbehaviour as RawMisbehaviour;
 
 use crate::core::ics02_client::error::Error;
-use crate::core::ics02_client::misbehaviour::AnyMisbehaviour;
+use crate::core::ics02_client::misbehaviour::Misbehaviour;
 use crate::core::ics24_host::identifier::ClientId;
 use crate::mock::header::MockHeader;
 use crate::Height;
+use ibc_proto::google::protobuf::Any;
+
+pub const MOCK_MISBEHAVIOUR_TYPE_URL: &str = "/ibc.mock.Misbehavior";
+
+#[derive(Clone, Debug, PartialEq, Misbehaviour, Protobuf)]
+#[allow(clippy::large_enum_variant)]
+pub enum AnyMisbehaviour {
+    #[ibc(proto_url = "MOCK_MISBEHAVIOUR_TYPE_URL")]
+    Mock(MockMisbehaviour),
+}
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct Misbehaviour {
+pub struct MockMisbehaviour {
     pub client_id: ClientId,
     pub header1: MockHeader,
     pub header2: MockHeader,
 }
 
-impl crate::core::ics02_client::misbehaviour::Misbehaviour for Misbehaviour {
+impl Misbehaviour for MockMisbehaviour {
     fn client_id(&self) -> &ClientId {
         &self.client_id
     }
@@ -31,9 +41,9 @@ impl crate::core::ics02_client::misbehaviour::Misbehaviour for Misbehaviour {
     }
 }
 
-impl Protobuf<RawMisbehaviour> for Misbehaviour {}
+impl Protobuf<RawMisbehaviour> for MockMisbehaviour {}
 
-impl TryFrom<RawMisbehaviour> for Misbehaviour {
+impl TryFrom<RawMisbehaviour> for MockMisbehaviour {
     type Error = Error;
 
     fn try_from(raw: RawMisbehaviour) -> Result<Self, Self::Error> {
@@ -51,8 +61,8 @@ impl TryFrom<RawMisbehaviour> for Misbehaviour {
     }
 }
 
-impl From<Misbehaviour> for RawMisbehaviour {
-    fn from(value: Misbehaviour) -> Self {
+impl From<MockMisbehaviour> for RawMisbehaviour {
+    fn from(value: MockMisbehaviour) -> Self {
         RawMisbehaviour {
             client_id: value.client_id.to_string(),
             header1: Some(value.header1.into()),

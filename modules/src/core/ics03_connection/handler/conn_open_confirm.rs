@@ -90,7 +90,7 @@ mod tests {
     use crate::core::ics23_commitment::commitment::CommitmentPrefix;
     use crate::core::ics24_host::identifier::ClientId;
     use crate::events::IbcEvent;
-    use crate::mock::context::MockContext;
+    use crate::mock::context::{MockClientTypes, MockContext};
     use crate::timestamp::ZERO_DURATION;
     use crate::Height;
 
@@ -98,8 +98,8 @@ mod tests {
     fn conn_open_confirm_msg_processing() {
         struct Test {
             name: String,
-            ctx: MockContext,
-            msg: ConnectionMsg<MockContext>,
+            ctx: MockContext<MockClientTypes>,
+            msg: ConnectionMsg<MockContext<MockClientTypes>>,
             want_pass: bool,
         }
 

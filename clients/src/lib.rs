@@ -1,9 +1,11 @@
 //! Implementations of client verification algorithms for specific types of chains.
 
 extern crate alloc;
-
 #[macro_use]
 extern crate derive;
+#[allow(unused_imports)]
+#[macro_use]
+extern crate serde;
 
 pub mod any;
 pub mod host_functions;

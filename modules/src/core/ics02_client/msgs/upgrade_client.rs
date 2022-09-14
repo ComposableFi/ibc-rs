@@ -128,14 +128,11 @@ where
 pub mod test_util {
     use ibc_proto::ibc::core::client::v1::MsgUpgradeClient as RawMsgUpgradeClient;
 
-    use crate::mock::context::MockContext;
+    use crate::mock::context::{MockClientTypes, MockContext};
+    use crate::mock::{client_state::AnyClientState, client_state::AnyConsensusState};
     use crate::{
-        core::{
-            ics02_client::{
-                client_consensus::AnyConsensusState, client_state::AnyClientState, height::Height,
-            },
-            ics24_host::identifier::ClientId,
-        },
+        core::ics02_client::height::Height,
+        core::ics24_host::identifier::ClientId,
         mock::{
             client_state::{MockClientState, MockConsensusState},
             header::MockHeader,
@@ -146,7 +143,7 @@ pub mod test_util {
     use super::MsgUpgradeAnyClient;
 
     /// Extends the implementation with additional helper methods.
-    impl MsgUpgradeAnyClient<MockContext> {
+    impl MsgUpgradeAnyClient<MockContext<MockClientTypes>> {
         /// Setter for `client_id`. Amenable to chaining, since it consumes the input message.
         pub fn with_client_id(self, client_id: ClientId) -> Self {
             MsgUpgradeAnyClient { client_id, ..self }
@@ -176,13 +173,11 @@ mod tests {
     use alloc::vec::Vec;
     use ibc_proto::ibc::core::client::v1::MsgUpgradeClient as RawMsgUpgradeClient;
 
-    use crate::mock::context::MockContext;
+    use crate::mock::client_state::{AnyClientState, AnyConsensusState};
+    use crate::mock::context::{MockClientTypes, MockContext};
     use crate::{
         core::{
-            ics02_client::{
-                client_consensus::AnyConsensusState, client_state::AnyClientState, height::Height,
-                msgs::upgrade_client::MsgUpgradeAnyClient,
-            },
+            ics02_client::{height::Height, msgs::upgrade_client::MsgUpgradeAnyClient},
             ics23_commitment::commitment::test_util::get_dummy_merkle_proof,
             ics24_host::identifier::ClientId,
         },
@@ -207,7 +202,7 @@ mod tests {
         let proof = get_dummy_merkle_proof();
         let mut proof_buf = Vec::new();
         prost::Message::encode(&proof, &mut proof_buf).unwrap();
-        let msg = MsgUpgradeAnyClient::<MockContext>::new(
+        let msg = MsgUpgradeAnyClient::<MockContext<MockClientTypes>>::new(
             client_id,
             client_state,
             consensus_state,

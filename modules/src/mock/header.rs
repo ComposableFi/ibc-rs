@@ -3,14 +3,23 @@ use tendermint_proto::Protobuf;
 
 use ibc_proto::ibc::mock::Header as RawMockHeader;
 
-use crate::core::ics02_client::client_consensus::AnyConsensusState;
 use crate::core::ics02_client::client_type::ClientType;
 use crate::core::ics02_client::error::Error;
-use crate::core::ics02_client::header::AnyHeader;
 use crate::core::ics02_client::header::Header;
+use crate::mock::client_state::AnyConsensusState;
 use crate::mock::client_state::MockConsensusState;
 use crate::timestamp::Timestamp;
 use crate::Height;
+use ibc_proto::google::protobuf::Any;
+
+pub const MOCK_HEADER_TYPE_URL: &str = "/ibc.mock.Header";
+
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize, Header, Protobuf)]
+#[allow(clippy::large_enum_variant)]
+pub enum AnyHeader {
+    #[ibc(proto_url = "MOCK_HEADER_TYPE_URL")]
+    Mock(MockHeader),
+}
 
 #[derive(Copy, Clone, Default, Debug, Deserialize, PartialEq, Eq, Serialize)]
 pub struct MockHeader {

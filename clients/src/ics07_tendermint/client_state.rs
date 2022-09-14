@@ -351,10 +351,10 @@ mod tests {
     use tendermint_rpc::endpoint::abci_query::AbciQuery;
 
     use crate::ics07_tendermint::client_state::ClientState;
-    use crate::test::test_serialization_roundtrip;
     use ibc::core::ics02_client::trust_threshold::TrustThreshold;
     use ibc::core::ics23_commitment::specs::ProofSpecs;
     use ibc::core::ics24_host::identifier::ChainId;
+    use ibc::test::test_serialization_roundtrip;
     use ibc::timestamp::{Timestamp, ZERO_DURATION};
 
     #[derive(Clone, Debug, PartialEq)]
@@ -371,15 +371,13 @@ mod tests {
 
     #[test]
     fn serialization_roundtrip_no_proof() {
-        let json_data =
-            include_str!("../../../tests/support/query/serialization/client_state.json");
+        let json_data = include_str!("mock/query/serialization/client_state.json");
         test_serialization_roundtrip::<AbciQuery>(json_data);
     }
 
     #[test]
     fn serialization_roundtrip_with_proof() {
-        let json_data =
-            include_str!("../../../tests/support/query/serialization/client_state_proof.json");
+        let json_data = include_str!("mock/query/serialization/client_state_proof.json");
         test_serialization_roundtrip::<AbciQuery>(json_data);
     }
 
@@ -648,7 +646,7 @@ pub mod test_util {
     use tendermint::block::Header;
 
     use crate::ics07_tendermint::client_state::ClientState;
-    use ibc::core::ics02_client::client_state::AnyClientState;
+    use crate::ics07_tendermint::mock::AnyClientState;
     use ibc::core::ics02_client::height::Height;
     use ibc::core::ics24_host::identifier::ChainId;
 

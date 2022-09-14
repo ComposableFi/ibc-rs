@@ -125,14 +125,14 @@ mod tests {
     use crate::core::ics04_channel::Version;
     use crate::core::ics24_host::identifier::{ClientId, ConnectionId};
 
-    use crate::mock::context::MockContext;
+    use crate::mock::context::{MockClientTypes, MockContext};
     use crate::timestamp::ZERO_DURATION;
 
     #[test]
     fn chan_close_confirm_event_height() {
         let client_id = ClientId::new(ClientType::Mock, 24).unwrap();
         let conn_id = ConnectionId::new(2);
-        let default_context = MockContext::default();
+        let default_context = MockContext::<MockClientTypes>::default();
         let client_consensus_state_height = default_context.host_height();
 
         let conn_end = ConnectionEnd::new(

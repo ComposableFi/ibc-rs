@@ -144,8 +144,6 @@ mod tests {
 
     use crate::applications::transfer::context::test::deliver as ics20_deliver;
     use crate::applications::transfer::PrefixedCoin;
-    use crate::core::ics02_client::client_consensus::AnyConsensusState;
-    use crate::core::ics02_client::client_state::AnyClientState;
     use crate::core::ics02_client::msgs::{
         create_client::MsgCreateAnyClient, update_client::MsgUpdateAnyClient,
         upgrade_client::MsgUpgradeAnyClient, ClientMsg,
@@ -169,6 +167,8 @@ mod tests {
         ChannelMsg, PacketMsg,
     };
     use crate::events::IbcEvent;
+    use crate::mock::client_state::AnyClientState;
+    use crate::mock::client_state::AnyConsensusState;
     use crate::{
         applications::transfer::msgs::transfer::test_util::get_dummy_msg_transfer,
         applications::transfer::msgs::transfer::MsgTransfer,
@@ -182,7 +182,7 @@ mod tests {
     use crate::core::ics26_routing::msgs::Ics26Envelope;
     use crate::handler::HandlerOutputBuilder;
     use crate::mock::client_state::{MockClientState, MockConsensusState};
-    use crate::mock::context::{MockContext, MockRouterBuilder};
+    use crate::mock::context::{MockClientTypes, MockContext, MockRouterBuilder};
     use crate::mock::header::MockHeader;
     use crate::test_utils::{get_dummy_account_id, DummyTransferModule};
     use crate::timestamp::Timestamp;
@@ -196,12 +196,12 @@ mod tests {
     fn routing_module_and_keepers() {
         #[derive(Clone, Debug)]
         enum TestMsg {
-            Ics26(Ics26Envelope<MockContext>),
+            Ics26(Ics26Envelope<MockContext<MockClientTypes>>),
             Ics20(MsgTransfer<PrefixedCoin>),
         }
 
-        impl From<Ics26Envelope<MockContext>> for TestMsg {
-            fn from(msg: Ics26Envelope<MockContext>) -> Self {
+        impl From<Ics26Envelope<MockContext<MockClientTypes>>> for TestMsg {
+            fn from(msg: Ics26Envelope<MockContext<MockClientTypes>>) -> Self {
                 Self::Ics26(msg)
             }
         }
@@ -548,7 +548,7 @@ mod tests {
                     ics20_deliver(
                         transfer_module
                             .as_any_mut()
-                            .downcast_mut::<DummyTransferModule>()
+                            .downcast_mut::<DummyTransferModule<MockClientTypes>>()
                             .unwrap(),
                         &mut HandlerOutputBuilder::new(),
                         msg,

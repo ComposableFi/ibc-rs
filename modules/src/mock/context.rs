@@ -8,23 +8,21 @@ use core::cmp::min;
 use core::fmt::{Debug, Formatter};
 use core::ops::{Add, Sub};
 use core::time::Duration;
+use std::marker::PhantomData;
 use std::sync::Mutex;
 
+use crate::core::ics02_client::client_consensus::ConsensusState;
+use crate::core::ics02_client::client_def::ClientDef;
 use ibc_proto::google::protobuf::Any;
 use sha2::Digest;
 use tracing::debug;
 
-use crate::clients::ics07_tendermint::client_state::test_util::get_dummy_tendermint_client_state;
-use crate::clients::ics11_beefy::client_state::test_util::get_dummy_beefy_state;
-use crate::clients::ics11_beefy::consensus_state::test_util::get_dummy_beefy_consensus_state;
-use crate::core::ics02_client::client_consensus::{AnyConsensusState, AnyConsensusStateWithHeight};
-use crate::core::ics02_client::client_def::AnyClient;
-use crate::core::ics02_client::client_state::AnyClientState;
 use crate::core::ics02_client::client_state::ClientState;
 use crate::core::ics02_client::client_type::ClientType;
 use crate::core::ics02_client::context::{ClientKeeper, ClientReader};
 use crate::core::ics02_client::error::Error as Ics02Error;
-use crate::core::ics02_client::header::AnyHeader;
+use crate::core::ics02_client::header::Header;
+use crate::core::ics02_client::misbehaviour::Misbehaviour;
 use crate::core::ics03_connection::connection::ConnectionEnd;
 use crate::core::ics03_connection::context::{ConnectionKeeper, ConnectionReader};
 use crate::core::ics03_connection::error::Error as Ics03Error;
@@ -41,12 +39,19 @@ use crate::core::ics24_host::identifier::{ChainId, ChannelId, ClientId, Connecti
 use crate::core::ics26_routing::context::{
     Ics26Context, Module, ModuleId, ReaderContext, Router, RouterBuilder,
 };
+use crate::core::ics26_routing::error::Error as Ics26Error;
 use crate::core::ics26_routing::handler::{deliver, dispatch, MsgReceipt};
 use crate::core::ics26_routing::msgs::Ics26Envelope;
 use crate::events::IbcEvent;
+use crate::host_functions::HostFunctionsProvider;
+use crate::mock::client_def::AnyClient;
+use crate::mock::client_state::AnyClientState;
+use crate::mock::client_state::{AnyConsensusState, AnyConsensusStateWithHeight};
 use crate::mock::client_state::{MockClientRecord, MockClientState, MockConsensusState};
+use crate::mock::header::AnyHeader;
 use crate::mock::header::MockHeader;
-use crate::mock::host::{HostBlock, HostType};
+use crate::mock::host::{HostBlock, MockHostBlock};
+use crate::mock::misbehaviour::AnyMisbehaviour;
 use crate::relayer::ics18_relayer::context::Ics18Context;
 use crate::relayer::ics18_relayer::error::Error as Ics18Error;
 use crate::signer::Signer;
@@ -58,46 +63,48 @@ pub const DEFAULT_BLOCK_TIME_SECS: u64 = 3;
 
 /// A context implementing the dependencies necessary for testing any IBC module.
 #[derive(Debug)]
-pub struct MockContext {
+pub struct MockContext<C: ClientTypes> {
     /// The type of host chain underlying this mock context.
-    host_chain_type: HostType,
+    pub host_chain_type: <C::HostBlock as HostBlock>::HostType,
 
     /// Host chain identifier.
-    host_chain_id: ChainId,
+    pub host_chain_id: ChainId,
 
     /// Maximum size for the history of the host chain. Any block older than this is pruned.
-    max_history_size: usize,
+    pub max_history_size: usize,
 
     /// The chain of blocks underlying this context. A vector of size up to `max_history_size`
     /// blocks, ascending order by their height (latest block is on the last position).
-    history: Vec<HostBlock>,
+    pub history: Vec<C::HostBlock>,
 
     /// Average time duration between blocks
-    block_time: Duration,
+    pub block_time: Duration,
 
     /// An object that stores all IBC related data.
-    pub ibc_store: Arc<Mutex<MockIbcStore>>,
+    pub ibc_store: Arc<Mutex<MockIbcStore<C>>>,
 
     /// ICS26 router impl
-    router: MockRouter,
+    pub router: MockRouter,
+
+    pub _phantom: PhantomData<C>,
 }
 
-impl PartialEq for MockContext {
+impl<C: ClientTypes> PartialEq for MockContext<C> {
     fn eq(&self, _other: &Self) -> bool {
         unimplemented!()
     }
 }
 
-impl Eq for MockContext {}
+impl<C: ClientTypes> Eq for MockContext<C> {}
 
 /// Returns a MockContext with bare minimum initialization: no clients, no connections and no channels are
 /// present, and the chain has Height(5). This should be used sparingly, mostly for testing the
 /// creation of new domain objects.
-impl Default for MockContext {
+impl<C: ClientTypes + Default> Default for MockContext<C> {
     fn default() -> Self {
         Self::new(
             ChainId::new("mockgaia".to_string(), 0),
-            HostType::Mock,
+            <C::HostBlock as HostBlock>::HostType::default(),
             5,
             Height::new(0, 5),
         )
@@ -106,7 +113,7 @@ impl Default for MockContext {
 
 /// A manual clone impl is provided because the tests are oblivious to the fact that the `ibc_store`
 /// is a shared ptr.
-impl Clone for MockContext {
+impl<C: ClientTypes> Clone for MockContext<C> {
     fn clone(&self) -> Self {
         let ibc_store = {
             let ibc_store = self.ibc_store.lock().unwrap().clone();
@@ -120,20 +127,21 @@ impl Clone for MockContext {
             block_time: self.block_time,
             ibc_store,
             router: self.router.clone(),
+            _phantom: Default::default(),
         }
     }
 }
 
 /// Implementation of internal interface for use in testing. The methods in this interface should
 /// _not_ be accessible to any Ics handler.
-impl MockContext {
+impl<C: ClientTypes + Default> MockContext<C> {
     /// Creates a mock context. Parameter `max_history_size` determines how many blocks will
     /// the chain maintain in its history, which also determines the pruning window. Parameter
     /// `latest_height` determines the current height of the chain. This context
     /// has support to emulate two type of underlying chains: Mock or SyntheticTendermint.
     pub fn new(
         host_id: ChainId,
-        host_type: HostType,
+        host_type: <C::HostBlock as HostBlock>::HostType,
         max_history_size: usize,
         latest_height: Height,
     ) -> Self {
@@ -167,7 +175,7 @@ impl MockContext {
                 .map(|i| {
                     // generate blocks with timestamps -> N, N - BT, N - 2BT, ...
                     // where N = now(), BT = block_time
-                    HostBlock::generate_block(
+                    <C::HostBlock>::generate_block(
                         host_id.clone(),
                         host_type,
                         latest_height.sub(i).unwrap().revision_height,
@@ -178,154 +186,10 @@ impl MockContext {
                 })
                 .collect(),
             block_time,
-            ibc_store: Arc::new(Mutex::new(MockIbcStore::default())),
+            ibc_store: Arc::new(Mutex::new(MockIbcStore::<C>::default())),
             router: Default::default(),
+            _phantom: Default::default(),
         }
-    }
-
-    /// Associates a client record to this context.
-    /// Given a client id and a height, registers a new client in the context and also associates
-    /// to this client a mock client state and a mock consensus state for height `height`. The type
-    /// of this client is implicitly assumed to be Mock.
-    pub fn with_client(self, client_id: &ClientId, height: Height) -> Self {
-        self.with_client_parametrized(client_id, height, Some(ClientType::Mock), Some(height))
-    }
-
-    /// Similar to `with_client`, this function associates a client record to this context, but
-    /// additionally permits to parametrize two details of the client. If `client_type` is None,
-    /// then the client will have type Mock, otherwise the specified type. If
-    /// `consensus_state_height` is None, then the client will be initialized with a consensus
-    /// state matching the same height as the client state (`client_state_height`).
-    pub fn with_client_parametrized(
-        self,
-        client_id: &ClientId,
-        client_state_height: Height,
-        client_type: Option<ClientType>,
-        consensus_state_height: Option<Height>,
-    ) -> Self {
-        let cs_height = consensus_state_height.unwrap_or(client_state_height);
-
-        let client_type = client_type.unwrap_or(ClientType::Mock);
-        let (client_state, consensus_state) = match client_type {
-            // If it's a mock client, create the corresponding mock states.
-            ClientType::Mock => (
-                Some(MockClientState::new(MockHeader::new(client_state_height)).into()),
-                MockConsensusState::new(MockHeader::new(cs_height)).into(),
-            ),
-            ClientType::Beefy => (
-                Some(get_dummy_beefy_state()),
-                get_dummy_beefy_consensus_state(),
-            ),
-            // If it's a Tendermint client, we need TM states.
-            ClientType::Tendermint => {
-                let light_block = HostBlock::generate_tm_block(
-                    self.host_chain_id.clone(),
-                    cs_height.revision_height,
-                    Timestamp::now(),
-                );
-
-                let consensus_state = AnyConsensusState::from(light_block.clone());
-                let client_state =
-                    get_dummy_tendermint_client_state(light_block.signed_header.header);
-
-                // Return the tuple.
-                (Some(client_state), consensus_state)
-            }
-        };
-        let consensus_states = vec![(cs_height, consensus_state)].into_iter().collect();
-
-        debug!("consensus states: {:?}", consensus_states);
-
-        let client_record = MockClientRecord {
-            client_type,
-            client_state,
-            consensus_states,
-        };
-        self.ibc_store
-            .lock()
-            .unwrap()
-            .clients
-            .insert(client_id.clone(), client_record);
-        self
-    }
-
-    pub fn with_client_parametrized_history(
-        self,
-        client_id: &ClientId,
-        client_state_height: Height,
-        client_type: Option<ClientType>,
-        consensus_state_height: Option<Height>,
-    ) -> Self {
-        let cs_height = consensus_state_height.unwrap_or(client_state_height);
-        let prev_cs_height = cs_height.clone().sub(1).unwrap_or(client_state_height);
-
-        let client_type = client_type.unwrap_or(ClientType::Mock);
-        let now = Timestamp::now();
-
-        let (client_state, consensus_state) = match client_type {
-            // If it's a mock client, create the corresponding mock states.
-            ClientType::Mock => (
-                Some(MockClientState::new(MockHeader::new(client_state_height)).into()),
-                MockConsensusState::new(MockHeader::new(cs_height)).into(),
-            ),
-
-            ClientType::Beefy => (
-                Some(get_dummy_beefy_state()),
-                get_dummy_beefy_consensus_state(),
-            ),
-            // If it's a Tendermint client, we need TM states.
-            ClientType::Tendermint => {
-                let light_block = HostBlock::generate_tm_block(
-                    self.host_chain_id.clone(),
-                    cs_height.revision_height,
-                    now,
-                );
-
-                let consensus_state = AnyConsensusState::from(light_block.clone());
-                let client_state =
-                    get_dummy_tendermint_client_state(light_block.signed_header.header);
-
-                // Return the tuple.
-                (Some(client_state), consensus_state)
-            }
-        };
-
-        let prev_consensus_state = match client_type {
-            // If it's a mock client, create the corresponding mock states.
-            ClientType::Mock => MockConsensusState::new(MockHeader::new(prev_cs_height)).into(),
-            // If it's a Tendermint client, we need TM states.
-            ClientType::Beefy => get_dummy_beefy_consensus_state(),
-            ClientType::Tendermint => {
-                let light_block = HostBlock::generate_tm_block(
-                    self.host_chain_id.clone(),
-                    prev_cs_height.revision_height,
-                    now.sub(self.block_time).unwrap(),
-                );
-                AnyConsensusState::from(light_block)
-            }
-        };
-
-        let consensus_states = vec![
-            (prev_cs_height, prev_consensus_state),
-            (cs_height, consensus_state),
-        ]
-        .into_iter()
-        .collect();
-
-        debug!("consensus states: {:?}", consensus_states);
-
-        let client_record = MockClientRecord {
-            client_type,
-            client_state,
-            consensus_states,
-        };
-
-        self.ibc_store
-            .lock()
-            .unwrap()
-            .clients
-            .insert(client_id.clone(), client_record);
-        self
     }
 
     /// Associates a connection to this context.
@@ -431,7 +295,7 @@ impl MockContext {
 
     /// Accessor for a block of the local (host) chain from this context.
     /// Returns `None` if the block at the requested height does not exist.
-    pub fn host_block(&self, target_height: Height) -> Option<&HostBlock> {
+    pub fn host_block(&self, target_height: Height) -> Option<&C::HostBlock> {
         let target = target_height.revision_height as usize;
         let latest = self.latest_height().revision_height as usize;
 
@@ -446,7 +310,7 @@ impl MockContext {
     /// Triggers the advancing of the host chain, by extending the history of blocks (or headers).
     pub fn advance_host_chain_height(&mut self) {
         let latest_block = self.history.last().expect("history cannot be empty");
-        let new_block = HostBlock::generate_block(
+        let new_block = <C as ClientTypes>::HostBlock::generate_block(
             self.host_chain_id.clone(),
             self.host_chain_type,
             latest_block.height().increment().revision_height,
@@ -467,7 +331,7 @@ impl MockContext {
     /// A datagram passes from the relayer to the IBC module (on host chain).
     /// Alternative method to `Ics18Context::send` that does not exercise any serialization.
     /// Used in testing the Ics18 algorithms, hence this may return a Ics18Error.
-    pub fn deliver(&mut self, msg: Ics26Envelope<MockContext>) -> Result<(), Ics18Error> {
+    pub fn deliver(&mut self, msg: Ics26Envelope<MockContext<C>>) -> Result<(), Ics18Error> {
         dispatch(self, msg).map_err(Ics18Error::transaction_failed)?;
         // Create a new block.
         self.advance_host_chain_height();
@@ -519,7 +383,7 @@ impl MockContext {
             .insert(port_id, module_id);
     }
 
-    pub fn consensus_states(&self, client_id: &ClientId) -> Vec<AnyConsensusStateWithHeight> {
+    pub fn consensus_states(&self, client_id: &ClientId) -> Vec<AnyConsensusStateWithHeight<C>> {
         self.ibc_store.lock().unwrap().clients[client_id]
             .consensus_states
             .iter()
@@ -530,7 +394,7 @@ impl MockContext {
             .collect()
     }
 
-    pub fn latest_client_states(&self, client_id: &ClientId) -> AnyClientState {
+    pub fn latest_client_states(&self, client_id: &ClientId) -> C::AnyClientState {
         self.ibc_store.lock().unwrap().clients[client_id]
             .client_state
             .as_ref()
@@ -542,7 +406,7 @@ impl MockContext {
         &self,
         client_id: &ClientId,
         height: &Height,
-    ) -> AnyConsensusState {
+    ) -> C::AnyConsensusState {
         self.ibc_store.lock().unwrap().clients[client_id]
             .consensus_states
             .get(height)
@@ -558,16 +422,70 @@ impl MockContext {
             .height()
     }
 
-    pub fn ibc_store_share(&self) -> Arc<Mutex<MockIbcStore>> {
+    pub fn ibc_store_share(&self) -> Arc<Mutex<MockIbcStore<C>>> {
         self.ibc_store.clone()
+    }
+}
+
+impl<C: ClientTypes + Default> MockContext<C>
+where
+    C::AnyClientState: From<MockClientState>,
+    C::AnyConsensusState: From<MockConsensusState>,
+{
+    /// Associates a client record to this context.
+    /// Given a client id and a height, registers a new client in the context and also associates
+    /// to this client a mock client state and a mock consensus state for height `height`. The type
+    /// of this client is implicitly assumed to be Mock.
+    pub fn with_client(self, client_id: &ClientId, height: Height) -> Self {
+        self.with_client_parametrized(client_id, height, Some(ClientType::Mock), Some(height))
+    }
+
+    /// Similar to `with_client`, this function associates a client record to this context, but
+    /// additionally permits to parametrize two details of the client. If `client_type` is None,
+    /// then the client will have type Mock, otherwise the specified type. If
+    /// `consensus_state_height` is None, then the client will be initialized with a consensus
+    /// state matching the same height as the client state (`client_state_height`).
+    pub fn with_client_parametrized(
+        self,
+        client_id: &ClientId,
+        client_state_height: Height,
+        client_type: Option<ClientType>,
+        consensus_state_height: Option<Height>,
+    ) -> Self {
+        let cs_height = consensus_state_height.unwrap_or(client_state_height);
+
+        let client_type = client_type.unwrap_or(ClientType::Mock);
+        let (client_state, consensus_state) = match client_type {
+            // If it's a mock client, create the corresponding mock states.
+            ClientType::Mock => (
+                Some(MockClientState::new(MockHeader::new(client_state_height)).into()),
+                MockConsensusState::new(MockHeader::new(cs_height)).into(),
+            ),
+            _ => unimplemented!(),
+        };
+        let consensus_states = vec![(cs_height, consensus_state)].into_iter().collect();
+
+        debug!("consensus states: {:?}", consensus_states);
+
+        let client_record = MockClientRecord {
+            client_type,
+            client_state,
+            consensus_states,
+        };
+        self.ibc_store
+            .lock()
+            .unwrap()
+            .clients
+            .insert(client_id.clone(), client_record);
+        self
     }
 }
 
 /// An object that stores all IBC related data.
 #[derive(Clone, Debug, Default)]
-pub struct MockIbcStore {
+pub struct MockIbcStore<C: ClientTypes> {
     /// The set of all clients, indexed by their id.
-    pub clients: BTreeMap<ClientId, MockClientRecord>,
+    pub clients: BTreeMap<ClientId, MockClientRecord<C>>,
 
     /// Tracks the processed time for clients header updates
     pub client_processed_times: BTreeMap<(ClientId, Height), Timestamp>,
@@ -655,9 +573,9 @@ impl Router for MockRouter {
     }
 }
 
-impl ReaderContext for MockContext {}
+impl<C: ClientTypes + Default> ReaderContext for MockContext<C> {}
 
-impl Ics26Context for MockContext {
+impl<C: ClientTypes + Default> Ics26Context for MockContext<C> {
     type Router = MockRouter;
 
     fn router(&self) -> &Self::Router {
@@ -669,7 +587,7 @@ impl Ics26Context for MockContext {
     }
 }
 
-impl PortReader for MockContext {
+impl<C: ClientTypes> PortReader for MockContext<C> {
     fn lookup_module_by_port(&self, port_id: &PortId) -> Result<ModuleId, Error> {
         match self.ibc_store.lock().unwrap().port_to_module.get(port_id) {
             Some(mod_id) => Ok(mod_id.clone()),
@@ -678,7 +596,7 @@ impl PortReader for MockContext {
     }
 }
 
-impl ChannelReader for MockContext {
+impl<C: ClientTypes> ChannelReader for MockContext<C> {
     fn channel_end(&self, pcid: &(PortId, ChannelId)) -> Result<ChannelEnd, Ics04Error> {
         match self.ibc_store.lock().unwrap().channels.get(pcid) {
             Some(channel_end) => Ok(channel_end.clone()),
@@ -833,7 +751,7 @@ impl ChannelReader for MockContext {
     }
 }
 
-impl ChannelKeeper for MockContext {
+impl<C: ClientTypes> ChannelKeeper for MockContext<C> {
     fn store_packet_commitment(
         &mut self,
         key: (PortId, ChannelId, Sequence),
@@ -985,7 +903,7 @@ impl ChannelKeeper for MockContext {
     }
 }
 
-impl ConnectionReader for MockContext {
+impl<C: ClientTypes> ConnectionReader for MockContext<C> {
     fn connection_end(&self, cid: &ConnectionId) -> Result<ConnectionEnd, Ics03Error> {
         match self.ibc_store.lock().unwrap().connections.get(cid) {
             Some(connection_end) => Ok(connection_end.clone()),
@@ -1007,7 +925,7 @@ impl ConnectionReader for MockContext {
     }
 }
 
-impl ConnectionKeeper for MockContext {
+impl<C: ClientTypes> ConnectionKeeper for MockContext<C> {
     fn store_connection(
         &mut self,
         connection_id: ConnectionId,
@@ -1039,7 +957,7 @@ impl ConnectionKeeper for MockContext {
     }
 }
 
-impl ClientReader for MockContext {
+impl<C: ClientTypes + Default> ClientReader for MockContext<C> {
     fn client_type(&self, client_id: &ClientId) -> Result<ClientType, Ics02Error> {
         match self.ibc_store.lock().unwrap().clients.get(client_id) {
             Some(client_record) => Ok(client_record.client_type),
@@ -1047,7 +965,7 @@ impl ClientReader for MockContext {
         }
     }
 
-    fn client_state(&self, client_id: &ClientId) -> Result<AnyClientState, Ics02Error> {
+    fn client_state(&self, client_id: &ClientId) -> Result<C::AnyClientState, Ics02Error> {
         match self.ibc_store.lock().unwrap().clients.get(client_id) {
             Some(client_record) => client_record
                 .client_state
@@ -1061,7 +979,7 @@ impl ClientReader for MockContext {
         &self,
         client_id: &ClientId,
         height: Height,
-    ) -> Result<AnyConsensusState, Ics02Error> {
+    ) -> Result<C::AnyConsensusState, Ics02Error> {
         match self.ibc_store.lock().unwrap().clients.get(client_id) {
             Some(client_record) => match client_record.consensus_states.get(&height) {
                 Some(consensus_state) => Ok(consensus_state.clone()),
@@ -1086,7 +1004,7 @@ impl ClientReader for MockContext {
         &self,
         client_id: &ClientId,
         height: Height,
-    ) -> Result<Option<AnyConsensusState>, Ics02Error> {
+    ) -> Result<Option<C::AnyConsensusState>, Ics02Error> {
         let ibc_store = self.ibc_store.lock().unwrap();
         let client_record = ibc_store
             .clients
@@ -1114,7 +1032,7 @@ impl ClientReader for MockContext {
         &self,
         client_id: &ClientId,
         height: Height,
-    ) -> Result<Option<AnyConsensusState>, Ics02Error> {
+    ) -> Result<Option<C::AnyConsensusState>, Ics02Error> {
         let ibc_store = self.ibc_store.lock().unwrap();
         let client_record = ibc_store
             .clients
@@ -1142,23 +1060,19 @@ impl ClientReader for MockContext {
     }
 
     fn host_timestamp(&self) -> Timestamp {
-        if self.host_chain_type == HostType::Beefy {
-            (Timestamp::now() + Duration::from_secs(86400)).unwrap()
-        } else {
-            self.history
-                .last()
-                .expect("history cannot be empty")
-                .timestamp()
-                .add(self.block_time)
-                .unwrap()
-        }
+        self.history
+            .last()
+            .expect("history cannot be empty")
+            .timestamp()
+            .add(self.block_time)
+            .unwrap()
     }
 
     fn host_consensus_state(
         &self,
         height: Height,
         _proof: Option<Vec<u8>>,
-    ) -> Result<AnyConsensusState, Ics02Error> {
+    ) -> Result<C::AnyConsensusState, Ics02Error> {
         match self.host_block(height) {
             Some(block_ref) => Ok(block_ref.clone().into()),
             None => Err(Ics02Error::missing_local_consensus_state(height)),
@@ -1170,12 +1084,48 @@ impl ClientReader for MockContext {
     }
 }
 
-impl ClientKeeper for MockContext {
+#[derive(Debug, Eq, PartialEq, Clone, Default)]
+pub struct MockClientTypes;
+
+pub trait ClientTypes
+where
+    Self: Clone + Debug + Eq,
+{
+    type AnyHeader: Header + TryFrom<Any, Error = Ics02Error> + Into<Any> + From<Self::HostBlock>;
+    type AnyClientState: ClientState + Eq + TryFrom<Any, Error = Ics02Error> + Into<Any>;
+    type AnyConsensusState: ConsensusState
+        + Eq
+        + TryFrom<Any, Error = Ics02Error>
+        + Into<Any>
+        + From<Self::HostBlock>
+        + 'static;
+    type AnyMisbehaviour: Misbehaviour;
+    type HostFunctions: HostFunctionsProvider + ics23::HostFunctionsProvider;
+    type ClientDef: ClientDef<
+        Header = Self::AnyHeader,
+        ClientState = Self::AnyClientState,
+        ConsensusState = Self::AnyConsensusState,
+    >;
+    type HostBlock: HostBlock + Debug + Clone;
+}
+
+impl ClientTypes for MockClientTypes {
     type AnyHeader = AnyHeader;
     type AnyClientState = AnyClientState;
     type AnyConsensusState = AnyConsensusState;
+    type AnyMisbehaviour = AnyMisbehaviour;
     type HostFunctions = Crypto;
     type ClientDef = AnyClient;
+    type HostBlock = MockHostBlock;
+}
+
+impl<C: ClientTypes> ClientKeeper for MockContext<C> {
+    type AnyHeader = C::AnyHeader;
+    type AnyClientState = C::AnyClientState;
+    type AnyConsensusState = C::AnyConsensusState;
+    type AnyMisbehaviour = C::AnyMisbehaviour;
+    type HostFunctions = C::HostFunctions;
+    type ClientDef = C::ClientDef;
 
     fn store_client_type(
         &mut self,
@@ -1199,7 +1149,7 @@ impl ClientKeeper for MockContext {
     fn store_client_state(
         &mut self,
         client_id: ClientId,
-        client_state: AnyClientState,
+        client_state: C::AnyClientState,
     ) -> Result<(), Ics02Error> {
         let mut ibc_store = self.ibc_store.lock().unwrap();
         let client_record = ibc_store
@@ -1219,7 +1169,7 @@ impl ClientKeeper for MockContext {
         &mut self,
         client_id: ClientId,
         height: Height,
-        consensus_state: AnyConsensusState,
+        consensus_state: C::AnyConsensusState,
     ) -> Result<(), Ics02Error> {
         let mut ibc_store = self.ibc_store.lock().unwrap();
         let client_record = ibc_store
@@ -1271,22 +1221,27 @@ impl ClientKeeper for MockContext {
         Ok(())
     }
 
-    fn validate_self_client(&self, _client_state: &AnyClientState) -> Result<(), Ics02Error> {
+    fn validate_self_client(&self, _client_state: &C::AnyClientState) -> Result<(), Ics02Error> {
         Ok(())
     }
 }
 
-impl Ics18Context for MockContext {
+impl<C: ClientTypes + Default> Ics18Context for MockContext<C>
+where
+    Any: From<<C as ClientTypes>::AnyClientState>,
+    Ics26Envelope<MockContext<C>>: TryFrom<Any>,
+    Ics26Error: From<<Ics26Envelope<MockContext<C>> as TryFrom<Any>>::Error>,
+{
     fn query_latest_height(&self) -> Height {
         self.host_height()
     }
 
-    fn query_client_full_state(&self, client_id: &ClientId) -> Option<AnyClientState> {
+    fn query_client_full_state(&self, client_id: &ClientId) -> Option<C::AnyClientState> {
         // Forward call to Ics2.
         ClientReader::client_state(self, client_id).ok()
     }
 
-    fn query_latest_header(&self) -> Option<AnyHeader> {
+    fn query_latest_header(&self) -> Option<C::AnyHeader> {
         let block_ref = self.host_block(self.host_height());
         block_ref.cloned().map(Into::into)
     }
@@ -1296,7 +1251,7 @@ impl Ics18Context for MockContext {
         let mut all_events = vec![];
         for msg in msgs {
             let MsgReceipt { mut events, .. } =
-                deliver(self, msg).map_err(Ics18Error::transaction_failed)?;
+                deliver::<Self>(self, msg).map_err(Ics18Error::transaction_failed)?;
             all_events.append(&mut events);
         }
         self.advance_host_chain_height(); // Advance chain height
@@ -1324,9 +1279,9 @@ mod tests {
         Acknowledgement, Module, ModuleId, ModuleOutputBuilder, OnRecvPacketAck, Router,
         RouterBuilder,
     };
-    use crate::mock::context::MockContext;
     use crate::mock::context::MockRouterBuilder;
-    use crate::mock::host::HostType;
+    use crate::mock::context::{MockClientTypes, MockContext};
+    use crate::mock::host::{HostBlock, MockHostType};
     use crate::prelude::*;
     use crate::signer::Signer;
     use crate::test_utils::get_dummy_bech32_account;
@@ -1336,7 +1291,7 @@ mod tests {
     fn test_history_manipulation() {
         pub struct Test {
             name: String,
-            ctx: MockContext,
+            ctx: MockContext<MockClientTypes>,
         }
         let cv = 1; // The version to use for all chains.
 
@@ -1345,16 +1300,7 @@ mod tests {
                 name: "Empty history, small pruning window".to_string(),
                 ctx: MockContext::new(
                     ChainId::new("mockgaia".to_string(), cv),
-                    HostType::Mock,
-                    2,
-                    Height::new(cv, 1),
-                ),
-            },
-            Test {
-                name: "[Synthetic TM host] Empty history, small pruning window".to_string(),
-                ctx: MockContext::new(
-                    ChainId::new("mocksgaia".to_string(), cv),
-                    HostType::SyntheticTendermint,
+                    MockHostType::Mock,
                     2,
                     Height::new(cv, 1),
                 ),
@@ -1363,16 +1309,7 @@ mod tests {
                 name: "Large pruning window".to_string(),
                 ctx: MockContext::new(
                     ChainId::new("mockgaia".to_string(), cv),
-                    HostType::Mock,
-                    30,
-                    Height::new(cv, 2),
-                ),
-            },
-            Test {
-                name: "[Synthetic TM host] Large pruning window".to_string(),
-                ctx: MockContext::new(
-                    ChainId::new("mocksgaia".to_string(), cv),
-                    HostType::SyntheticTendermint,
+                    MockHostType::Mock,
                     30,
                     Height::new(cv, 2),
                 ),
@@ -1381,16 +1318,7 @@ mod tests {
                 name: "Small pruning window".to_string(),
                 ctx: MockContext::new(
                     ChainId::new("mockgaia".to_string(), cv),
-                    HostType::Mock,
-                    3,
-                    Height::new(cv, 30),
-                ),
-            },
-            Test {
-                name: "[Synthetic TM host] Small pruning window".to_string(),
-                ctx: MockContext::new(
-                    ChainId::new("mockgaia".to_string(), cv),
-                    HostType::SyntheticTendermint,
+                    MockHostType::Mock,
                     3,
                     Height::new(cv, 30),
                 ),
@@ -1399,16 +1327,7 @@ mod tests {
                 name: "Small pruning window, small starting height".to_string(),
                 ctx: MockContext::new(
                     ChainId::new("mockgaia".to_string(), cv),
-                    HostType::Mock,
-                    3,
-                    Height::new(cv, 2),
-                ),
-            },
-            Test {
-                name: "[Synthetic TM host] Small pruning window, small starting height".to_string(),
-                ctx: MockContext::new(
-                    ChainId::new("mockgaia".to_string(), cv),
-                    HostType::SyntheticTendermint,
+                    MockHostType::Mock,
                     3,
                     Height::new(cv, 2),
                 ),
@@ -1417,16 +1336,7 @@ mod tests {
                 name: "Large pruning window, large starting height".to_string(),
                 ctx: MockContext::new(
                     ChainId::new("mockgaia".to_string(), cv),
-                    HostType::Mock,
-                    50,
-                    Height::new(cv, 2000),
-                ),
-            },
-            Test {
-                name: "[Synthetic TM host] Large pruning window, large starting height".to_string(),
-                ctx: MockContext::new(
-                    ChainId::new("mockgaia".to_string(), cv),
-                    HostType::SyntheticTendermint,
+                    MockHostType::Mock,
                     50,
                     Height::new(cv, 2000),
                 ),
@@ -1548,9 +1458,9 @@ mod tests {
             .unwrap()
             .build();
 
-        let mut ctx = MockContext::new(
+        let mut ctx = MockContext::<MockClientTypes>::new(
             ChainId::new("mockgaia".to_string(), 1),
-            HostType::Mock,
+            MockHostType::Mock,
             1,
             Height::new(1, 1),
         )

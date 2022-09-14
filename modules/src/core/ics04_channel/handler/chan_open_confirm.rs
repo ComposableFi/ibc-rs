@@ -131,7 +131,7 @@ mod tests {
     use crate::core::ics04_channel::Version;
     use crate::core::ics24_host::identifier::{ClientId, ConnectionId};
     use crate::events::IbcEvent;
-    use crate::mock::context::MockContext;
+    use crate::mock::context::{MockClientTypes, MockContext};
     use crate::timestamp::ZERO_DURATION;
     use crate::Height;
 
@@ -140,7 +140,7 @@ mod tests {
     fn chan_open_confirm_msg_processing() {
         struct Test {
             name: String,
-            ctx: MockContext,
+            ctx: MockContext<MockClientTypes>,
             msg: ChannelMsg,
             want_pass: bool,
         }

@@ -97,7 +97,7 @@ mod tests {
     use crate::core::ics24_host::identifier::{ClientId, ConnectionId};
 
     use crate::core::ics02_client::context::ClientReader;
-    use crate::mock::context::MockContext;
+    use crate::mock::context::{MockClientTypes, MockContext};
     use crate::timestamp::ZERO_DURATION;
 
     #[test]
@@ -128,7 +128,7 @@ mod tests {
         );
 
         let context = {
-            let default_context = MockContext::default();
+            let default_context = MockContext::<MockClientTypes>::default();
             let client_consensus_state_height = default_context.host_height();
 
             default_context

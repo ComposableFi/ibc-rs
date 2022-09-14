@@ -102,13 +102,13 @@ mod tests {
     use crate::core::ics04_channel::msgs::ChannelMsg;
     use crate::core::ics24_host::identifier::ConnectionId;
     use crate::events::IbcEvent;
-    use crate::mock::context::MockContext;
+    use crate::mock::context::{MockClientTypes, MockContext};
 
     #[test]
     fn chan_open_init_msg_processing() {
         struct Test {
             name: String,
-            ctx: MockContext,
+            ctx: MockContext<MockClientTypes>,
             msg: ChannelMsg,
             want_pass: bool,
         }

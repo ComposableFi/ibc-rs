@@ -147,7 +147,7 @@ impl core::fmt::Display for CreateClient {
 #[derive(Deserialize, Serialize, Clone, PartialEq, Eq)]
 pub struct UpdateClient {
     pub common: Attributes,
-    pub header: Option<String>,
+    pub header: Option<Vec<u8>>,
 }
 
 impl UpdateClient {

@@ -28,7 +28,7 @@ impl ChainId {
     ///
     /// The returned `ChainId` will have the format: `{chain name}-{epoch number}`.
     /// ```
-    /// use crate::core::ics24_host::identifier::ChainId;
+    /// use ibc::core::ics24_host::identifier::ChainId;
     ///
     /// let epoch_number = 10;
     /// let id = ChainId::new("chainA".to_string(), epoch_number);
@@ -67,7 +67,7 @@ impl ChainId {
 
     /// Extract the version from the given chain identifier.
     /// ```
-    /// use crate::core::ics24_host::identifier::ChainId;
+    /// use ibc::core::ics24_host::identifier::ChainId;
     ///
     /// assert_eq!(ChainId::chain_version("chain--a-0"), 0);
     /// assert_eq!(ChainId::chain_version("ibc-10"), 10);
@@ -90,7 +90,7 @@ impl ChainId {
     /// is_epoch_format() checks if a chain_id is in the format required for parsing epochs
     /// The chainID must be in the form: `{chainID}-{version}`
     /// ```
-    /// use crate::core::ics24_host::identifier::ChainId;
+    /// use ibc::core::ics24_host::identifier::ChainId;
     /// assert_eq!(ChainId::is_epoch_format("chainA-0"), false);
     /// assert_eq!(ChainId::is_epoch_format("chainA"), false);
     /// assert_eq!(ChainId::is_epoch_format("chainA-1"), true);
@@ -148,8 +148,8 @@ impl ClientId {
     /// `counter`; these are separated by a dash "-".
     ///
     /// ```
-    /// # use crate::core::ics24_host::identifier::ClientId;
-    /// # use crate::core::ics02_client::client_type::ClientType;
+    /// # use ibc::core::ics24_host::identifier::ClientId;
+    /// # use ibc::core::ics02_client::client_type::ClientType;
     /// let tm_client_id = ClientId::new(ClientType::Tendermint, 0);
     /// assert!(tm_client_id.is_ok());
     /// tm_client_id.map(|id| { assert_eq!(&id, "7-tendermint-0") });
@@ -210,7 +210,7 @@ impl Default for ClientId {
 /// Equality check against string literal (satisfies &ClientId == &str).
 /// ```
 /// use core::str::FromStr;
-/// use crate::core::ics24_host::identifier::ClientId;
+/// use ibc::core::ics24_host::identifier::ClientId;
 /// let client_id = ClientId::from_str("clientidtwo");
 /// assert!(client_id.is_ok());
 /// client_id.map(|id| {assert_eq!(&id, "clientidtwo")});
@@ -231,7 +231,7 @@ impl ConnectionId {
     /// `ConnectionId::prefix()`) so this method accepts a single argument, the `counter`.
     ///
     /// ```
-    /// # use crate::core::ics24_host::identifier::ConnectionId;
+    /// # use ibc::core::ics24_host::identifier::ConnectionId;
     /// let conn_id = ConnectionId::new(11);
     /// assert_eq!(&conn_id, "connection-11");
     /// ```
@@ -280,7 +280,7 @@ impl Default for ConnectionId {
 /// Equality check against string literal (satisfies &ConnectionId == &str).
 /// ```
 /// use core::str::FromStr;
-/// use crate::core::ics24_host::identifier::ConnectionId;
+/// use ibc::core::ics24_host::identifier::ConnectionId;
 /// let conn_id = ConnectionId::from_str("connectionId-0");
 /// assert!(conn_id.is_ok());
 /// conn_id.map(|id| {assert_eq!(&id, "connectionId-0")});
@@ -349,7 +349,7 @@ impl ChannelId {
     /// accepts a single argument, the `counter`.
     ///
     /// ```
-    /// # use crate::core::ics24_host::identifier::ChannelId;
+    /// # use ibc::core::ics24_host::identifier::ChannelId;
     /// let chan_id = ChannelId::new(27);
     /// assert_eq!(chan_id.to_string(), "channel-27");
     /// ```

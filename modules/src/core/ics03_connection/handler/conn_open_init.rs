@@ -81,7 +81,7 @@ mod tests {
     use crate::core::ics03_connection::msgs::ConnectionMsg;
     use crate::core::ics03_connection::version::Version;
     use crate::events::IbcEvent;
-    use crate::mock::context::MockContext;
+    use crate::mock::context::{MockClientTypes, MockContext};
     use crate::prelude::*;
     use crate::Height;
 
@@ -91,8 +91,8 @@ mod tests {
     fn conn_open_init_msg_processing() {
         struct Test {
             name: String,
-            ctx: MockContext,
-            msg: ConnectionMsg<MockContext>,
+            ctx: MockContext<MockClientTypes>,
+            msg: ConnectionMsg<MockContext<MockClientTypes>>,
             expected_versions: Vec<Version>,
             want_pass: bool,
         }

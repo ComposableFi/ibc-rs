@@ -3,8 +3,6 @@ use crate::ics07_tendermint::client_state;
 use crate::ics11_beefy::client_state as beefy_client_state;
 #[cfg(any(test, feature = "ics11_beefy"))]
 use crate::ics13_near::client_state as near_client_state;
-#[cfg(any(test, feature = "mocks"))]
-use crate::mock::client_state::MockClientState;
 use core::fmt::{Debug, Display};
 use core::time::Duration;
 use ibc::core::ics02_client::client_state::ClientState;
@@ -12,6 +10,8 @@ use ibc::core::ics02_client::client_type::ClientType;
 use ibc::core::ics02_client::error::Error;
 use ibc::core::ics24_host::error::ValidationError;
 use ibc::core::ics24_host::identifier::{ChainId, ClientId};
+#[cfg(any(test, feature = "mocks"))]
+use ibc::mock::client_state::MockClientState;
 use ibc::prelude::*;
 use ibc::{downcast, Height};
 use ibc_proto::google::protobuf::Any;
@@ -109,12 +109,11 @@ impl From<IdentifiedAnyClientState> for IdentifiedClientState {
 #[cfg(test)]
 mod tests {
 
+    use crate::any::client_state::AnyClientState;
+    use crate::any::mock::context::get_dummy_tendermint_client_state;
+    use crate::ics07_tendermint::header::test_util::get_dummy_tendermint_header;
     use ibc_proto::google::protobuf::Any;
     use test_log::test;
-
-    use crate::ics07_tendermint::client_state::test_util::get_dummy_tendermint_client_state;
-    use crate::ics07_tendermint::header::test_util::get_dummy_tendermint_header;
-    use ibc::core::ics02_client::client_state::AnyClientState;
 
     #[test]
     fn any_client_state_serialization() {

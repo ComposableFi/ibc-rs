@@ -2,24 +2,13 @@ use codec::Encode;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use crate::clients::host_functions::HostFunctionsProvider;
-use crate::core::ics02_client::context::{ClientKeeper, ClientReader};
-use crate::core::ics03_connection::context::ConnectionReader;
-use crate::prelude::*;
-use sp_core::keccak_256;
-use sp_trie::LayoutV0;
-use tendermint::{block, consensus, evidence, public_key::Algorithm};
-
-use crate::clients::ics11_beefy::error::Error as BeefyError;
-use crate::core::ics02_client::error::Error as Ics02Error;
-
 use crate::applications::transfer::context::{BankKeeper, Ics20Context, Ics20Keeper, Ics20Reader};
 use crate::applications::transfer::{error::Error as Ics20Error, PrefixedCoin};
-use crate::core::ics02_client::client_consensus::AnyConsensusState;
-use crate::core::ics02_client::client_def::AnyClient;
-use crate::core::ics02_client::client_state::AnyClientState;
 use crate::core::ics02_client::client_type::ClientType;
+use crate::core::ics02_client::context::{ClientKeeper, ClientReader};
+use crate::core::ics02_client::error::Error as Ics02Error;
 use crate::core::ics03_connection::connection::ConnectionEnd;
+use crate::core::ics03_connection::context::ConnectionReader;
 use crate::core::ics03_connection::error::Error as Ics03Error;
 use crate::core::ics04_channel::channel::{ChannelEnd, Counterparty, Order};
 use crate::core::ics04_channel::commitment::{AcknowledgementCommitment, PacketCommitment};
@@ -31,10 +20,15 @@ use crate::core::ics05_port::context::PortReader;
 use crate::core::ics05_port::error::Error as PortError;
 use crate::core::ics24_host::identifier::{ChannelId, ClientId, ConnectionId, PortId};
 use crate::core::ics26_routing::context::{Module, ModuleId, ModuleOutputBuilder, ReaderContext};
-use crate::mock::context::{MockContext, MockIbcStore};
+use crate::host_functions::HostFunctionsProvider;
+use crate::mock::context::{ClientTypes, MockIbcStore};
+use crate::prelude::*;
 use crate::signer::Signer;
 use crate::timestamp::Timestamp;
 use crate::Height;
+use sp_core::keccak_256;
+use sp_trie::LayoutV0;
+use tendermint::{block, consensus, evidence, public_key::Algorithm};
 
 // Needed in mocks.
 pub fn default_consensus_params() -> consensus::Params {
@@ -71,25 +65,25 @@ pub fn get_dummy_bech32_account() -> String {
 }
 
 #[derive(Debug, Clone)]
-pub struct DummyTransferModule {
-    ibc_store: Arc<Mutex<MockIbcStore>>,
+pub struct DummyTransferModule<C: ClientTypes> {
+    ibc_store: Arc<Mutex<MockIbcStore<C>>>,
 }
 
-impl PartialEq for DummyTransferModule {
+impl<C: ClientTypes> PartialEq for DummyTransferModule<C> {
     fn eq(&self, _other: &Self) -> bool {
         false
     }
 }
 
-impl Eq for DummyTransferModule {}
+impl<C: ClientTypes> Eq for DummyTransferModule<C> {}
 
-impl DummyTransferModule {
-    pub fn new(ibc_store: Arc<Mutex<MockIbcStore>>) -> Self {
+impl<C: ClientTypes> DummyTransferModule<C> {
+    pub fn new(ibc_store: Arc<Mutex<MockIbcStore<C>>>) -> Self {
         Self { ibc_store }
     }
 }
 
-impl Module for DummyTransferModule {
+impl<C: ClientTypes + 'static> Module for DummyTransferModule<C> {
     fn on_chan_open_try(
         &mut self,
         _output: &mut ModuleOutputBuilder,
@@ -138,7 +132,7 @@ impl HostFunctionsProvider for Crypto {
             proof,
             &item,
         )
-        .map_err(|_| Ics02Error::beefy(BeefyError::invalid_trie_proof()))
+        .map_err(|e| panic!("{}", e))
     }
 
     fn verify_non_membership_trie_proof(
@@ -152,7 +146,7 @@ impl HostFunctionsProvider for Crypto {
             proof,
             &item,
         )
-        .map_err(|_| Ics02Error::beefy(BeefyError::invalid_trie_proof()))
+        .map_err(|e| panic!("{}", e))
     }
 
     fn sha256_digest(data: &[u8]) -> [u8; 32] {
@@ -224,11 +218,34 @@ impl HostFunctionsProvider for Crypto {
     }
 }
 
-impl Ics20Keeper for DummyTransferModule {
+// implementation for ics23
+impl ics23::HostFunctionsProvider for Crypto {
+    fn sha2_256(message: &[u8]) -> [u8; 32] {
+        <Self as HostFunctionsProvider>::sha2_256(message)
+    }
+
+    fn sha2_512(message: &[u8]) -> [u8; 64] {
+        <Self as HostFunctionsProvider>::sha2_512(message)
+    }
+
+    fn sha2_512_truncated(message: &[u8]) -> [u8; 32] {
+        <Self as HostFunctionsProvider>::sha2_512_truncated(message)
+    }
+
+    fn sha3_512(message: &[u8]) -> [u8; 64] {
+        <Self as HostFunctionsProvider>::sha3_512(message)
+    }
+
+    fn ripemd160(message: &[u8]) -> [u8; 20] {
+        <Self as HostFunctionsProvider>::ripemd160(message)
+    }
+}
+
+impl<C: ClientTypes> Ics20Keeper for DummyTransferModule<C> {
     type AccountId = Signer;
 }
 
-impl ChannelKeeper for DummyTransferModule {
+impl<C: ClientTypes> ChannelKeeper for DummyTransferModule<C> {
     fn store_packet_commitment(
         &mut self,
         key: (PortId, ChannelId, Sequence),
@@ -338,13 +355,13 @@ impl ChannelKeeper for DummyTransferModule {
     }
 }
 
-impl PortReader for DummyTransferModule {
+impl<C: ClientTypes> PortReader for DummyTransferModule<C> {
     fn lookup_module_by_port(&self, _port_id: &PortId) -> Result<ModuleId, PortError> {
         unimplemented!()
     }
 }
 
-impl BankKeeper for DummyTransferModule {
+impl<C: ClientTypes> BankKeeper for DummyTransferModule<C> {
     type AccountId = Signer;
 
     fn send_coins(
@@ -373,7 +390,7 @@ impl BankKeeper for DummyTransferModule {
     }
 }
 
-impl Ics20Reader for DummyTransferModule {
+impl<C: ClientTypes> Ics20Reader for DummyTransferModule<C> {
     type AccountId = Signer;
 
     fn get_port(&self) -> Result<PortId, Ics20Error> {
@@ -389,7 +406,7 @@ impl Ics20Reader for DummyTransferModule {
     }
 }
 
-impl ConnectionReader for DummyTransferModule {
+impl<C: ClientTypes> ConnectionReader for DummyTransferModule<C> {
     fn connection_end(&self, cid: &ConnectionId) -> Result<ConnectionEnd, Ics03Error> {
         match self.ibc_store.lock().unwrap().connections.get(cid) {
             Some(connection_end) => Ok(connection_end.clone()),
@@ -410,8 +427,8 @@ impl ConnectionReader for DummyTransferModule {
     }
 }
 
-impl ClientReader for DummyTransferModule {
-    fn client_state(&self, client_id: &ClientId) -> Result<AnyClientState, Ics02Error> {
+impl<C: ClientTypes> ClientReader for DummyTransferModule<C> {
+    fn client_state(&self, client_id: &ClientId) -> Result<Self::AnyClientState, Ics02Error> {
         match self.ibc_store.lock().unwrap().clients.get(client_id) {
             Some(client_record) => client_record
                 .client_state
@@ -429,7 +446,7 @@ impl ClientReader for DummyTransferModule {
         &self,
         _height: Height,
         _proof: Option<Vec<u8>>,
-    ) -> Result<AnyConsensusState, Ics02Error> {
+    ) -> Result<Self::AnyConsensusState, Ics02Error> {
         unimplemented!()
     }
 
@@ -437,7 +454,7 @@ impl ClientReader for DummyTransferModule {
         &self,
         client_id: &ClientId,
         height: Height,
-    ) -> Result<AnyConsensusState, Ics02Error> {
+    ) -> Result<Self::AnyConsensusState, Ics02Error> {
         match self.ibc_store.lock().unwrap().clients.get(client_id) {
             Some(client_record) => match client_record.consensus_states.get(&height) {
                 Some(consensus_state) => Ok(consensus_state.clone()),
@@ -461,7 +478,7 @@ impl ClientReader for DummyTransferModule {
         &self,
         _client_id: &ClientId,
         _height: Height,
-    ) -> Result<Option<AnyConsensusState>, Ics02Error> {
+    ) -> Result<Option<Self::AnyConsensusState>, Ics02Error> {
         todo!()
     }
 
@@ -469,7 +486,7 @@ impl ClientReader for DummyTransferModule {
         &self,
         _client_id: &ClientId,
         _height: Height,
-    ) -> Result<Option<AnyConsensusState>, Ics02Error> {
+    ) -> Result<Option<Self::AnyConsensusState>, Ics02Error> {
         todo!()
     }
 
@@ -486,7 +503,7 @@ impl ClientReader for DummyTransferModule {
     }
 }
 
-impl ChannelReader for DummyTransferModule {
+impl<C: ClientTypes> ChannelReader for DummyTransferModule<C> {
     fn channel_end(&self, pcid: &(PortId, ChannelId)) -> Result<ChannelEnd, Error> {
         match self.ibc_store.lock().unwrap().channels.get(pcid) {
             Some(channel_end) => Ok(channel_end.clone()),
@@ -577,12 +594,13 @@ impl ChannelReader for DummyTransferModule {
     }
 }
 
-impl ClientKeeper for DummyTransferModule {
-    type AnyHeader = <MockContext as ClientKeeper>::AnyHeader;
-    type AnyClientState = <MockContext as ClientKeeper>::AnyClientState;
-    type AnyConsensusState = <MockContext as ClientKeeper>::AnyConsensusState;
-    type HostFunctions = <MockContext as ClientKeeper>::HostFunctions;
-    type ClientDef = AnyClient;
+impl<C: ClientTypes> ClientKeeper for DummyTransferModule<C> {
+    type AnyHeader = C::AnyHeader;
+    type AnyClientState = C::AnyClientState;
+    type AnyConsensusState = C::AnyConsensusState;
+    type AnyMisbehaviour = C::AnyMisbehaviour;
+    type HostFunctions = C::HostFunctions;
+    type ClientDef = C::ClientDef;
 
     fn store_client_type(
         &mut self,
@@ -595,7 +613,7 @@ impl ClientKeeper for DummyTransferModule {
     fn store_client_state(
         &mut self,
         _client_id: ClientId,
-        _client_state: AnyClientState,
+        _client_state: Self::AnyClientState,
     ) -> Result<(), Ics02Error> {
         todo!()
     }
@@ -604,7 +622,7 @@ impl ClientKeeper for DummyTransferModule {
         &mut self,
         _client_id: ClientId,
         _height: Height,
-        _consensus_state: AnyConsensusState,
+        _consensus_state: Self::AnyConsensusState,
     ) -> Result<(), Ics02Error> {
         todo!()
     }
@@ -631,13 +649,13 @@ impl ClientKeeper for DummyTransferModule {
         Ok(())
     }
 
-    fn validate_self_client(&self, _client_state: &AnyClientState) -> Result<(), Ics02Error> {
+    fn validate_self_client(&self, _client_state: &Self::AnyClientState) -> Result<(), Ics02Error> {
         Ok(())
     }
 }
 
-impl Ics20Context for DummyTransferModule {
+impl<C: ClientTypes> Ics20Context for DummyTransferModule<C> {
     type AccountId = Signer;
 }
 
-impl ReaderContext for DummyTransferModule {}
+impl<C: ClientTypes> ReaderContext for DummyTransferModule<C> {}

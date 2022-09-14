@@ -155,7 +155,7 @@ mod tests {
     use crate::core::ics04_channel::msgs::ChannelMsg;
     use crate::core::ics24_host::identifier::{ChannelId, ClientId, ConnectionId};
     use crate::events::IbcEvent;
-    use crate::mock::context::MockContext;
+    use crate::mock::context::{MockClientTypes, MockContext};
     use crate::timestamp::ZERO_DURATION;
     use crate::Height;
 
@@ -163,7 +163,7 @@ mod tests {
     fn chan_open_try_msg_processing() {
         struct Test {
             name: String,
-            ctx: MockContext,
+            ctx: MockContext<MockClientTypes>,
             msg: ChannelMsg,
             want_pass: bool,
             match_error: Box<dyn FnOnce(error::ErrorDetail)>,

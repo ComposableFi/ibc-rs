@@ -1,4 +1,6 @@
 extern crate alloc;
+#[macro_use]
+extern crate derive;
 
 mod runner;
 

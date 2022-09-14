@@ -7,7 +7,7 @@ use ibc_proto::google::protobuf::Any;
 use tendermint_proto::Protobuf;
 
 #[cfg(any(test, feature = "mocks"))]
-use crate::mock::misbehaviour::Misbehaviour as MockMisbehaviour;
+use ibc::mock::misbehaviour::MockMisbehaviour;
 
 use ibc::core::ics24_host::identifier::ClientId;
 use ibc::Height;
@@ -19,7 +19,7 @@ pub const TENDERMINT_MISBEHAVIOR_TYPE_URL: &str = "/ibc.lightclients.tendermint.
 #[cfg(any(test, feature = "mocks"))]
 pub const MOCK_MISBEHAVIOUR_TYPE_URL: &str = "/ibc.mock.Misbehavior";
 
-#[derive(Clone, Debug, PartialEq, derive::Misbehaviour, derive::Protobuf)] // TODO: Add Eq bound once possible
+#[derive(Clone, Debug, PartialEq, Misbehaviour, Protobuf)] // TODO: Add Eq bound once possible
 #[allow(clippy::large_enum_variant)]
 pub enum AnyMisbehaviour {
     #[ibc(proto_url = "TENDERMINT_MISBEHAVIOR_TYPE_URL")]

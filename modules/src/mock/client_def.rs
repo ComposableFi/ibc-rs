@@ -14,11 +14,20 @@ use crate::core::ics24_host::identifier::{ChannelId, ClientId, ConnectionId, Por
 use crate::core::ics24_host::path::ClientConsensusStatePath;
 use crate::core::ics24_host::Path;
 use crate::core::ics26_routing::context::ReaderContext;
+use crate::downcast;
+use crate::mock::client_state::{AnyClientState, AnyConsensusState};
 use crate::mock::client_state::{MockClientState, MockConsensusState};
+use crate::mock::header::AnyHeader;
 use crate::mock::header::MockHeader;
 use crate::prelude::*;
 use crate::Height;
 use core::fmt::Debug;
+
+#[derive(Clone, Debug, PartialEq, Eq, ClientDef)]
+#[ibc(client_type = "ClientType")]
+pub enum AnyClient {
+    Mock(MockClient),
+}
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct MockClient;

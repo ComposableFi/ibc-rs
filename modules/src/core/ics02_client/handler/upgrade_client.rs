@@ -98,7 +98,7 @@ mod tests {
     use crate::events::IbcEvent;
     use crate::handler::HandlerOutput;
     use crate::mock::client_state::{MockClientState, MockConsensusState};
-    use crate::mock::context::MockContext;
+    use crate::mock::context::{MockClientTypes, MockContext};
     use crate::mock::header::MockHeader;
     use crate::test_utils::get_dummy_account_id;
     use crate::Height;
@@ -108,7 +108,8 @@ mod tests {
         let client_id = ClientId::default();
         let signer = get_dummy_account_id();
 
-        let ctx = MockContext::default().with_client(&client_id, Height::new(0, 42));
+        let ctx =
+            MockContext::<MockClientTypes>::default().with_client(&client_id, Height::new(0, 42));
 
         let msg = MsgUpgradeAnyClient {
             client_id: client_id.clone(),
@@ -154,7 +155,8 @@ mod tests {
         let client_id = ClientId::from_str("mockclient1").unwrap();
         let signer = get_dummy_account_id();
 
-        let ctx = MockContext::default().with_client(&client_id, Height::new(0, 42));
+        let ctx =
+            MockContext::<MockClientTypes>::default().with_client(&client_id, Height::new(0, 42));
 
         let msg = MsgUpgradeAnyClient {
             client_id: ClientId::from_str("nonexistingclient").unwrap(),
@@ -182,7 +184,8 @@ mod tests {
         let client_id = ClientId::default();
         let signer = get_dummy_account_id();
 
-        let ctx = MockContext::default().with_client(&client_id, Height::new(0, 42));
+        let ctx =
+            MockContext::<MockClientTypes>::default().with_client(&client_id, Height::new(0, 42));
 
         let msg = MsgUpgradeAnyClient {
             client_id,

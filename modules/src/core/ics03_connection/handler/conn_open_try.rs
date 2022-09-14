@@ -142,16 +142,16 @@ mod tests {
     use crate::core::ics03_connection::msgs::ConnectionMsg;
     use crate::core::ics24_host::identifier::ChainId;
     use crate::events::IbcEvent;
-    use crate::mock::context::MockContext;
-    use crate::mock::host::HostType;
+    use crate::mock::context::{MockClientTypes, MockContext};
+    use crate::mock::host::MockHostType;
     use crate::Height;
 
     #[test]
     fn conn_open_try_msg_processing() {
         struct Test {
             name: String,
-            ctx: MockContext,
-            msg: ConnectionMsg<MockContext>,
+            ctx: MockContext<MockClientTypes>,
+            msg: ConnectionMsg<MockContext<MockClientTypes>>,
             want_pass: bool,
         }
 
@@ -159,7 +159,7 @@ mod tests {
         let max_history_size = 5;
         let context = MockContext::new(
             ChainId::new("mockgaia".to_string(), 0),
-            HostType::Mock,
+            MockHostType::Mock,
             max_history_size,
             host_chain_height,
         );

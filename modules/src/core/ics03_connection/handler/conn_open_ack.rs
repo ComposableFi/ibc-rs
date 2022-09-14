@@ -140,16 +140,16 @@ mod tests {
     use crate::core::ics23_commitment::commitment::CommitmentPrefix;
     use crate::core::ics24_host::identifier::{ChainId, ClientId};
     use crate::events::IbcEvent;
-    use crate::mock::context::MockContext;
-    use crate::mock::host::HostType;
+    use crate::mock::context::{MockClientTypes, MockContext};
+    use crate::mock::host::MockHostType;
     use crate::timestamp::ZERO_DURATION;
 
     #[test]
     fn conn_open_ack_msg_processing() {
         struct Test {
             name: String,
-            ctx: MockContext,
-            msg: ConnectionMsg<MockContext>,
+            ctx: MockContext<MockClientTypes>,
+            msg: ConnectionMsg<MockContext<MockClientTypes>>,
             want_pass: bool,
             match_error: Box<dyn FnOnce(error::Error)>,
         }
@@ -169,7 +169,7 @@ mod tests {
         let max_history_size = 5;
         let default_context = MockContext::new(
             ChainId::new("mockgaia".to_string(), latest_height.revision_number),
-            HostType::Mock,
+            MockHostType::Mock,
             max_history_size,
             latest_height,
         );

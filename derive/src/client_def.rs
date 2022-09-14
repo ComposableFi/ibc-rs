@@ -597,6 +597,7 @@ impl State {
             fn from_client_type(client_type: #client_ty) -> Self {
                 match client_type {
                     #(#cases)*
+                    _ => panic!("unsupported client type"),
                 }
             }
         }

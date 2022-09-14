@@ -44,7 +44,9 @@
 //! [relayer-repo]: https://github.com/informalsystems/ibc-rs/tree/master/relayer
 
 extern crate alloc;
-
+#[allow(unused_imports)]
+#[macro_use]
+extern crate derive;
 #[cfg(feature = "std")]
 extern crate std;
 
@@ -71,8 +73,8 @@ mod serializers;
 /// Re-export of ICS 002 Height domain type
 pub type Height = core::ics02_client::height::Height;
 
-#[cfg(test)]
-mod test;
+#[cfg(any(test, feature = "mocks"))]
+pub mod test;
 
 #[cfg(any(test, feature = "mocks"))]
 pub mod test_utils;

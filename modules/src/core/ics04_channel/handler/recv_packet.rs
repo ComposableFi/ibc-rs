@@ -171,7 +171,7 @@ mod tests {
     use crate::core::ics04_channel::msgs::recv_packet::MsgRecvPacket;
     use crate::core::ics04_channel::Version;
     use crate::core::ics24_host::identifier::{ChannelId, ClientId, ConnectionId, PortId};
-    use crate::mock::context::MockContext;
+    use crate::mock::context::{MockClientTypes, MockContext};
     use crate::relayer::ics18_relayer::context::Ics18Context;
     use crate::test_utils::get_dummy_account_id;
     use crate::timestamp::Timestamp;
@@ -182,7 +182,7 @@ mod tests {
     fn recv_packet_processing() {
         struct Test {
             name: String,
-            ctx: MockContext,
+            ctx: MockContext<MockClientTypes>,
             msg: MsgRecvPacket,
             want_pass: bool,
         }

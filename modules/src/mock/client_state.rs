@@ -6,35 +6,52 @@ use core::convert::Infallible;
 use core::fmt::Debug;
 use core::time::Duration;
 
+use ibc_proto::ibc::core::client::v1::ConsensusStateWithHeight;
 use serde::{Deserialize, Serialize};
 use tendermint_proto::Protobuf;
 
 use ibc_proto::ibc::mock::ClientState as RawMockClientState;
 use ibc_proto::ibc::mock::ConsensusState as RawMockConsensusState;
 
-use crate::core::ics02_client::client_consensus::{AnyConsensusState, ConsensusState};
-use crate::core::ics02_client::client_state::{AnyClientState, ClientState};
+use crate::core::ics02_client::client_consensus::ConsensusState;
+use crate::core::ics02_client::client_state::ClientState;
 use crate::core::ics02_client::client_type::ClientType;
 use crate::core::ics02_client::error::Error;
 use crate::core::ics23_commitment::commitment::CommitmentRoot;
 use crate::core::ics24_host::identifier::ChainId;
-use crate::mock::client_def::MockClient;
+use crate::mock::context::ClientTypes;
 use crate::mock::header::MockHeader;
 use crate::timestamp::Timestamp;
 use crate::{downcast, Height};
+use ibc_proto::google::protobuf::Any;
+
+pub const MOCK_CLIENT_STATE_TYPE_URL: &str = "/ibc.mock.ClientState";
 
 /// A mock of an IBC client record as it is stored in a mock context.
 /// For testing ICS02 handlers mostly, cf. `MockClientContext`.
 #[derive(Clone, Debug)]
-pub struct MockClientRecord {
+pub struct MockClientRecord<C: ClientTypes> {
     /// The type of this client.
     pub client_type: ClientType,
 
     /// The client state (representing only the latest height at the moment).
-    pub client_state: Option<AnyClientState>,
+    pub client_state: Option<C::AnyClientState>,
 
     /// Mapping of heights to consensus states for this client.
-    pub consensus_states: HashMap<Height, AnyConsensusState>,
+    pub consensus_states: HashMap<Height, C::AnyConsensusState>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "type")]
+pub enum AnyUpgradeOptions {
+    Mock(()),
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, ClientState, Protobuf)]
+#[serde(tag = "type")]
+pub enum AnyClientState {
+    #[ibc(proto_url = "MOCK_CLIENT_STATE_TYPE_URL")]
+    Mock(MockClientState),
 }
 
 /// A mock of a client state. For an example of a real structure that this mocks, you can see
@@ -151,6 +168,49 @@ impl MockClientState {
 impl From<MockConsensusState> for MockClientState {
     fn from(cs: MockConsensusState) -> Self {
         Self::new(cs.header)
+    }
+}
+
+pub const MOCK_CONSENSUS_STATE_TYPE_URL: &str = "/ibc.mock.ConsensusState";
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, ConsensusState, Protobuf)]
+#[serde(tag = "type")]
+pub enum AnyConsensusState {
+    #[ibc(proto_url = "MOCK_CONSENSUS_STATE_TYPE_URL")]
+    Mock(MockConsensusState),
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+pub struct AnyConsensusStateWithHeight<C: ClientTypes> {
+    pub height: Height,
+    pub consensus_state: C::AnyConsensusState,
+}
+
+impl<C: ClientTypes> Protobuf<ConsensusStateWithHeight> for AnyConsensusStateWithHeight<C> {}
+
+impl<C: ClientTypes> TryFrom<ConsensusStateWithHeight> for AnyConsensusStateWithHeight<C> {
+    type Error = Error;
+
+    fn try_from(value: ConsensusStateWithHeight) -> Result<Self, Self::Error> {
+        let state = value
+            .consensus_state
+            .map(C::AnyConsensusState::try_from)
+            .transpose()?
+            .ok_or_else(Error::empty_consensus_state_response)?;
+
+        Ok(AnyConsensusStateWithHeight {
+            height: value.height.ok_or_else(Error::missing_height)?.into(),
+            consensus_state: state,
+        })
+    }
+}
+
+impl<C: ClientTypes> From<AnyConsensusStateWithHeight<C>> for ConsensusStateWithHeight {
+    fn from(value: AnyConsensusStateWithHeight<C>) -> Self {
+        ConsensusStateWithHeight {
+            height: Some(value.height.into()),
+            consensus_state: Some(value.consensus_state.into()),
+        }
     }
 }
 
