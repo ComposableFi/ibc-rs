@@ -1,9 +1,8 @@
-use crate::{State};
+use crate::State;
 use convert_case::{Case, Casing};
 
 use quote::quote;
 use syn::__private::TokenStream2;
-
 
 impl State {
     pub fn impl_from_str_for_client_type(

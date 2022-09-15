@@ -13,7 +13,7 @@ impl State {
         });
 
         quote! {
-            fn downcast<T: Clone + core::any::Any>(self) -> T {
+            fn downcast<T: Clone + core::any::Any>(self) -> Option<T> {
                 match self {
                     #(#cases)*
                 }
@@ -29,15 +29,15 @@ impl State {
             quote! {
                 #(#attrs)*
                 if let Some(state) = sub_state.downcast_ref::<#client_state_type>() {
-                    return Self::#variant_ident(state.clone());
+                    return Some(Self::#variant_ident(state.clone()));
                 }
             }
         });
 
         quote! {
-            fn wrap(sub_state: &dyn core::any::Any) -> Self {
+            fn wrap(sub_state: &dyn core::any::Any) -> Option<Self> {
                 #(#cases)*
-                panic!("unknown client state type")
+                None
             }
         }
     }

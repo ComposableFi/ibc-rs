@@ -160,7 +160,12 @@ impl ClientDef for BeefyClient {
                 }
                 parachain_cs_states.push((
                     height,
-                    Ctx::AnyConsensusState::wrap(&ConsensusState::from_header(header)?),
+                    Ctx::AnyConsensusState::wrap(&ConsensusState::from_header(header)?)
+                        .ok_or_else(|| {
+                            Error::unknown_consensus_state_type(
+                                "Ctx::AnyConsensusState".to_string(),
+                            )
+                        })?,
                 ))
             }
         }

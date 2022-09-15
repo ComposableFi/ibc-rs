@@ -1,7 +1,6 @@
 use crate::core::ics02_client::error::Error;
 use crate::prelude::*;
 
-
 /// This trait captures all the functions that the host chain should provide for
 /// crypto operations.
 pub trait HostFunctionsProvider: Clone + Send + Sync + Default {

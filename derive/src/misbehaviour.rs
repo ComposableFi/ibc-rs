@@ -1,7 +1,6 @@
-use crate::{State};
+use crate::State;
 
 use quote::quote;
-
 
 impl State {
     pub fn impl_fn_client_id(&self) -> proc_macro2::TokenStream {

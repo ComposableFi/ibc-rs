@@ -165,7 +165,7 @@ impl ClientState {
         self
     }
 
-    fn reset(mut self) {
+    fn reset(&mut self) {
         self.trusting_period = ZERO_DURATION;
         self.trust_level = TrustThreshold::ZERO;
         self.frozen_height = None;

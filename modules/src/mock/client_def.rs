@@ -59,9 +59,9 @@ impl ClientDef for MockClient {
 
         Ok((
             MockClientState::new(header),
-            ConsensusUpdateResult::Single(Ctx::AnyConsensusState::wrap(&MockConsensusState::new(
-                header,
-            ))),
+            ConsensusUpdateResult::Single(
+                Ctx::AnyConsensusState::wrap(&MockConsensusState::new(header)).unwrap(),
+            ),
         ))
     }
 
@@ -209,7 +209,7 @@ impl ClientDef for MockClient {
     ) -> Result<(Self::ClientState, ConsensusUpdateResult<Ctx>), Error> {
         Ok((
             *client_state,
-            ConsensusUpdateResult::Single(Ctx::AnyConsensusState::wrap(consensus_state)),
+            ConsensusUpdateResult::Single(Ctx::AnyConsensusState::wrap(consensus_state).unwrap()),
         ))
     }
 

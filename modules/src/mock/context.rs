@@ -40,9 +40,8 @@ use crate::core::ics26_routing::context::{
     Ics26Context, Module, ModuleId, ReaderContext, Router, RouterBuilder,
 };
 use crate::core::ics26_routing::error::Error as Ics26Error;
-use crate::core::ics26_routing::handler::{deliver, dispatch, MsgReceipt};
+use crate::core::ics26_routing::handler::dispatch;
 use crate::core::ics26_routing::msgs::Ics26Envelope;
-use crate::events::IbcEvent;
 use crate::host_functions::HostFunctionsProvider;
 use crate::mock::client_def::AnyClient;
 use crate::mock::client_state::AnyClientState;
@@ -52,9 +51,6 @@ use crate::mock::header::AnyHeader;
 use crate::mock::header::MockHeader;
 use crate::mock::host::{HostBlock, MockHostBlock};
 use crate::mock::misbehaviour::AnyMisbehaviour;
-use crate::relayer::ics18_relayer::context::Ics18Context;
-use crate::relayer::ics18_relayer::error::Error as Ics18Error;
-use crate::signer::Signer;
 use crate::test_utils::Crypto;
 use crate::timestamp::Timestamp;
 use crate::Height;
@@ -331,8 +327,8 @@ impl<C: ClientTypes + Default> MockContext<C> {
     /// A datagram passes from the relayer to the IBC module (on host chain).
     /// Alternative method to `Ics18Context::send` that does not exercise any serialization.
     /// Used in testing the Ics18 algorithms, hence this may return a Ics18Error.
-    pub fn deliver(&mut self, msg: Ics26Envelope<MockContext<C>>) -> Result<(), Ics18Error> {
-        dispatch(self, msg).map_err(Ics18Error::transaction_failed)?;
+    pub fn deliver(&mut self, msg: Ics26Envelope<MockContext<C>>) -> Result<(), Ics26Error> {
+        dispatch(self, msg)?;
         // Create a new block.
         self.advance_host_chain_height();
         Ok(())
@@ -1223,43 +1219,6 @@ impl<C: ClientTypes> ClientKeeper for MockContext<C> {
 
     fn validate_self_client(&self, _client_state: &C::AnyClientState) -> Result<(), Ics02Error> {
         Ok(())
-    }
-}
-
-impl<C: ClientTypes + Default> Ics18Context for MockContext<C>
-where
-    Any: From<<C as ClientTypes>::AnyClientState>,
-    Ics26Envelope<MockContext<C>>: TryFrom<Any>,
-    Ics26Error: From<<Ics26Envelope<MockContext<C>> as TryFrom<Any>>::Error>,
-{
-    fn query_latest_height(&self) -> Height {
-        self.host_height()
-    }
-
-    fn query_client_full_state(&self, client_id: &ClientId) -> Option<C::AnyClientState> {
-        // Forward call to Ics2.
-        ClientReader::client_state(self, client_id).ok()
-    }
-
-    fn query_latest_header(&self) -> Option<C::AnyHeader> {
-        let block_ref = self.host_block(self.host_height());
-        block_ref.cloned().map(Into::into)
-    }
-
-    fn send(&mut self, msgs: Vec<Any>) -> Result<Vec<IbcEvent>, Ics18Error> {
-        // Forward call to Ics26 delivery method.
-        let mut all_events = vec![];
-        for msg in msgs {
-            let MsgReceipt { mut events, .. } =
-                deliver::<Self>(self, msg).map_err(Ics18Error::transaction_failed)?;
-            all_events.append(&mut events);
-        }
-        self.advance_host_chain_height(); // Advance chain height
-        Ok(all_events)
-    }
-
-    fn signer(&self) -> Signer {
-        "0CDA3F47EF3C4906693B170EF650EB968C5F4B2C".parse().unwrap()
     }
 }
 

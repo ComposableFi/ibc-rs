@@ -72,7 +72,9 @@ impl ClientDef for TendermintClient {
 
         let _ = match ctx.maybe_consensus_state(&client_id, header.height())? {
             Some(cs) => {
-                let cs: ConsensusState = cs.downcast();
+                let cs: ConsensusState = cs.downcast().ok_or(
+                    Ics02Error::client_args_type_mismatch(ClientType::Tendermint),
+                )?;
                 // If this consensus state matches, skip verification
                 // (optimization)
                 if cs == header_consensus_state {
@@ -87,7 +89,10 @@ impl ClientDef for TendermintClient {
 
         let trusted_consensus_state: Self::ConsensusState = ctx
             .consensus_state(&client_id, header.trusted_height)?
-            .downcast();
+            .downcast()
+            .ok_or(Ics02Error::client_args_type_mismatch(
+                ClientType::Tendermint,
+            ))?;
 
         let trusted_state = TrustedBlockState {
             header_time: trusted_consensus_state.timestamp().into_tm_time().unwrap(),
@@ -147,7 +152,9 @@ impl ClientDef for TendermintClient {
         header: Self::Header,
     ) -> Result<(Self::ClientState, ConsensusUpdateResult<Ctx>), Ics02Error> {
         let header_consensus_state = <ConsensusState as From<Header>>::from(header.clone());
-        let cs = Ctx::AnyConsensusState::wrap(&header_consensus_state);
+        let cs = Ctx::AnyConsensusState::wrap(&header_consensus_state).ok_or_else(|| {
+            Ics02Error::unknown_consensus_state_type("Ctx::AnyConsensusState".to_string())
+        })?;
         Ok((
             client_state.with_header(header),
             ConsensusUpdateResult::Single(cs),
@@ -178,7 +185,9 @@ impl ClientDef for TendermintClient {
         let existing_consensus_state =
             match ctx.maybe_consensus_state(&client_id, header.height())? {
                 Some(cs) => {
-                    let cs = cs.downcast::<ConsensusState>();
+                    let cs = cs.downcast::<ConsensusState>().ok_or(
+                        Ics02Error::client_args_type_mismatch(ClientType::Tendermint),
+                    )?;
                     // If this consensus state matches, skip verification
                     // (optimization)
                     if header_consensus_state == cs {
@@ -203,9 +212,14 @@ impl ClientDef for TendermintClient {
         // Monotonicity checks for timestamps for in-the-middle updates
         // (cs-new, cs-next, cs-latest)
         if header.height() < client_state.latest_height() {
-            let maybe_next_cs = ctx
-                .next_consensus_state(&client_id, header.height())?
-                .map(|cs| cs.downcast::<ConsensusState>());
+            let maybe_next_cs =
+                ctx.next_consensus_state(&client_id, header.height())?
+                    .map(|cs| {
+                        cs.downcast::<ConsensusState>().ok_or(
+                            Ics02Error::client_args_type_mismatch(ClientType::Tendermint),
+                        )
+                    })
+                    .transpose()?;
 
             if let Some(next_cs) = maybe_next_cs {
                 // New (untrusted) header timestamp cannot occur after next
@@ -223,9 +237,14 @@ impl ClientDef for TendermintClient {
         }
         // (cs-trusted, cs-prev, cs-new)
         if header.trusted_height < header.height() {
-            let maybe_prev_cs = ctx
-                .prev_consensus_state(&client_id, header.height())?
-                .map(|cs| cs.downcast::<ConsensusState>());
+            let maybe_prev_cs =
+                ctx.prev_consensus_state(&client_id, header.height())?
+                    .map(|cs| {
+                        cs.downcast::<ConsensusState>().ok_or(
+                            Ics02Error::client_args_type_mismatch(ClientType::Tendermint),
+                        )
+                    })
+                    .transpose()?;
 
             if let Some(prev_cs) = maybe_prev_cs {
                 // New (untrusted) header timestamp cannot occur before the

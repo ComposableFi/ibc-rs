@@ -7,23 +7,18 @@ pub trait Header: Clone + core::fmt::Debug + Send + Sync {
     /// The type of client (eg. Tendermint)
     fn client_type(&self) -> ClientType;
 
-    fn downcast<T: Clone + 'static>(self) -> T
+    fn downcast<T: Clone + 'static>(self) -> Option<T>
     where
         Self: 'static,
     {
-        <dyn core::any::Any>::downcast_ref(&self)
-            .cloned()
-            .expect("Header downcast failed")
+        <dyn core::any::Any>::downcast_ref(&self).cloned()
     }
 
-    fn wrap(sub_state: &dyn core::any::Any) -> Self
+    fn wrap(sub_state: &dyn core::any::Any) -> Option<Self>
     where
         Self: 'static,
     {
-        sub_state
-            .downcast_ref::<Self>()
-            .expect("Header wrap failed")
-            .clone()
+        sub_state.downcast_ref::<Self>().cloned()
     }
 
     fn encode_to_vec(&self) -> Vec<u8>;

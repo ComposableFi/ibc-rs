@@ -43,23 +43,18 @@ pub trait ClientState: Clone + Debug + Send + Sync {
 
     /// Performs downcast of the client state from an "AnyClientState" type to T, otherwise
     /// panics. Downcast from `T` to `T` is always successful.
-    fn downcast<T: Clone + 'static>(self) -> T
+    fn downcast<T: Clone + 'static>(self) -> Option<T>
     where
         Self: 'static,
     {
-        <dyn core::any::Any>::downcast_ref(&self)
-            .cloned()
-            .expect("downcast failed")
+        <dyn core::any::Any>::downcast_ref(&self).cloned()
     }
 
-    fn wrap(sub_state: &dyn core::any::Any) -> Self
+    fn wrap(sub_state: &dyn core::any::Any) -> Option<Self>
     where
         Self: 'static,
     {
-        sub_state
-            .downcast_ref::<Self>()
-            .expect("ClientState wrap failed")
-            .clone()
+        sub_state.downcast_ref::<Self>().cloned()
     }
 
     fn encode_to_vec(&self) -> Vec<u8>;

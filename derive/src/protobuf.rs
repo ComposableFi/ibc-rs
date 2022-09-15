@@ -1,8 +1,7 @@
-use crate::{State};
+use crate::State;
 use convert_case::{Case, Casing};
 
 use quote::quote;
-
 
 impl State {
     pub fn impl_try_from_any(&self) -> proc_macro2::TokenStream {

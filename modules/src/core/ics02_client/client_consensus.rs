@@ -19,23 +19,18 @@ pub trait ConsensusState: Clone + Debug + Send + Sync {
     /// Returns the timestamp of the state.
     fn timestamp(&self) -> Timestamp;
 
-    fn downcast<T: Clone + 'static>(self) -> T
+    fn downcast<T: Clone + 'static>(self) -> Option<T>
     where
         Self: 'static,
     {
-        <dyn core::any::Any>::downcast_ref(&self)
-            .cloned()
-            .expect("downcast failed")
+        <dyn core::any::Any>::downcast_ref(&self).cloned()
     }
 
-    fn wrap(sub_state: &dyn core::any::Any) -> Self
+    fn wrap(sub_state: &dyn core::any::Any) -> Option<Self>
     where
         Self: 'static,
     {
-        sub_state
-            .downcast_ref::<Self>()
-            .expect("ConsensusState wrap failed")
-            .clone()
+        sub_state.downcast_ref::<Self>().cloned()
     }
 
     fn encode_to_vec(&self) -> Vec<u8>;
