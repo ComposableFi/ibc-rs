@@ -155,10 +155,7 @@ impl ClientState {
         chain_id: ChainId,
     ) -> Self {
         // Reset custom fields to zero values
-        self.trusting_period = ZERO_DURATION;
-        self.trust_level = TrustThreshold::ZERO;
-        self.frozen_height = None;
-        self.max_clock_drift = ZERO_DURATION;
+        self.reset();
 
         // Upgrade the client state
         self.latest_height = upgrade_height;
@@ -166,6 +163,13 @@ impl ClientState {
         self.chain_id = chain_id;
 
         self
+    }
+
+    fn reset(mut self) {
+        self.trusting_period = ZERO_DURATION;
+        self.trust_level = TrustThreshold::ZERO;
+        self.frozen_height = None;
+        self.max_clock_drift = ZERO_DURATION;
     }
 
     /// Check if the state is expired when `elapsed` time has passed since the latest consensus

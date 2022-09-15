@@ -15,8 +15,7 @@ impl client_consensus::ConsensusState for ConsensusState {
     type Error = Error;
 
     fn client_type(&self) -> ClientType {
-        todo!("implement client_type for NEAR")
-        // ClientType::Near
+        ClientType::Near
     }
 
     fn root(&self) -> &CommitmentRoot {

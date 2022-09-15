@@ -73,7 +73,6 @@ impl ClientDef for TendermintClient {
         let _ = match ctx.maybe_consensus_state(&client_id, header.height())? {
             Some(cs) => {
                 let cs: ConsensusState = cs.downcast();
-                // ConsensusState::try_from(cs)?;
                 // If this consensus state matches, skip verification
                 // (optimization)
                 if cs == header_consensus_state {
@@ -89,8 +88,6 @@ impl ClientDef for TendermintClient {
         let trusted_consensus_state: Self::ConsensusState = ctx
             .consensus_state(&client_id, header.trusted_height)?
             .downcast();
-        // let trusted_consensus_state = trusted_consensus_state.downcast();
-        //<Self::ConsensusState as TryFrom<_>>::try_from(trusted_consensus_state)?;
 
         let trusted_state = TrustedBlockState {
             header_time: trusted_consensus_state.timestamp().into_tm_time().unwrap(),
@@ -182,7 +179,6 @@ impl ClientDef for TendermintClient {
             match ctx.maybe_consensus_state(&client_id, header.height())? {
                 Some(cs) => {
                     let cs = cs.downcast::<ConsensusState>();
-                    // let cs = ConsensusState::try_from(cs)?;
                     // If this consensus state matches, skip verification
                     // (optimization)
                     if header_consensus_state == cs {

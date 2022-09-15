@@ -17,8 +17,7 @@ impl NearHeader {
 
 impl Header for NearHeader {
     fn client_type(&self) -> ClientType {
-        todo!("implement client_type for NEAR")
-        // ClientType::Near
+        ClientType::Near
     }
 
     fn encode_to_vec(&self) -> Vec<u8> {
