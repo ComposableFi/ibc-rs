@@ -4,7 +4,6 @@ use borsh::maybestd::{io::Write, string::String};
 use borsh::{BorshDeserialize, BorshSerialize};
 use sp_core::ed25519::{Public as Ed25519Public, Signature as Ed25519Signature};
 
-use ibc::host_functions::HostFunctionsProvider;
 use ibc::Height;
 
 #[derive(Debug)]

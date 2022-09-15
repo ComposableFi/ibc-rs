@@ -11,7 +11,6 @@ use crate::core::ics02_client::handler::ClientResult::{self, Create, Update, Upg
 use crate::core::ics02_client::header::Header;
 use crate::core::ics02_client::misbehaviour::Misbehaviour;
 use crate::core::ics24_host::identifier::ClientId;
-use crate::host_functions::HostFunctionsProvider;
 use crate::timestamp::Timestamp;
 use crate::Height;
 use alloc::vec::Vec;
@@ -90,7 +89,6 @@ where
     type AnyClientState: ClientState<ClientDef = Self::ClientDef> + Eq;
     type AnyConsensusState: ConsensusState + Eq + 'static;
     type AnyMisbehaviour: Misbehaviour;
-    type HostFunctions: HostFunctionsProvider + ics23::HostFunctionsProvider;
 
     /// Client definition type (used for verification)
     type ClientDef: ClientDef<
