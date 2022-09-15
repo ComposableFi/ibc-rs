@@ -17,7 +17,6 @@ use ibc::core::ics23_commitment::commitment::{
 };
 use ibc::core::ics24_host::identifier::{ChannelId, ClientId, ConnectionId, PortId};
 use ibc::core::ics26_routing::context::ReaderContext;
-use ibc::host_functions::HostFunctionsProvider;
 use ibc::prelude::*;
 use ibc::Height;
 

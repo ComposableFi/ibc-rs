@@ -2,11 +2,11 @@ use beefy_client_primitives::ClientState as LightClientState;
 use beefy_client_primitives::{ParachainHeader, ParachainsUpdateProof};
 use codec::{Decode, Encode};
 use core::fmt::Debug;
+use core::marker::PhantomData;
 use pallet_mmr_primitives::BatchProof;
 use sp_core::H256;
 use tendermint_proto::Protobuf;
 
-use crate::host_functions::HostFunctionsManager;
 use crate::ics11_beefy::client_state::ClientState;
 use crate::ics11_beefy::consensus_state::ConsensusState;
 use crate::ics11_beefy::error::Error as BeefyError;
@@ -36,16 +36,40 @@ use ibc::host_functions::HostFunctionsProvider;
 use ibc::prelude::*;
 use ibc::Height;
 
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct BeefyClient;
+#[derive(Clone, Debug, PartialEq, Eq, Default)]
+pub struct BeefyClient<T>(PhantomData<T>);
 
-impl Default for BeefyClient {
-    fn default() -> Self {
-        Self
-    }
+/// Host functions that allow the light client verify trie proofs.
+pub trait HostFunctions {
+    /// This function should verify membership in a trie proof using sp_state_machine's read_child_proof_check
+    fn verify_membership_trie_proof(
+        root: &[u8; 32],
+        proof: &[Vec<u8>],
+        key: &[u8],
+        value: &[u8],
+    ) -> Result<(), Error>;
+
+    /// This function should verify non membership in a trie proof using sp_state_machine's read_child_proof_check
+    fn verify_non_membership_trie_proof(
+        root: &[u8; 32],
+        proof: &[Vec<u8>],
+        key: &[u8],
+    ) -> Result<(), Error>;
+
+    /// This function should verify membership in a trie proof using parity's sp-trie package
+    /// with a BlakeTwo256 Hasher
+    fn verify_timestamp_extrinsic(
+        root: &[u8; 32],
+        proof: &[Vec<u8>],
+        value: &[u8],
+    ) -> Result<(), Error>;
 }
 
-impl ClientDef for BeefyClient {
+
+impl<H> ClientDef for BeefyClient<H>
+    where
+        H: beefy_client_primitives::HostFunctions + HostFunctions + Clone,
+{
     type Header = BeefyHeader;
     type ClientState = ClientState;
     type ConsensusState = ConsensusState;
@@ -67,7 +91,7 @@ impl ClientDef for BeefyClient {
         // If mmr update exists verify it and return the new light client state
         // or else return existing light client state
         let light_client_state = if let Some(mmr_update) = header.mmr_update_proof {
-            beefy_client::verify_mmr_root_with_proof::<HostFunctionsManager<Ctx::HostFunctions>>(
+            beefy_client::verify_mmr_root_with_proof::<H>(
                 light_client_state,
                 mmr_update,
             )
@@ -119,7 +143,7 @@ impl ClientDef for BeefyClient {
             };
 
             // Perform the parachain header verification
-            beefy_client::verify_parachain_headers::<HostFunctionsManager<Ctx::HostFunctions>>(
+            beefy_client::verify_parachain_headers::<H>(
                 light_client_state,
                 parachain_update_proof,
             )
@@ -244,7 +268,7 @@ impl ClientDef for BeefyClient {
             height: consensus_height.revision_height,
         };
         let value = expected_consensus_state.encode_to_vec();
-        verify_membership::<Ctx, _>(prefix, proof, root, path, value)
+        verify_membership::<H, _>(prefix, proof, root, path, value)
     }
 
     // Consensus state will be verified in the verification functions  before these are called
@@ -263,7 +287,7 @@ impl ClientDef for BeefyClient {
         client_state.verify_height(height)?;
         let path = ConnectionsPath(connection_id.clone());
         let value = expected_connection_end.encode_vec();
-        verify_membership::<Ctx, _>(prefix, proof, root, path, value)
+        verify_membership::<H, _>(prefix, proof, root, path, value)
     }
 
     fn verify_channel_state<Ctx: ReaderContext>(
@@ -282,7 +306,7 @@ impl ClientDef for BeefyClient {
         client_state.verify_height(height)?;
         let path = ChannelEndsPath(port_id.clone(), *channel_id);
         let value = expected_channel_end.encode_vec();
-        verify_membership::<Ctx, _>(prefix, proof, root, path, value)
+        verify_membership::<H, _>(prefix, proof, root, path, value)
     }
 
     fn verify_client_full_state<Ctx: ReaderContext>(
@@ -299,7 +323,7 @@ impl ClientDef for BeefyClient {
         client_state.verify_height(height)?;
         let path = ClientStatePath(client_id.clone());
         let value = expected_client_state.encode_to_vec();
-        verify_membership::<Ctx, _>(prefix, proof, root, path, value)
+        verify_membership::<H, _>(prefix, proof, root, path, value)
     }
 
     fn verify_packet_data<Ctx: ReaderContext>(
@@ -325,7 +349,7 @@ impl ClientDef for BeefyClient {
             sequence,
         };
 
-        verify_membership::<Ctx, _>(
+        verify_membership::<H, _>(
             connection_end.counterparty().prefix(),
             proof,
             root,
@@ -356,7 +380,7 @@ impl ClientDef for BeefyClient {
             channel_id: *channel_id,
             sequence,
         };
-        verify_membership::<Ctx, _>(
+        verify_membership::<H, _>(
             connection_end.counterparty().prefix(),
             proof,
             root,
@@ -384,7 +408,7 @@ impl ClientDef for BeefyClient {
         let seq_bytes = codec::Encode::encode(&u64::from(sequence));
 
         let seq_path = SeqRecvsPath(port_id.clone(), *channel_id);
-        verify_membership::<Ctx, _>(
+        verify_membership::<H, _>(
             connection_end.counterparty().prefix(),
             proof,
             root,
@@ -414,7 +438,7 @@ impl ClientDef for BeefyClient {
             channel_id: *channel_id,
             sequence,
         };
-        verify_non_membership::<Ctx, _>(
+        verify_non_membership::<H, _>(
             connection_end.counterparty().prefix(),
             proof,
             root,
@@ -427,7 +451,7 @@ impl ClientDef for BeefyClient {
     }
 }
 
-fn verify_membership<Ctx: ClientKeeper, P>(
+fn verify_membership<T, P>(
     prefix: &CommitmentPrefix,
     proof: &CommitmentProofBytes,
     root: &CommitmentRoot,
@@ -436,6 +460,7 @@ fn verify_membership<Ctx: ClientKeeper, P>(
 ) -> Result<(), Error>
 where
     P: Into<Path>,
+    T: HostFunctions,
 {
     if root.as_bytes().len() != 32 {
         return Err(BeefyError::invalid_commitment_root().into());
@@ -448,7 +473,7 @@ where
     let trie_proof: Vec<Vec<u8>> =
         codec::Decode::decode(&mut &*trie_proof).map_err(|e| BeefyError::scale_decode(e))?;
     let root = H256::from_slice(root.as_bytes());
-    Ctx::HostFunctions::verify_membership_trie_proof(
+    T::verify_membership_trie_proof(
         root.as_fixed_bytes(),
         &trie_proof,
         &key,
@@ -456,7 +481,7 @@ where
     )
 }
 
-fn verify_non_membership<Ctx: ClientKeeper, P>(
+fn verify_non_membership<T, P>(
     prefix: &CommitmentPrefix,
     proof: &CommitmentProofBytes,
     root: &CommitmentRoot,
@@ -464,6 +489,7 @@ fn verify_non_membership<Ctx: ClientKeeper, P>(
 ) -> Result<(), Error>
 where
     P: Into<Path>,
+    T: HostFunctions,
 {
     if root.as_bytes().len() != 32 {
         return Err(BeefyError::invalid_commitment_root().into());
@@ -476,7 +502,7 @@ where
     let trie_proof: Vec<Vec<u8>> =
         codec::Decode::decode(&mut &*trie_proof).map_err(|e| BeefyError::scale_decode(e))?;
     let root = H256::from_slice(root.as_bytes());
-    Ctx::HostFunctions::verify_non_membership_trie_proof(root.as_fixed_bytes(), &trie_proof, &key)
+    T::verify_non_membership_trie_proof(root.as_fixed_bytes(), &trie_proof, &key)
 }
 
 fn verify_delay_passed<Ctx: ReaderContext>(

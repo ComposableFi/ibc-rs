@@ -1,7 +1,7 @@
 use core::convert::TryInto;
 use core::fmt::Debug;
+use core::marker::PhantomData;
 
-use crate::host_functions::HostFunctionsManager;
 use crate::ics07_tendermint::client_state::ClientState;
 use crate::ics07_tendermint::consensus_state::ConsensusState;
 use crate::ics07_tendermint::error::Error;
@@ -31,7 +31,7 @@ use ibc::core::ics26_routing::context::ReaderContext;
 use ibc_proto::ibc::core::commitment::v1::MerkleProof as RawMerkleProof;
 use prost::Message;
 use tendermint_light_client_verifier::types::{TrustedBlockState, UntrustedBlockState};
-use tendermint_light_client_verifier::{ProdVerifier, Verdict, Verifier};
+use tendermint_light_client_verifier::{ProdVerifier, Verdict, Verifier, host_functions};
 use tendermint_proto::Protobuf;
 
 use ibc::prelude::*;
@@ -39,9 +39,12 @@ use ibc::timestamp::Timestamp;
 use ibc::Height;
 
 #[derive(Clone, Debug, PartialEq, Eq, Default)]
-pub struct TendermintClient;
+pub struct TendermintClient<T>(PhantomData<T>);
 
-impl ClientDef for TendermintClient {
+impl<H> ClientDef for TendermintClient<H>
+    where
+        H: host_functions::HostFunctionsProvider + ics23::HostFunctionsProvider + Clone,
+{
     type Header = Header;
     type ClientState = ClientState;
     type ConsensusState = ConsensusState;
@@ -121,7 +124,7 @@ impl ClientDef for TendermintClient {
 
         let options = client_state.as_light_client_options()?;
 
-        let verifier = ProdVerifier::<HostFunctionsManager<Ctx::HostFunctions>>::default();
+        let verifier = ProdVerifier::<H>::default();
         let verdict = verifier.verify(
             untrusted_state,
             trusted_state,
@@ -295,7 +298,7 @@ impl ClientDef for TendermintClient {
             height: consensus_height.revision_height,
         };
         let value = expected_consensus_state.encode_to_vec();
-        verify_membership::<Ctx, _>(client_state, prefix, proof, root, path, value)
+        verify_membership::<H, _>(client_state, prefix, proof, root, path, value)
     }
 
     fn verify_connection_state<Ctx: ReaderContext>(
@@ -314,7 +317,7 @@ impl ClientDef for TendermintClient {
 
         let path = ConnectionsPath(connection_id.clone());
         let value = expected_connection_end.encode_vec();
-        verify_membership::<Ctx, _>(client_state, prefix, proof, root, path, value)
+        verify_membership::<H, _>(client_state, prefix, proof, root, path, value)
     }
 
     fn verify_channel_state<Ctx: ReaderContext>(
@@ -334,7 +337,7 @@ impl ClientDef for TendermintClient {
 
         let path = ChannelEndsPath(port_id.clone(), *channel_id);
         let value = expected_channel_end.encode_vec();
-        verify_membership::<Ctx, _>(client_state, prefix, proof, root, path, value)
+        verify_membership::<H, _>(client_state, prefix, proof, root, path, value)
     }
 
     fn verify_client_full_state<Ctx: ReaderContext>(
@@ -352,7 +355,7 @@ impl ClientDef for TendermintClient {
 
         let path = ClientStatePath(client_id.clone());
         let value = expected_client_state.encode_to_vec();
-        verify_membership::<Ctx, _>(client_state, prefix, proof, root, path, value)
+        verify_membership::<H, _>(client_state, prefix, proof, root, path, value)
     }
 
     fn verify_packet_data<Ctx: ReaderContext>(
@@ -378,7 +381,7 @@ impl ClientDef for TendermintClient {
             sequence,
         };
 
-        verify_membership::<Ctx, _>(
+        verify_membership::<H, _>(
             client_state,
             connection_end.counterparty().prefix(),
             proof,
@@ -411,7 +414,7 @@ impl ClientDef for TendermintClient {
             channel_id: *channel_id,
             sequence,
         };
-        verify_membership::<Ctx, _>(
+        verify_membership::<H, _>(
             client_state,
             connection_end.counterparty().prefix(),
             proof,
@@ -443,7 +446,7 @@ impl ClientDef for TendermintClient {
             .expect("buffer size too small");
 
         let seq_path = SeqRecvsPath(port_id.clone(), *channel_id);
-        verify_membership::<Ctx, _>(
+        verify_membership::<H, _>(
             client_state,
             connection_end.counterparty().prefix(),
             proof,
@@ -474,7 +477,7 @@ impl ClientDef for TendermintClient {
             channel_id: *channel_id,
             sequence,
         };
-        verify_non_membership::<Ctx, _>(
+        verify_non_membership::<H, _>(
             client_state,
             connection_end.counterparty().prefix(),
             proof,
@@ -488,7 +491,7 @@ impl ClientDef for TendermintClient {
     }
 }
 
-fn verify_membership<Ctx: ClientKeeper, P>(
+fn verify_membership<H, P>(
     client_state: &ClientState,
     prefix: &CommitmentPrefix,
     proof: &CommitmentProofBytes,
@@ -498,9 +501,10 @@ fn verify_membership<Ctx: ClientKeeper, P>(
 ) -> Result<(), Ics02Error>
 where
     P: Into<Path>,
+    H: ics23::HostFunctionsProvider,
 {
     let merkle_path = apply_prefix(prefix, vec![path.into().to_string()]);
-    let merkle_proof: MerkleProof<Ctx::HostFunctions> = RawMerkleProof::try_from(proof.clone())
+    let merkle_proof: MerkleProof<H> = RawMerkleProof::try_from(proof.clone())
         .map_err(Ics02Error::invalid_commitment_proof)?
         .into();
 
@@ -515,7 +519,7 @@ where
         .map_err(|e| Error::ics23_error(e).into())
 }
 
-fn verify_non_membership<Ctx: ClientKeeper, P>(
+fn verify_non_membership<H, P>(
     client_state: &ClientState,
     prefix: &CommitmentPrefix,
     proof: &CommitmentProofBytes,
@@ -524,9 +528,10 @@ fn verify_non_membership<Ctx: ClientKeeper, P>(
 ) -> Result<(), Ics02Error>
 where
     P: Into<Path>,
+    H: ics23::HostFunctionsProvider,
 {
     let merkle_path = apply_prefix(prefix, vec![path.into().to_string()]);
-    let merkle_proof: MerkleProof<Ctx::HostFunctions> = RawMerkleProof::try_from(proof.clone())
+    let merkle_proof: MerkleProof<H> = RawMerkleProof::try_from(proof.clone())
         .map_err(Ics02Error::invalid_commitment_proof)?
         .into();
 

@@ -57,7 +57,6 @@ pub mod bigint;
 pub mod core;
 pub mod events;
 pub mod handler;
-pub mod host_functions;
 pub mod keys;
 pub mod macros;
 pub mod proofs;
