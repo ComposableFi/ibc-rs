@@ -13,14 +13,17 @@ pub mod mock;
 #[cfg(test)]
 mod tests {
     use crate::ics07_tendermint::client_state::test_util::get_dummy_tendermint_client_state;
-    use crate::ics07_tendermint::client_state::ClientState as TendermintClientState;
+    use crate::ics07_tendermint::client_state::{
+        ClientState as TendermintClientState, ClientState,
+    };
+    use crate::ics07_tendermint::consensus_state::ConsensusState;
     use crate::ics07_tendermint::header::test_util::{
         get_dummy_ics07_header, get_dummy_tendermint_header,
     };
     use crate::ics07_tendermint::mock::{
         AnyClientState, AnyConsensusState, AnyHeader, MockClientTypes,
     };
-    use ibc::core::ics02_client::client_type::ClientType;
+    use ibc::core::ics02_client::client_state::ClientType;
     use ibc::core::ics02_client::context::ClientReader;
     use ibc::core::ics02_client::handler::{dispatch, ClientResult};
     use ibc::core::ics02_client::msgs::update_client::MsgUpdateAnyClient;
@@ -97,14 +100,14 @@ mod tests {
             }) => {
                 assert_eq!(events.len(), 1);
                 let event = events.pop().unwrap();
-                let expected_client_id = ClientId::new(ClientType::Tendermint, 0).unwrap();
+                let expected_client_id = ClientId::new(ClientState::client_type(), 0).unwrap();
                 assert!(
                     matches!(event, IbcEvent::CreateClient(ref e) if e.client_id() == &expected_client_id)
                 );
                 assert_eq!(event.height(), ctx.host_height());
                 match result {
                     ClientResult::Create(create_res) => {
-                        assert_eq!(create_res.client_type, ClientType::Tendermint);
+                        assert_eq!(create_res.client_type, ClientState::client_type());
                         assert_eq!(create_res.client_id, expected_client_id);
                         assert_eq!(create_res.client_state, msg.client_state);
                         assert_eq!(create_res.consensus_state, msg.consensus_state);

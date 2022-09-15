@@ -13,7 +13,8 @@ use ibc_proto::ibc::lightclients::tendermint::v1::ClientState as RawClientState;
 use crate::ics07_tendermint::error::Error;
 use crate::ics07_tendermint::header::Header;
 
-use ibc::core::ics02_client::client_type::ClientType;
+use crate::ics07_tendermint::client_def::TendermintClient;
+use ibc::core::ics02_client::client_state::ClientType;
 use ibc::core::ics02_client::error::Error as Ics02Error;
 use ibc::core::ics02_client::trust_threshold::TrustThreshold;
 use ibc::core::ics23_commitment::specs::ProofSpecs;
@@ -140,8 +141,8 @@ impl ClientState {
         self.chain_id.clone()
     }
 
-    pub fn client_type(&self) -> ClientType {
-        ClientType::Tendermint
+    pub fn client_type() -> ClientType {
+        "07-tendermint"
     }
 
     pub fn frozen_height(&self) -> Option<Height> {
@@ -239,13 +240,18 @@ pub struct UpgradeOptions {
 
 impl ibc::core::ics02_client::client_state::ClientState for ClientState {
     type UpgradeOptions = UpgradeOptions;
+    type ClientDef = TendermintClient;
 
     fn chain_id(&self) -> ChainId {
         self.chain_id()
     }
 
     fn client_type(&self) -> ClientType {
-        self.client_type()
+        Self::client_type()
+    }
+
+    fn client_def(&self) -> Self::ClientDef {
+        TendermintClient::default()
     }
 
     fn latest_height(&self) -> Height {

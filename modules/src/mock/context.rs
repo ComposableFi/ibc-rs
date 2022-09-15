@@ -18,9 +18,10 @@ use sha2::Digest;
 use tracing::debug;
 
 use crate::core::ics02_client::client_state::ClientState;
-use crate::core::ics02_client::client_type::ClientType;
+use crate::core::ics02_client::client_state::ClientType;
 use crate::core::ics02_client::context::{ClientKeeper, ClientReader};
 use crate::core::ics02_client::error::Error as Ics02Error;
+
 use crate::core::ics02_client::header::Header;
 use crate::core::ics02_client::misbehaviour::Misbehaviour;
 use crate::core::ics03_connection::connection::ConnectionEnd;
@@ -411,7 +412,7 @@ impl<C: ClientTypes + Default> MockContext<C> {
     }
 
     #[inline]
-    fn latest_height(&self) -> Height {
+    pub fn latest_height(&self) -> Height {
         self.history
             .last()
             .expect("history cannot be empty")
@@ -433,7 +434,12 @@ where
     /// to this client a mock client state and a mock consensus state for height `height`. The type
     /// of this client is implicitly assumed to be Mock.
     pub fn with_client(self, client_id: &ClientId, height: Height) -> Self {
-        self.with_client_parametrized(client_id, height, Some(ClientType::Mock), Some(height))
+        self.with_client_parametrized(
+            client_id,
+            height,
+            Some(MockClientState::client_type()),
+            Some(height),
+        )
     }
 
     /// Similar to `with_client`, this function associates a client record to this context, but
@@ -450,10 +456,10 @@ where
     ) -> Self {
         let cs_height = consensus_state_height.unwrap_or(client_state_height);
 
-        let client_type = client_type.unwrap_or(ClientType::Mock);
+        let client_type = client_type.unwrap_or(MockClientState::client_type());
         let (client_state, consensus_state) = match client_type {
             // If it's a mock client, create the corresponding mock states.
-            ClientType::Mock => (
+            client_type if client_type == MockClientState::client_type() => (
                 Some(MockClientState::new(MockHeader::new(client_state_height)).into()),
                 MockConsensusState::new(MockHeader::new(cs_height)).into(),
             ),
@@ -991,10 +997,6 @@ impl<C: ClientTypes + Default> ClientReader for MockContext<C> {
         }
     }
 
-    fn host_client_type(&self) -> ClientType {
-        ClientType::Tendermint
-    }
-
     /// Search for the lowest consensus state higher than `height`.
     fn next_consensus_state(
         &self,
@@ -1088,7 +1090,10 @@ where
     Self: Clone + Debug + Eq,
 {
     type AnyHeader: Header + TryFrom<Any, Error = Ics02Error> + Into<Any> + From<Self::HostBlock>;
-    type AnyClientState: ClientState + Eq + TryFrom<Any, Error = Ics02Error> + Into<Any>;
+    type AnyClientState: ClientState<ClientDef = Self::ClientDef>
+        + Eq
+        + TryFrom<Any, Error = Ics02Error>
+        + Into<Any>;
     type AnyConsensusState: ConsensusState
         + Eq
         + TryFrom<Any, Error = Ics02Error>
@@ -1172,7 +1177,7 @@ impl<C: ClientTypes> ClientKeeper for MockContext<C> {
             .clients
             .entry(client_id)
             .or_insert(MockClientRecord {
-                client_type: ClientType::Mock,
+                client_type: MockClientState::client_type(),
                 consensus_states: Default::default(),
                 client_state: Default::default(),
             });
@@ -1451,5 +1456,24 @@ mod tests {
             .for_each(|(mid, write_fn)| {
                 write_fn(ctx.router.get_route_mut(&mid).unwrap().as_any_mut()).unwrap()
             });
+    }
+}
+
+#[cfg(test)]
+impl Default for ClientId {
+    fn default() -> Self {
+        Self::new("07-tendermint", 0).unwrap()
+    }
+}
+
+#[cfg(test)]
+impl Default for Attributes {
+    fn default() -> Self {
+        Attributes {
+            height: Height::default(),
+            client_id: Default::default(),
+            client_type: "07-tendermint".to_owned(),
+            consensus_height: Height::default(),
+        }
     }
 }

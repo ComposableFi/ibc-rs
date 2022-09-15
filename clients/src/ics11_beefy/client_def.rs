@@ -14,7 +14,6 @@ use crate::ics11_beefy::header::BeefyHeader;
 use ibc::core::ics02_client::client_consensus::ConsensusState as _;
 use ibc::core::ics02_client::client_def::{ClientDef, ConsensusUpdateResult};
 use ibc::core::ics02_client::client_state::ClientState as _;
-use ibc::core::ics02_client::client_type::ClientType;
 use ibc::core::ics02_client::context::ClientKeeper;
 use ibc::core::ics02_client::error::Error;
 use ibc::core::ics03_connection::connection::ConnectionEnd;
@@ -420,10 +419,6 @@ impl ClientDef for BeefyClient {
             root,
             receipt_path,
         )
-    }
-
-    fn from_client_type(_client_type: ClientType) -> Self {
-        todo!()
     }
 }
 

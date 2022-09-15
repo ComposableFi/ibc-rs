@@ -1,12 +1,8 @@
-use crate::core::ics02_client::client_type::ClientType;
 use crate::prelude::*;
 use crate::Height;
 
 /// Abstract of consensus state update information
 pub trait Header: Clone + core::fmt::Debug + Send + Sync {
-    /// The type of client (eg. Tendermint)
-    fn client_type(&self) -> ClientType;
-
     fn downcast<T: Clone + 'static>(self) -> Option<T>
     where
         Self: 'static,

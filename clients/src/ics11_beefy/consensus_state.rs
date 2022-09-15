@@ -11,7 +11,6 @@ use ibc_proto::ibc::lightclients::beefy::v1::ConsensusState as RawConsensusState
 
 use crate::ics11_beefy::error::Error;
 use crate::ics11_beefy::header::ParachainHeader;
-use ibc::core::ics02_client::client_type::ClientType;
 use ibc::core::ics23_commitment::commitment::CommitmentRoot;
 use ibc::timestamp::Timestamp;
 
@@ -59,10 +58,6 @@ impl ConsensusState {
 
 impl ibc::core::ics02_client::client_consensus::ConsensusState for ConsensusState {
     type Error = Infallible;
-
-    fn client_type(&self) -> ClientType {
-        ClientType::Beefy
-    }
 
     fn root(&self) -> &CommitmentRoot {
         &self.root

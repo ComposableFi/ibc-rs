@@ -44,7 +44,6 @@ impl State {
     pub fn impl_consensus_state(&self) -> proc_macro2::TokenStream {
         let this = &self.self_ident;
 
-        let fn_client_type = self.impl_fn_client_type();
         let fn_root = self.impl_fn_root();
         let fn_timestamp = self.impl_fn_timestamp();
         let fn_downcast = self.impl_fn_downcast();
@@ -55,7 +54,6 @@ impl State {
             impl ConsensusState for #this {
                 type Error = Infallible;
 
-                #fn_client_type
                 #fn_root
                 #fn_timestamp
                 #fn_downcast

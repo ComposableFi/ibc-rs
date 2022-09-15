@@ -5,18 +5,18 @@ impl State {
     fn impl_fn_verify_header(&self) -> proc_macro2::TokenStream {
         let any_client_state = &self.any_data.client_state_ident;
         let any_header = &self.any_data.header_ident;
-        let client_ty = &self.client_ty;
         let cases = self.clients.iter().map(|client| {
             let variant_ident = &client.variant_ident;
             let attrs = &client.attrs;
             quote! {
                 #(#attrs)*
                 Self::#variant_ident(client) => {
+                    let client_type = client_state.client_type().to_owned();
                     let (client_state, header) = downcast!(
                         client_state => #any_client_state::#variant_ident,
                         header => #any_header::#variant_ident,
                     )
-                    .ok_or_else(|| Error::client_args_type_mismatch(#client_ty::#variant_ident))?;
+                    .ok_or_else(|| Error::client_args_type_mismatch(client_type))?;
 
                     client.verify_header::<Ctx>(ctx, client_id, client_state, header)
                 }
@@ -45,18 +45,18 @@ impl State {
     fn impl_fn_update_state(&self) -> proc_macro2::TokenStream {
         let any_client_state = &self.any_data.client_state_ident;
         let any_header = &self.any_data.header_ident;
-        let client_ty = &self.client_ty;
         let cases = self.clients.iter().map(|client| {
             let variant_ident = &client.variant_ident;
             let attrs = &client.attrs;
             quote! {
                 #(#attrs)*
                 Self::#variant_ident(client) => {
+                    let client_type = client_state.client_type().to_owned();
                     let (client_state, header) = downcast!(
                         client_state => #any_client_state::#variant_ident,
                         header => #any_header::#variant_ident,
                     )
-                    .ok_or_else(|| Error::client_args_type_mismatch(#client_ty::#variant_ident))?;
+                    .ok_or_else(|| Error::client_args_type_mismatch(client_type))?;
 
                     let (new_state, new_consensus) =
                         client.update_state(ctx, client_id, client_state, header)?;
@@ -88,18 +88,18 @@ impl State {
     fn impl_fn_update_state_on_misbehaviour(&self) -> proc_macro2::TokenStream {
         let any_client_state = &self.any_data.client_state_ident;
         let any_header = &self.any_data.header_ident;
-        let client_ty = &self.client_ty;
         let cases = self.clients.iter().map(|client| {
             let variant_ident = &client.variant_ident;
             let attrs = &client.attrs;
             quote! {
                 #(#attrs)*
                 Self::#variant_ident(client) => {
+                    let client_type = client_state.client_type().to_owned();
                     let (client_state, header) = downcast!(
                         client_state => #any_client_state::#variant_ident,
                         header => #any_header::#variant_ident,
                     )
-                    .ok_or_else(|| Error::client_args_type_mismatch(#client_ty::#variant_ident))?;
+                    .ok_or_else(|| Error::client_args_type_mismatch(client_type))?;
 
                     let client_state = client.update_state_on_misbehaviour(client_state, header)?;
                     Ok(Self::ClientState::#variant_ident(client_state))
@@ -121,18 +121,18 @@ impl State {
     }
 
     fn impl_fn_check_for_misbehaviour(&self) -> proc_macro2::TokenStream {
-        let client_ty = &self.client_ty;
         let cases = self.clients.iter().map(|client| {
             let variant_ident = &client.variant_ident;
             let attrs = &client.attrs;
             quote! {
                 #(#attrs)*
                 Self::#variant_ident(client) => {
+                    let client_type = client_state.client_type().to_owned();
                     let (client_state, header) = downcast!(
                         client_state => Self::ClientState::#variant_ident,
                         header => Self::Header::#variant_ident,
                     )
-                    .ok_or_else(|| Error::client_args_type_mismatch(#client_ty::#variant_ident))?;
+                    .ok_or_else(|| Error::client_args_type_mismatch(client_type))?;
                     client.check_for_misbehaviour(ctx, client_id, client_state, header)
                 }
             }
@@ -164,11 +164,12 @@ impl State {
             quote! {
                 #(#attrs)*
                 Self::#variant_ident(client) => {
+                    let client_type = client_state.client_type().to_owned();
                     let (client_state, consensus_state) = downcast!(
                         client_state => Self::ClientState::#variant_ident,
                         consensus_state => Self::ConsensusState::#variant_ident,
                     )
-                    .ok_or_else(|| Error::client_args_type_mismatch(ClientType::#variant_ident))?;
+                    .ok_or_else(|| Error::client_args_type_mismatch(client_type))?;
 
                     let (new_state, new_consensus) = client.verify_upgrade_and_update_state::<Ctx>(
                         client_state,
@@ -204,10 +205,11 @@ impl State {
             quote! {
                 #(#attrs)*
                 Self::#variant_ident(client) => {
+                    let client_type = client_state.client_type().to_owned();
                     let client_state = downcast!(
                         client_state => Self::ClientState::#variant_ident
                     )
-                    .ok_or_else(|| Error::client_args_type_mismatch(ClientType::#variant_ident))?;
+                    .ok_or_else(|| Error::client_args_type_mismatch(client_type))?;
 
                     client.verify_client_consensus_state(
                         ctx,
@@ -251,8 +253,9 @@ impl State {
             quote! {
                 #(#attrs)*
                 Self::#variant_ident(client) => {
+                    let client_type = client_state.client_type().to_owned();
                     let client_state = downcast!(client_state => Self::ClientState::#variant_ident)
-                        .ok_or_else(|| Error::client_args_type_mismatch(ClientType::#variant_ident))?;
+                        .ok_or_else(|| Error::client_args_type_mismatch(client_type))?;
 
                     client.verify_connection_state(
                         ctx,
@@ -296,8 +299,9 @@ impl State {
             quote! {
                 #(#attrs)*
                 Self::#variant_ident(client) => {
+                    let client_type = client_state.client_type().to_owned();
                     let client_state = downcast!(client_state => Self::ClientState::#variant_ident)
-                        .ok_or_else(|| Error::client_args_type_mismatch(ClientType::#variant_ident))?;
+                        .ok_or_else(|| Error::client_args_type_mismatch(client_type))?;
 
                     client.verify_channel_state(
                         ctx,
@@ -343,10 +347,11 @@ impl State {
             quote! {
                 #(#attrs)*
                 Self::#variant_ident(client) => {
+                    let client_type = client_state.client_type().to_owned();
                     let client_state = downcast!(
                         client_state => Self::ClientState::#variant_ident
                     )
-                    .ok_or_else(|| Error::client_args_type_mismatch(ClientType::#variant_ident))?;
+                    .ok_or_else(|| Error::client_args_type_mismatch(client_type))?;
 
                     client.verify_client_full_state(
                         ctx,
@@ -388,10 +393,11 @@ impl State {
             quote! {
                 #(#attrs)*
                 Self::#variant_ident(client) => {
+                    let client_type = client_state.client_type().to_owned();
                     let client_state = downcast!(
                         client_state => Self::ClientState::#variant_ident
                     )
-                    .ok_or_else(|| Error::client_args_type_mismatch(ClientType::#variant_ident))?;
+                    .ok_or_else(|| Error::client_args_type_mismatch(client_type))?;
 
                     client.verify_packet_data(
                         ctx,
@@ -439,10 +445,11 @@ impl State {
             quote! {
                 #(#attrs)*
                 Self::#variant_ident(client) => {
+                    let client_type = client_state.client_type().to_owned();
                     let client_state = downcast!(
                         client_state => Self::ClientState::#variant_ident
                     )
-                    .ok_or_else(|| Error::client_args_type_mismatch(ClientType::#variant_ident))?;
+                    .ok_or_else(|| Error::client_args_type_mismatch(client_type))?;
 
                     client.verify_packet_acknowledgement(
                         ctx,
@@ -490,10 +497,11 @@ impl State {
             quote! {
                 #(#attrs)*
                 Self::#variant_ident(client) => {
+                    let client_type = client_state.client_type().to_owned();
                     let client_state = downcast!(
                         client_state => Self::ClientState::#variant_ident
                     )
-                    .ok_or_else(|| Error::client_args_type_mismatch(ClientType::#variant_ident))?;
+                    .ok_or_else(|| Error::client_args_type_mismatch(client_type))?;
 
                     client.verify_next_sequence_recv(
                         ctx,
@@ -536,13 +544,15 @@ impl State {
         let cases = self.clients.iter().map(|client| {
             let variant_ident = &client.variant_ident;
             let attrs = &client.attrs;
+            let _client_state_path = &client.client_state_path;
             quote! {
                 #(#attrs)*
                 Self::#variant_ident(client) => {
+                    let client_type = client_state.client_type().to_owned();
                     let client_state = downcast!(
                         client_state => Self::ClientState::#variant_ident
                     )
-                    .ok_or_else(|| Error::client_args_type_mismatch(ClientType::#variant_ident))?;
+                    .ok_or_else(|| Error::client_args_type_mismatch(client_type))?;
 
                     client.verify_packet_receipt_absence(
                         ctx,
@@ -581,28 +591,6 @@ impl State {
         }
     }
 
-    fn impl_fn_from_client_type(&self) -> proc_macro2::TokenStream {
-        let client_ty = &self.client_ty;
-        let cases = self.clients.iter().map(|client| {
-            let variant_ident = &client.variant_ident;
-            let client_ident = &client.client_def_path;
-            let attrs = &client.attrs;
-            quote! {
-                #(#attrs)*
-                #client_ty::#variant_ident => Self::#variant_ident(#client_ident::default()),
-            }
-        });
-
-        quote! {
-            fn from_client_type(client_type: #client_ty) -> Self {
-                match client_type {
-                    #(#cases)*
-                    _ => panic!("unsupported client type"),
-                }
-            }
-        }
-    }
-
     pub fn impl_client_def(&self) -> proc_macro2::TokenStream {
         let this = &self.self_ident;
         let any_header = &self.any_data.header_ident;
@@ -622,7 +610,6 @@ impl State {
         let fn_verify_packet_acknowledgement = self.impl_fn_verify_packet_acknowledgement();
         let fn_verify_next_sequence_recv = self.impl_fn_verify_next_sequence_recv();
         let fn_verify_packet_receipt_absence = self.impl_fn_verify_packet_receipt_absence();
-        let fn_from_client_type = self.impl_fn_from_client_type();
 
         quote! {
             impl ClientDef for #this {
@@ -643,7 +630,6 @@ impl State {
                 #fn_verify_packet_acknowledgement
                 #fn_verify_next_sequence_recv
                 #fn_verify_packet_receipt_absence
-                #fn_from_client_type
             }
         }
     }

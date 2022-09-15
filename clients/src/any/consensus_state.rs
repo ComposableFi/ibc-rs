@@ -2,7 +2,6 @@ use crate::ics07_tendermint::consensus_state;
 use core::convert::Infallible;
 use core::fmt::Debug;
 use ibc::core::ics02_client::client_consensus::ConsensusState;
-use ibc::core::ics02_client::client_type::ClientType;
 use ibc::core::ics02_client::error::Error;
 use ibc::core::ics23_commitment::commitment::CommitmentRoot;
 use ibc::prelude::*;

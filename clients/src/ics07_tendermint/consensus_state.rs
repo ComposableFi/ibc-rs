@@ -10,7 +10,6 @@ use tendermint_proto::Protobuf;
 
 use crate::ics07_tendermint::error::Error;
 use crate::ics07_tendermint::header::Header;
-use ibc::core::ics02_client::client_type::ClientType;
 use ibc::core::ics23_commitment::commitment::CommitmentRoot;
 use ibc::timestamp::Timestamp;
 use ibc_proto::ibc::lightclients::tendermint::v1::ConsensusState as RawConsensusState;
@@ -34,10 +33,6 @@ impl ConsensusState {
 
 impl ibc::core::ics02_client::client_consensus::ConsensusState for ConsensusState {
     type Error = Infallible;
-
-    fn client_type(&self) -> ClientType {
-        ClientType::Tendermint
-    }
 
     fn root(&self) -> &CommitmentRoot {
         &self.root

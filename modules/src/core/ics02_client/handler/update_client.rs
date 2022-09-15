@@ -46,10 +46,10 @@ where
     // Read client type from the host chain store. The client should already exist.
     let client_type = ctx.client_type(&client_id)?;
 
-    let client_def = <Ctx::ClientDef as ClientDef>::from_client_type(client_type);
-
     // Read client state from the host chain store.
     let client_state = ctx.client_state(&client_id)?;
+
+    let client_def = client_state.client_def();
 
     if client_state.is_frozen() {
         return Err(Error::client_frozen(client_id));
@@ -89,7 +89,7 @@ where
     let event_attributes = Attributes {
         client_id: client_id.clone(),
         height: ctx.host_height(),
-        client_type,
+        client_type: client_type.to_owned(),
         consensus_height: client_state.latest_height(),
     };
 

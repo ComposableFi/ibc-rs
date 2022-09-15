@@ -17,7 +17,8 @@ use ibc_proto::ibc::lightclients::beefy::v1::{BeefyAuthoritySet, ClientState as 
 use crate::ics11_beefy::error::Error;
 use crate::ics11_beefy::header::BeefyHeader;
 
-use ibc::core::ics02_client::client_type::ClientType;
+use crate::ics11_beefy::client_def::BeefyClient;
+use ibc::core::ics02_client::client_state::ClientType;
 use ibc::core::ics24_host::identifier::ChainId;
 use ibc::timestamp::Timestamp;
 use ibc::Height;
@@ -202,8 +203,8 @@ impl ClientState {
         self.chain_id.clone()
     }
 
-    pub fn client_type(&self) -> ClientType {
-        ClientType::Beefy
+    pub fn client_type() -> ClientType {
+        "11-beefy"
     }
 
     pub fn frozen_height(&self) -> Option<Height> {
@@ -232,13 +233,18 @@ impl ClientState {
 
 impl ibc::core::ics02_client::client_state::ClientState for ClientState {
     type UpgradeOptions = UpgradeOptions;
+    type ClientDef = BeefyClient;
 
     fn chain_id(&self) -> ChainId {
         self.chain_id()
     }
 
     fn client_type(&self) -> ClientType {
-        self.client_type()
+        Self::client_type()
+    }
+
+    fn client_def(&self) -> Self::ClientDef {
+        BeefyClient::default()
     }
 
     fn latest_height(&self) -> Height {

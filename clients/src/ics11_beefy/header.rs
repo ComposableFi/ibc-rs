@@ -14,7 +14,6 @@ use beefy_primitives::mmr::{MmrLeaf, MmrLeafVersion};
 use beefy_primitives::{Commitment, Payload};
 use bytes::Buf;
 use codec::{Compact, Decode, Encode};
-use ibc::core::ics02_client::client_type::ClientType;
 use ibc::Height;
 use ibc_proto::ibc::lightclients::beefy::v1::{
     BeefyAuthoritySet as RawBeefyAuthoritySet, BeefyMmrLeaf as RawBeefyMmrLeaf,
@@ -42,10 +41,6 @@ pub struct ParachainHeadersWithProof {
 }
 
 impl ibc::core::ics02_client::header::Header for BeefyHeader {
-    fn client_type(&self) -> ClientType {
-        ClientType::Beefy
-    }
-
     fn encode_to_vec(&self) -> Vec<u8> {
         self.encode_vec()
     }

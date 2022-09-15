@@ -1,6 +1,5 @@
 mod client_def;
 mod client_state;
-mod client_type;
 mod coercion;
 mod consensus_state;
 mod header;
@@ -22,11 +21,10 @@ struct AnyData {
 struct ClientData {
     pub variant_ident: Ident,
     pub inner_ty_path: TypePath,
-    pub client_def_path: TypePath,
+    pub client_state_path: TypePath,
     pub attrs: Vec<syn::Attribute>,
     pub proto_ty_url: Option<Ident>,
     pub proto_decode_error: Option<Ident>,
-    pub discriminant: Option<syn::LitInt>,
 }
 
 impl ClientData {
@@ -37,24 +35,22 @@ impl ClientData {
         proto_ty_url: Option<Ident>,
         proto_decode_error: Option<Ident>,
     ) -> Self {
-        let client_def_path = ident_path(Ident::new(
-            &format!("{}Client", variant_ident),
+        let client_state_path = ident_path(Ident::new(
+            &format!("{}ClientState", variant_ident),
             variant_ident.span(),
         ));
         Self {
             variant_ident,
             inner_ty_path,
-            client_def_path,
+            client_state_path,
             attrs,
             proto_ty_url,
             proto_decode_error,
-            discriminant: None,
         }
     }
 }
 
 struct State {
-    pub client_ty: Ident,
     pub any_data: AnyData,
     pub clients: Vec<ClientData>,
     pub self_ident: Ident,
@@ -64,14 +60,18 @@ struct State {
 pub fn derive_client_def(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
     let state = State::from_input(input, client_data_with_proto_attrs);
-    state.impl_client_def().into()
+    let s = state.impl_client_def().into();
+    // println!("{}", s);
+    s
 }
 
 #[proc_macro_derive(ClientState, attributes(ibc))]
 pub fn derive_client_state(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
     let state = State::from_input(input, client_data_with_proto_attrs);
-    state.impl_client_state().into()
+    let s = state.impl_client_state().into();
+    // println!("{}", s);
+    s
 }
 
 #[proc_macro_derive(ConsensusState, attributes(ibc))]
@@ -93,13 +93,6 @@ pub fn derive_misbehaviour(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
     let state = State::from_input(input, client_data_with_proto_attrs);
     state.impl_misbehaviour().into()
-}
-
-#[proc_macro_derive(ClientType, attributes(ibc))]
-pub fn derive_client_type(input: TokenStream) -> TokenStream {
-    let input = parse_macro_input!(input as DeriveInput);
-    let state = State::from_input(input, client_data_with_discriminants);
-    state.impl_client_type().into()
 }
 
 #[proc_macro_derive(Protobuf, attributes(ibc))]
@@ -166,35 +159,6 @@ fn client_data_with_proto_attrs(variant: &syn::Variant) -> ClientData {
     )
 }
 
-fn client_data_with_discriminants(variant: &syn::Variant) -> ClientData {
-    let attrs = variant
-        .attrs
-        .iter()
-        .filter(|attr| attr.path.segments.first().unwrap().ident == "cfg")
-        .cloned()
-        .collect();
-
-    let mut client = ClientData::new(
-        variant.ident.clone(),
-        syn::parse_str("UNUSED").unwrap(),
-        attrs,
-        None,
-        None,
-    );
-    let discriminant_lit = match &variant.discriminant {
-        Some((
-            _,
-            syn::Expr::Lit(syn::ExprLit {
-                lit: syn::Lit::Int(lit),
-                ..
-            }),
-        )) => lit.clone(),
-        _ => panic!("Variant must have an integer discriminant"),
-    };
-    client.discriminant = Some(discriminant_lit);
-    client
-}
-
 impl State {
     fn from_input(input: DeriveInput, client_fn: impl Fn(&syn::Variant) -> ClientData) -> Self {
         let data = match &input.data {
@@ -205,7 +169,6 @@ impl State {
         let span = input.ident.span();
         State {
             self_ident: input.ident,
-            client_ty: Ident::new("ClientType", span),
             any_data: AnyData {
                 header_ident: Ident::new("AnyHeader", span),
                 client_state_ident: Ident::new("AnyClientState", span),

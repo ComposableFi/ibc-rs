@@ -1,8 +1,9 @@
 use crate::ics07_tendermint::client_state::test_util::get_dummy_tendermint_client_state;
+use crate::ics07_tendermint::client_state::ClientState;
 use crate::ics07_tendermint::mock::host::MockHostBlock;
 use crate::ics07_tendermint::mock::{AnyConsensusState, MockClientTypes};
 use frame_support::log::debug;
-use ibc::core::ics02_client::client_type::ClientType;
+use ibc::core::ics02_client::client_state::ClientType;
 use ibc::core::ics24_host::identifier::ClientId;
 use ibc::mock::client_state::{MockClientRecord, MockClientState, MockConsensusState};
 use ibc::mock::context::MockContext;
@@ -25,15 +26,15 @@ pub fn with_client_parametrized(
 ) -> MockContext<MockClientTypes> {
     let cs_height = consensus_state_height.unwrap_or(client_state_height);
 
-    let client_type = client_type.unwrap_or(ClientType::Mock);
+    let client_type = client_type.unwrap_or(MockClientState::client_type());
     let (client_state, consensus_state) = match client_type {
         // If it's a mock client, create the corresponding mock states.
-        ClientType::Mock => (
+        client_type if client_type == MockClientState::client_type() => (
             Some(MockClientState::new(MockHeader::new(client_state_height)).into()),
             MockConsensusState::new(MockHeader::new(cs_height)).into(),
         ),
         // If it's a Tendermint client, we need TM states.
-        ClientType::Tendermint => {
+        client_type if client_type == ClientState::client_type() => {
             let light_block = MockHostBlock::generate_tm_block(
                 ctx.host_chain_id.clone(),
                 cs_height.revision_height,
@@ -75,17 +76,17 @@ pub fn with_client_parametrized_history(
     let cs_height = consensus_state_height.unwrap_or(client_state_height);
     let prev_cs_height = cs_height.clone().sub(1).unwrap_or(client_state_height);
 
-    let client_type = client_type.unwrap_or(ClientType::Mock);
+    let client_type = client_type.unwrap_or(MockClientState::client_type());
     let now = Timestamp::now();
 
     let (client_state, consensus_state) = match client_type {
         // If it's a mock client, create the corresponding mock states.
-        ClientType::Mock => (
+        client_type if client_type == MockClientState::client_type() => (
             Some(MockClientState::new(MockHeader::new(client_state_height)).into()),
             MockConsensusState::new(MockHeader::new(cs_height)).into(),
         ),
         // If it's a Tendermint client, we need TM states.
-        ClientType::Tendermint => {
+        client_type if client_type == ClientState::client_type() => {
             let light_block = MockHostBlock::generate_tm_block(
                 ctx.host_chain_id.clone(),
                 cs_height.revision_height,
@@ -103,8 +104,10 @@ pub fn with_client_parametrized_history(
 
     let prev_consensus_state = match client_type {
         // If it's a mock client, create the corresponding mock states.
-        ClientType::Mock => MockConsensusState::new(MockHeader::new(prev_cs_height)).into(),
-        ClientType::Tendermint => {
+        client_type if client_type == MockClientState::client_type() => {
+            MockConsensusState::new(MockHeader::new(prev_cs_height)).into()
+        }
+        client_type if client_type == ClientState::client_type() => {
             let light_block = MockHostBlock::generate_tm_block(
                 ctx.host_chain_id.clone(),
                 prev_cs_height.revision_height,

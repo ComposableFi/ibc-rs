@@ -1,6 +1,5 @@
 use super::error::Error;
 use ibc::core::ics02_client::client_consensus::{self};
-use ibc::core::ics02_client::client_type::ClientType;
 use ibc::core::ics23_commitment::commitment::CommitmentRoot;
 use ibc::timestamp::Timestamp;
 use serde::Serialize;
@@ -13,10 +12,6 @@ pub struct ConsensusState {
 
 impl client_consensus::ConsensusState for ConsensusState {
     type Error = Error;
-
-    fn client_type(&self) -> ClientType {
-        ClientType::Near
-    }
 
     fn root(&self) -> &CommitmentRoot {
         &self.commitment_root

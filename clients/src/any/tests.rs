@@ -2,9 +2,10 @@ use crate::any::consensus_state::AnyConsensusState;
 use crate::any::header::AnyHeader;
 use crate::any::mock::context::{with_client_parametrized, with_client_parametrized_history};
 use crate::any::mock::MockClientTypes;
+use crate::ics07_tendermint::client_state::ClientState as TendermintClientState;
 use crate::ics07_tendermint::mock::host::MockHostType;
 use ibc::core::ics02_client::client_state::ClientState;
-use ibc::core::ics02_client::client_type::ClientType;
+use ibc::core::ics02_client::client_state::ClientType;
 use ibc::core::ics02_client::context::ClientReader;
 use ibc::core::ics02_client::handler::dispatch;
 use ibc::core::ics02_client::handler::ClientResult::Update;
@@ -20,7 +21,7 @@ use ibc::Height;
 
 #[test]
 fn test_update_synthetic_tendermint_client_adjacent_ok() {
-    let client_id = ClientId::new(ClientType::Tendermint, 0).unwrap();
+    let client_id = ClientId::new(TendermintClientState::client_type(), 0).unwrap();
     let client_height = Height::new(1, 20);
     let update_height = Height::new(1, 21);
 
@@ -34,7 +35,7 @@ fn test_update_synthetic_tendermint_client_adjacent_ok() {
         ctx,
         &client_id,
         client_height,
-        Some(ClientType::Tendermint), // The target host chain (B) is synthetic TM.
+        Some(TendermintClientState::client_type()), // The target host chain (B) is synthetic TM.
         Some(client_height),
     );
 
@@ -99,7 +100,7 @@ fn test_update_synthetic_tendermint_client_adjacent_ok() {
 
 #[test]
 fn test_update_synthetic_tendermint_client_non_adjacent_ok() {
-    let client_id = ClientId::new(ClientType::Tendermint, 0).unwrap();
+    let client_id = ClientId::new(TendermintClientState::client_type(), 0).unwrap();
     let client_height = Height::new(1, 20);
     let update_height = Height::new(1, 21);
 
@@ -113,7 +114,7 @@ fn test_update_synthetic_tendermint_client_non_adjacent_ok() {
         ctx,
         &client_id,
         client_height,
-        Some(ClientType::Tendermint), // The target host chain (B) is synthetic TM.
+        Some(TendermintClientState::client_type()), // The target host chain (B) is synthetic TM.
         Some(client_height),
     );
 
@@ -180,7 +181,7 @@ fn test_update_synthetic_tendermint_client_non_adjacent_ok() {
 
 #[test]
 fn test_update_synthetic_tendermint_client_duplicate_ok() {
-    let client_id = ClientId::new(ClientType::Tendermint, 0).unwrap();
+    let client_id = ClientId::new(TendermintClientState::client_type(), 0).unwrap();
     let client_height = Height::new(1, 20);
 
     let chain_start_height = Height::new(1, 11);
@@ -195,7 +196,7 @@ fn test_update_synthetic_tendermint_client_duplicate_ok() {
         ctx,
         &client_id,
         client_height,
-        Some(ClientType::Tendermint), // The target host chain (B) is synthetic TM.
+        Some(TendermintClientState::client_type()), // The target host chain (B) is synthetic TM.
         Some(client_height),
     );
 

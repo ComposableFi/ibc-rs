@@ -8,8 +8,6 @@ use tendermint_proto::Protobuf;
 
 use ibc_proto::ibc::core::client::v1::{MsgCreateClient as RawMsgCreateClient, MsgCreateClient};
 
-use crate::core::ics02_client::client_consensus::ConsensusState;
-use crate::core::ics02_client::client_state::ClientState;
 use crate::core::ics02_client::context::ClientKeeper;
 use crate::core::ics02_client::error::Error;
 use crate::signer::Signer;
@@ -31,12 +29,12 @@ impl<C: ClientKeeper> MsgCreateAnyClient<C> {
         consensus_state: C::AnyConsensusState,
         signer: Signer,
     ) -> Result<Self, Error> {
-        if client_state.client_type() != consensus_state.client_type() {
-            return Err(Error::raw_client_and_consensus_state_types_mismatch(
-                client_state.client_type(),
-                consensus_state.client_type(),
-            ));
-        }
+        // if client_state.client_type() != consensus_state.client_type() {
+        //     return Err(Error::raw_client_and_consensus_state_types_mismatch(
+        //         client_state.client_type(),
+        //         consensus_state.client_type(),
+        //     ));
+        // }
 
         Ok(MsgCreateAnyClient {
             client_state,

@@ -22,6 +22,25 @@ impl State {
         }
     }
 
+    pub fn impl_fn_client_def(&self) -> proc_macro2::TokenStream {
+        let cases = self.clients.iter().map(|client| {
+            let variant_ident = &client.variant_ident;
+            let attrs = &client.attrs;
+            quote! {
+                #(#attrs)*
+                Self::#variant_ident(state) => AnyClient::#variant_ident(state.client_def()),
+            }
+        });
+
+        quote! {
+            fn client_def(&self) -> Self::ClientDef {
+                match self {
+                    #(#cases)*
+                }
+            }
+        }
+    }
+
     pub fn impl_fn_client_type(&self) -> proc_macro2::TokenStream {
         let cases = self.clients.iter().map(|client| {
             let variant_ident = &client.variant_ident;
@@ -136,6 +155,7 @@ impl State {
 
         let fn_chain_id = self.impl_fn_chain_id();
         let fn_client_type = self.impl_fn_client_type();
+        let fn_client_def = self.impl_fn_client_def();
         let fn_latest_height = self.impl_fn_latest_height();
         let fn_frozen_height = self.impl_fn_frozen_height();
         let fn_upgrade = self.impl_fn_upgrade();
@@ -147,9 +167,11 @@ impl State {
         quote! {
             impl ClientState for #this {
                 type UpgradeOptions = AnyUpgradeOptions; // TODO: make variable?
+                type ClientDef = AnyClient;
 
                 #fn_chain_id
                 #fn_client_type
+                #fn_client_def
                 #fn_latest_height
                 #fn_frozen_height
                 #fn_upgrade

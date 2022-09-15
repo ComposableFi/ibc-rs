@@ -3,7 +3,7 @@ use tendermint_proto::Protobuf;
 
 use ibc_proto::ibc::mock::Header as RawMockHeader;
 
-use crate::core::ics02_client::client_type::ClientType;
+
 use crate::core::ics02_client::error::Error;
 use crate::core::ics02_client::header::Header;
 use crate::mock::client_state::AnyConsensusState;
@@ -79,10 +79,6 @@ impl From<MockHeader> for AnyHeader {
 }
 
 impl Header for MockHeader {
-    fn client_type(&self) -> ClientType {
-        ClientType::Mock
-    }
-
     fn height(&self) -> Height {
         self.height()
     }

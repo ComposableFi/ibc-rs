@@ -52,7 +52,7 @@ where
 
     let client_type = ctx.client_type(&client_id)?;
 
-    let client_def = <Ctx::ClientDef as ClientDef>::from_client_type(client_type);
+    let client_def = client_state.client_def();
 
     let (new_client_state, new_consensus_state) = client_def
         .verify_upgrade_and_update_state::<Ctx>(
@@ -67,7 +67,7 @@ where
     let event_attributes = Attributes {
         client_id: client_id.clone(),
         height: ctx.host_height(),
-        client_type,
+        client_type: client_type.to_owned(),
         consensus_height: new_client_state.latest_height(),
     };
 

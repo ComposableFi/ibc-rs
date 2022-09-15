@@ -1,6 +1,6 @@
 //! Types for the IBC events emitted from Tendermint Websocket by the client module.
 
-use crate::core::ics02_client::client_type::ClientType;
+
 use crate::core::ics02_client::height::Height;
 use crate::core::ics24_host::identifier::ClientId;
 use crate::events::IbcEvent;
@@ -49,16 +49,17 @@ impl From<NewBlock> for IbcEvent {
 pub struct Attributes {
     pub height: Height,
     pub client_id: ClientId,
-    pub client_type: ClientType,
+    pub client_type: String,
     pub consensus_height: Height,
 }
 
+#[cfg(not(test))]
 impl Default for Attributes {
     fn default() -> Self {
         Attributes {
             height: Height::default(),
             client_id: Default::default(),
-            client_type: ClientType::Tendermint,
+            client_type: "00-uninitialized".to_owned(),
             consensus_height: Height::default(),
         }
     }
@@ -86,7 +87,7 @@ impl From<Attributes> for Vec<EventAttribute> {
         };
         let client_type = EventAttribute {
             key: CLIENT_TYPE_ATTRIBUTE_KEY.parse().unwrap(),
-            value: a.client_type.as_str().parse().unwrap(),
+            value: a.client_type.to_owned(),
             index: false,
         };
         let consensus_height = EventAttribute {
@@ -154,8 +155,9 @@ impl UpdateClient {
     pub fn client_id(&self) -> &ClientId {
         &self.common.client_id
     }
-    pub fn client_type(&self) -> ClientType {
-        self.common.client_type
+
+    pub fn client_type(&self) -> &str {
+        &self.common.client_type
     }
 
     pub fn height(&self) -> Height {

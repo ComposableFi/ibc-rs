@@ -116,7 +116,7 @@ mod tests {
 
     use test_log::test;
 
-    use crate::core::ics02_client::client_type::ClientType;
+    
     use crate::core::ics02_client::context::ClientReader;
     use crate::core::ics03_connection::connection::ConnectionEnd;
     use crate::core::ics03_connection::connection::Counterparty as ConnectionCounterparty;
@@ -131,6 +131,7 @@ mod tests {
     use crate::core::ics04_channel::Version;
     use crate::core::ics24_host::identifier::{ClientId, ConnectionId};
     use crate::events::IbcEvent;
+    use crate::mock::client_state::MockClientState;
     use crate::mock::context::{MockClientTypes, MockContext};
     use crate::timestamp::ZERO_DURATION;
     use crate::Height;
@@ -144,7 +145,7 @@ mod tests {
             msg: ChannelMsg,
             want_pass: bool,
         }
-        let client_id = ClientId::new(ClientType::Mock, 24).unwrap();
+        let client_id = ClientId::new(MockClientState::client_type(), 24).unwrap();
         let conn_id = ConnectionId::new(2);
         let context = MockContext::default();
         let client_consensus_state_height = context.host_height().revision_height;

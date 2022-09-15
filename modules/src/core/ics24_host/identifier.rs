@@ -5,7 +5,7 @@ use core::str::FromStr;
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 
 use super::validate::*;
-use crate::core::ics02_client::client_type::ClientType;
+
 use crate::core::ics24_host::error::ValidationError;
 use crate::prelude::*;
 
@@ -149,13 +149,12 @@ impl ClientId {
     ///
     /// ```
     /// # use ibc::core::ics24_host::identifier::ClientId;
-    /// # use ibc::core::ics02_client::client_type::ClientType;
-    /// let tm_client_id = ClientId::new(ClientType::Tendermint, 0);
+    /// # use ibc::core::ics02_client::client_state::ClientType;
+    /// let tm_client_id = ClientId::new("07-tendermint", 0);
     /// assert!(tm_client_id.is_ok());
-    /// tm_client_id.map(|id| { assert_eq!(&id, "7-tendermint-0") });
+    /// tm_client_id.map(|id| { assert_eq!(&id, "07-tendermint-0") });
     /// ```
-    pub fn new(ctype: ClientType, counter: u64) -> Result<Self, ValidationError> {
-        let prefix = Self::prefix(ctype);
+    pub fn new(prefix: &str, counter: u64) -> Result<Self, ValidationError> {
         let id = format!("{}-{}", prefix, counter);
         Self::from_str(id.as_str())
     }
@@ -163,21 +162,6 @@ impl ClientId {
     /// Get this identifier as a borrowed `&str`
     pub fn as_str(&self) -> &str {
         &self.0
-    }
-
-    /// Returns one of the prefixes that should be present in any client identifiers.
-    /// The prefix is deterministic for a given chain type, hence all clients for a Tendermint-type
-    /// chain, for example, will have the prefix '07-tendermint'.
-    pub fn prefix(client_type: ClientType) -> &'static str {
-        match client_type {
-            ClientType::Tendermint => ClientType::Tendermint.as_str(),
-            #[cfg(any(test, feature = "ics11_beefy"))]
-            ClientType::Beefy => ClientType::Beefy.as_str(),
-            #[cfg(any(test, feature = "ics11_beefy"))]
-            ClientType::Near => ClientType::Near.as_str(),
-            #[cfg(any(test, feature = "mocks"))]
-            ClientType::Mock => ClientType::Mock.as_str(),
-        }
     }
 
     /// Get this identifier as a borrowed byte slice
@@ -201,9 +185,10 @@ impl FromStr for ClientId {
     }
 }
 
+#[cfg(not(test))]
 impl Default for ClientId {
     fn default() -> Self {
-        Self::new(ClientType::Tendermint, 0).unwrap()
+        Self::new("00-uninitialized", 0).unwrap()
     }
 }
 

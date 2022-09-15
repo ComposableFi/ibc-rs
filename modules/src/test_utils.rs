@@ -4,7 +4,7 @@ use std::time::Duration;
 
 use crate::applications::transfer::context::{BankKeeper, Ics20Context, Ics20Keeper, Ics20Reader};
 use crate::applications::transfer::{error::Error as Ics20Error, PrefixedCoin};
-use crate::core::ics02_client::client_type::ClientType;
+use crate::core::ics02_client::client_state::ClientType;
 use crate::core::ics02_client::context::{ClientKeeper, ClientReader};
 use crate::core::ics02_client::error::Error as Ics02Error;
 use crate::core::ics03_connection::connection::ConnectionEnd;
@@ -496,10 +496,6 @@ impl<C: ClientTypes> ClientReader for DummyTransferModule<C> {
 
     fn client_counter(&self) -> Result<u64, Ics02Error> {
         todo!()
-    }
-
-    fn host_client_type(&self) -> ClientType {
-        ClientType::Tendermint
     }
 }
 

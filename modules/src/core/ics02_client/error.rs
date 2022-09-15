@@ -4,7 +4,7 @@ use flex_error::{define_error, TraceError};
 use tendermint::Error as TendermintError;
 use tendermint_proto::Error as TendermintProtoError;
 
-use crate::core::ics02_client::client_type::ClientType;
+use crate::core::ics02_client::client_state::ClientType;
 use crate::core::ics02_client::height::HeightError;
 use crate::core::ics23_commitment::error::Error as Ics23Error;
 use crate::core::ics24_host::error::ValidationError;
@@ -17,7 +17,7 @@ define_error! {
     #[derive(Debug, PartialEq, Eq)]
     Error {
         ClientError
-            { client_type: ClientType, inner: String }
+            { client_type: String, inner: String }
             |e| { format_args!("client '{}' error: {}", e.client_type, e.inner) },
 
         UnknownClientType
@@ -25,7 +25,7 @@ define_error! {
             | e | { format_args!("unknown client type: {0}", e.client_type) },
 
         ClientIdentifierConstructor
-            { client_type: ClientType, counter: u64 }
+            { client_type: String, counter: u64 }
             [ ValidationError ]
             | e | {
                 format_args!("Client identifier constructor failed for type {0} with counter {1}",
@@ -193,7 +193,7 @@ define_error! {
             | _ | { "invalid packet timeout timestamp value" },
 
         ClientArgsTypeMismatch
-            { client_type: ClientType }
+            { client_type: String }
             | e | {
                 format_args!("mismatch between client and arguments types, expected: {0:?}",
                     e.client_type)

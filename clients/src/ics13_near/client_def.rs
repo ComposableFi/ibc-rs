@@ -5,7 +5,6 @@ use super::header::NearHeader;
 use super::types::{ApprovalInner, CryptoHash, LightClientBlockView};
 use borsh::BorshSerialize;
 use ibc::core::ics02_client::client_def::{ClientDef, ConsensusUpdateResult};
-use ibc::core::ics02_client::client_type::ClientType;
 use ibc::core::ics02_client::context::ClientKeeper;
 use ibc::core::ics02_client::error::Error;
 use ibc::core::ics03_connection::connection::ConnectionEnd;
@@ -234,10 +233,6 @@ impl ClientDef for NearClient {
         _channel_id: &ChannelId,
         _sequence: Sequence,
     ) -> Result<(), Error> {
-        todo!()
-    }
-
-    fn from_client_type(_client_type: ClientType) -> Self {
         todo!()
     }
 }

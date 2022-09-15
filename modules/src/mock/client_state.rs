@@ -10,20 +10,21 @@ use ibc_proto::ibc::core::client::v1::ConsensusStateWithHeight;
 use serde::{Deserialize, Serialize};
 use tendermint_proto::Protobuf;
 
-use ibc_proto::ibc::mock::ClientState as RawMockClientState;
-use ibc_proto::ibc::mock::ConsensusState as RawMockConsensusState;
-
 use crate::core::ics02_client::client_consensus::ConsensusState;
 use crate::core::ics02_client::client_state::ClientState;
-use crate::core::ics02_client::client_type::ClientType;
+use crate::core::ics02_client::client_state::ClientType;
 use crate::core::ics02_client::error::Error;
 use crate::core::ics23_commitment::commitment::CommitmentRoot;
 use crate::core::ics24_host::identifier::ChainId;
+use crate::mock::client_def::AnyClient;
+use crate::mock::client_def::MockClient;
 use crate::mock::context::ClientTypes;
 use crate::mock::header::MockHeader;
 use crate::timestamp::Timestamp;
 use crate::{downcast, Height};
 use ibc_proto::google::protobuf::Any;
+use ibc_proto::ibc::mock::ClientState as RawMockClientState;
+use ibc_proto::ibc::mock::ConsensusState as RawMockConsensusState;
 
 pub const MOCK_CLIENT_STATE_TYPE_URL: &str = "/ibc.mock.ClientState";
 
@@ -104,13 +105,18 @@ impl From<MockClientState> for RawMockClientState {
 
 impl ClientState for MockClientState {
     type UpgradeOptions = ();
+    type ClientDef = MockClient;
 
     fn chain_id(&self) -> ChainId {
         self.chain_id()
     }
 
+    fn client_def(&self) -> Self::ClientDef {
+        MockClient::default()
+    }
+
     fn client_type(&self) -> ClientType {
-        self.client_type()
+        Self::client_type()
     }
 
     fn latest_height(&self) -> Height {
@@ -139,8 +145,8 @@ impl MockClientState {
         ChainId::default()
     }
 
-    pub fn client_type(&self) -> ClientType {
-        ClientType::Mock
+    pub fn client_type() -> ClientType {
+        "9999-mock"
     }
 
     pub fn latest_height(&self) -> Height {
@@ -272,16 +278,12 @@ impl TryFrom<AnyConsensusState> for MockConsensusState {
         downcast!(
             value => AnyConsensusState::Mock
         )
-        .ok_or_else(|| Error::client_args_type_mismatch(ClientType::Mock))
+        .ok_or_else(|| Error::client_args_type_mismatch(MockClientState::client_type().to_owned()))
     }
 }
 
 impl ConsensusState for MockConsensusState {
     type Error = Infallible;
-
-    fn client_type(&self) -> ClientType {
-        ClientType::Mock
-    }
 
     fn root(&self) -> &CommitmentRoot {
         &self.root

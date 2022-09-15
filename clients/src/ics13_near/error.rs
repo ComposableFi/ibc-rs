@@ -1,6 +1,6 @@
 use super::types::CryptoHash;
+use crate::ics11_beefy::client_state::ClientState;
 use flex_error::define_error;
-use ibc::core::ics02_client::client_type::ClientType;
 use ibc::core::ics02_client::error::Error as Ics02Error;
 
 define_error! {
@@ -34,6 +34,6 @@ define_error! {
 
 impl From<Error> for Ics02Error {
     fn from(e: Error) -> Self {
-        Ics02Error::client_error(ClientType::Near, e.to_string())
+        Ics02Error::client_error(ClientState::client_type().to_owned(), e.to_string())
     }
 }

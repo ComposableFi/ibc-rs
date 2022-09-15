@@ -1,6 +1,7 @@
 use crate::core::ics02_client::client_consensus::ConsensusState;
 use crate::core::ics02_client::client_def::{ClientDef, ConsensusUpdateResult};
-use crate::core::ics02_client::client_type::ClientType;
+use crate::core::ics02_client::client_state::ClientState;
+
 use crate::core::ics02_client::error::Error;
 use crate::core::ics03_connection::connection::ConnectionEnd;
 use crate::core::ics04_channel::channel::ChannelEnd;
@@ -24,7 +25,6 @@ use crate::Height;
 use core::fmt::Debug;
 
 #[derive(Clone, Debug, PartialEq, Eq, ClientDef)]
-#[ibc(client_type = "ClientType")]
 pub enum AnyClient {
     Mock(MockClient),
 }
@@ -239,9 +239,5 @@ impl ClientDef for MockClient {
         _header: Self::Header,
     ) -> Result<bool, Error> {
         Ok(false)
-    }
-
-    fn from_client_type(_client_type: ClientType) -> Self {
-        todo!()
     }
 }

@@ -1,3 +1,4 @@
+use crate::any::client_def::AnyClient;
 use crate::ics07_tendermint::client_state;
 #[cfg(any(test, feature = "ics11_beefy"))]
 use crate::ics11_beefy::client_state as beefy_client_state;
@@ -6,7 +7,7 @@ use crate::ics13_near::client_state as near_client_state;
 use core::fmt::{Debug, Display};
 use core::time::Duration;
 use ibc::core::ics02_client::client_state::ClientState;
-use ibc::core::ics02_client::client_type::ClientType;
+use ibc::core::ics02_client::client_state::ClientType;
 use ibc::core::ics02_client::error::Error;
 use ibc::core::ics24_host::error::ValidationError;
 use ibc::core::ics24_host::identifier::{ChainId, ClientId};

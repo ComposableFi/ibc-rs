@@ -3,16 +3,14 @@
 use crate::core::ics02_client::client_consensus::ConsensusState;
 use crate::core::ics02_client::client_def::ClientDef;
 use crate::core::ics02_client::client_state::ClientState;
-#[cfg(feature = "ics11_beefy")]
-use crate::core::ics02_client::client_type::ClientType;
+
 use crate::core::ics03_connection::connection::ConnectionEnd;
 use crate::core::ics03_connection::error::Error;
 use crate::core::ics23_commitment::commitment::CommitmentProofBytes;
 use crate::core::ics26_routing::context::ReaderContext;
 use crate::proofs::ConsensusProof;
 use crate::Height;
-#[cfg(feature = "ics11_beefy")]
-use alloc::format;
+
 #[cfg(feature = "ics11_beefy")]
 use codec::{Decode, Encode};
 #[cfg(feature = "ics11_beefy")]
@@ -58,7 +56,7 @@ pub fn verify_connection_proof<Ctx: ReaderContext>(
         .connection_id()
         .ok_or_else(Error::invalid_counterparty)?;
 
-    let client_def = <Ctx::ClientDef as ClientDef>::from_client_type(client_state.client_type());
+    let client_def = client_state.client_def();
 
     // Verify the proof for the connection state against the expected connection end.
     client_def
@@ -104,7 +102,7 @@ pub fn verify_client_proof<Ctx: ReaderContext>(
         .consensus_state(connection_end.client_id(), proof_height)
         .map_err(|e| Error::consensus_state_verification_failure(proof_height, e))?;
 
-    let client_def = Ctx::ClientDef::from_client_type(client_state.client_type());
+    let client_def = client_state.client_def();
 
     client_def
         .verify_client_full_state(
@@ -141,33 +139,16 @@ pub fn verify_consensus_proof<Ctx: ReaderContext>(
         .consensus_state(connection_end.client_id(), height)
         .map_err(|e| Error::consensus_state_verification_failure(height, e))?;
 
-    let client = Ctx::ClientDef::from_client_type(client_state.client_type());
+    let client = client_state.client_def();
 
-    let (consensus_proof, expected_consensus) = match ctx.host_client_type() {
-        #[cfg(feature = "ics11_beefy")]
-        ClientType::Beefy => {
-            // if the host is beefy or near, we need to decode the proof before passing it on.
-            let connection_proof: ConnectionProof =
-                codec::Decode::decode(&mut proof.proof().as_bytes()).map_err(|e| {
-                    Error::implementation_specific(format!("failed to decode: {:?}", e))
-                })?;
-            // Fetch the expected consensus state from the historical (local) header data.
-            let expected_consensus = ctx
-                .host_consensus_state(proof.height(), Some(connection_proof.host_proof))
-                .map_err(|e| Error::consensus_state_verification_failure(proof.height(), e))?;
-            (
-                CommitmentProofBytes::try_from(connection_proof.connection_proof).map_err(|e| {
-                    Error::implementation_specific(format!("empty proof bytes: {:?}", e))
-                })?,
-                expected_consensus,
-            )
-        }
-        _ => (
-            proof.proof().clone(),
-            ctx.host_consensus_state(proof.height(), None)
-                .map_err(|e| Error::consensus_state_verification_failure(proof.height(), e))?,
-        ),
-    };
+    let consensus_proof = proof.proof().clone();
+    // let expected_consensus = client_state
+    //     .(proof.height(), None)
+    //     .map_err(|e| Error::consensus_state_verification_failure(proof.height(), e))?;
+
+    let expected_consensus = ctx
+        .host_consensus_state(proof.height(), None)
+        .map_err(|e| Error::consensus_state_verification_failure(proof.height(), e))?;
 
     client
         .verify_client_consensus_state(

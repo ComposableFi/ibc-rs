@@ -1,4 +1,4 @@
-use ibc::core::ics02_client::{client_type::ClientType, header::Header};
+use ibc::core::ics02_client::header::Header;
 use ibc::Height;
 use tendermint_proto::Protobuf;
 
@@ -16,10 +16,6 @@ impl NearHeader {
 }
 
 impl Header for NearHeader {
-    fn client_type(&self) -> ClientType {
-        ClientType::Near
-    }
-
     fn encode_to_vec(&self) -> Vec<u8> {
         unimplemented!()
     }

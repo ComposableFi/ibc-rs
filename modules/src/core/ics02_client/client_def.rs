@@ -1,6 +1,6 @@
 use crate::core::ics02_client::client_consensus::ConsensusState;
 use crate::core::ics02_client::client_state::ClientState;
-use crate::core::ics02_client::client_type::ClientType;
+
 use crate::core::ics02_client::context::ClientKeeper;
 use crate::core::ics02_client::error::Error;
 use crate::core::ics02_client::header::Header;
@@ -39,7 +39,7 @@ impl<C: ClientKeeper> ConsensusUpdateResult<C> {
 
 pub trait ClientDef: Clone {
     type Header: Header;
-    type ClientState: ClientState + Eq;
+    type ClientState: ClientState<ClientDef = Self> + Eq;
     type ConsensusState: ConsensusState + Eq;
 
     fn verify_header<Ctx: ReaderContext>(
@@ -212,6 +212,4 @@ pub trait ClientDef: Clone {
         channel_id: &ChannelId,
         sequence: Sequence,
     ) -> Result<(), Error>;
-
-    fn from_client_type(client_type: ClientType) -> Self;
 }

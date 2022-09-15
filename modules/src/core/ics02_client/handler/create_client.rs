@@ -5,7 +5,7 @@ use crate::prelude::*;
 use core::fmt::Debug;
 
 use crate::core::ics02_client::client_state::ClientState;
-use crate::core::ics02_client::client_type::ClientType;
+
 use crate::core::ics02_client::context::ClientKeeper;
 use crate::core::ics02_client::error::Error;
 use crate::core::ics02_client::events::Attributes;
@@ -22,7 +22,7 @@ use crate::timestamp::Timestamp;
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Result<C: ClientKeeper> {
     pub client_id: ClientId,
-    pub client_type: ClientType,
+    pub client_type: &'static str,
     pub client_state: C::AnyClientState,
     pub consensus_state: C::AnyConsensusState,
     pub processed_time: Timestamp,
@@ -40,9 +40,9 @@ where
 
     // Construct this client's identifier
     let id_counter = ctx.client_counter()?;
-    let client_id = ClientId::new(msg.client_state.client_type(), id_counter).map_err(|e| {
-        Error::client_identifier_constructor(msg.client_state.client_type(), id_counter, e)
-    })?;
+    let client_type = msg.client_state.client_type();
+    let client_id = ClientId::new(client_type, id_counter)
+        .map_err(|e| Error::client_identifier_constructor(client_type.to_owned(), id_counter, e))?;
 
     output.log(format!(
         "success: generated new client identifier: {}",
@@ -61,7 +61,7 @@ where
     let event_attributes = Attributes {
         client_id,
         height: ctx.host_height(),
-        client_type: msg.client_state.client_type(),
+        client_type: msg.client_state.client_type().to_owned(),
         consensus_height: msg.client_state.latest_height(),
     };
     output.emit(IbcEvent::CreateClient(event_attributes.into()));
@@ -72,7 +72,7 @@ where
 #[cfg(test)]
 mod tests {
     use crate::core::ics02_client::client_state::ClientState;
-    use crate::core::ics02_client::client_type::ClientType;
+    
     use crate::core::ics02_client::context::ClientReader;
     use crate::core::ics02_client::handler::{dispatch, ClientResult};
     use crate::core::ics02_client::msgs::create_client::MsgCreateAnyClient;
@@ -109,14 +109,14 @@ mod tests {
             }) => {
                 assert_eq!(events.len(), 1);
                 let event = events.pop().unwrap();
-                let expected_client_id = ClientId::new(ClientType::Mock, 0).unwrap();
+                let expected_client_id = ClientId::new(MockClientState::client_type(), 0).unwrap();
                 assert!(
                     matches!(event, IbcEvent::CreateClient(ref e) if e.client_id() == &expected_client_id)
                 );
                 assert_eq!(event.height(), ctx.host_height());
                 match result {
                     ClientResult::Create(create_result) => {
-                        assert_eq!(create_result.client_type, ClientType::Mock);
+                        assert_eq!(create_result.client_type, MockClientState::client_type());
                         assert_eq!(create_result.client_id, expected_client_id);
                         assert_eq!(create_result.client_state, msg.client_state);
                         assert_eq!(create_result.consensus_state, msg.consensus_state);
@@ -190,7 +190,7 @@ mod tests {
         // The expected client id that will be generated will be identical to "9999-mock-0" for all
         // tests. This is because we're not persisting any client results (which is done via the
         // tests for `ics26_routing::dispatch`.
-        let expected_client_id = ClientId::new(ClientType::Mock, 0).unwrap();
+        let expected_client_id = ClientId::new(MockClientState::client_type(), 0).unwrap();
 
         for msg in create_client_msgs {
             let output = dispatch(&ctx, ClientMsg::CreateClient(msg.clone()));

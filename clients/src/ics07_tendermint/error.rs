@@ -8,7 +8,7 @@ use ibc::core::ics24_host::error::ValidationError;
 use ibc::core::ics24_host::identifier::ClientId;
 use ibc::timestamp::{Timestamp, TimestampOverflowError};
 
-use ibc::core::ics02_client::client_type::ClientType;
+use crate::ics07_tendermint::client_state::ClientState;
 use ibc::Height;
 use tendermint::account::Id;
 use tendermint::hash::Hash;
@@ -297,6 +297,6 @@ define_error! {
 
 impl From<Error> for Ics02Error {
     fn from(e: Error) -> Self {
-        Ics02Error::client_error(ClientType::Tendermint, e.to_string())
+        Ics02Error::client_error(ClientState::client_type().to_owned(), e.to_string())
     }
 }

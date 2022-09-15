@@ -1,4 +1,4 @@
-use crate::core::ics02_client::client_type::ClientType;
+use crate::core::ics02_client::client_def::ClientDef;
 use crate::core::ics24_host::identifier::ChainId;
 use crate::prelude::*;
 use crate::Height;
@@ -9,13 +9,19 @@ use core::time::Duration;
 pub trait ClientState: Clone + Debug + Send + Sync {
     /// Client-specific options for upgrading the client
     type UpgradeOptions;
+    type ClientDef: ClientDef<ClientState = Self>;
 
     /// Return the chain identifier which this client is serving (i.e., the client is verifying
     /// consensus states from this chain).
     fn chain_id(&self) -> ChainId;
 
     /// Type of client associated with this state (eg. Tendermint)
-    fn client_type(&self) -> ClientType;
+    fn client_def(&self) -> Self::ClientDef;
+
+    /// Returns one of the prefixes that should be present in any client identifiers.
+    /// The prefix is deterministic for a given chain type, hence all clients for a Tendermint-type
+    /// chain, for example, will have the prefix '07-tendermint'.
+    fn client_type(&self) -> &'static str;
 
     /// Latest height of consensus state
     fn latest_height(&self) -> Height;
@@ -59,3 +65,6 @@ pub trait ClientState: Clone + Debug + Send + Sync {
 
     fn encode_to_vec(&self) -> Vec<u8>;
 }
+
+/// Type of the client, depending on the specific consensus algorithm.
+pub type ClientType = &'static str;

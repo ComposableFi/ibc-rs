@@ -172,7 +172,6 @@ mod tests {
     use crate::core::ics04_channel::Version;
     use crate::core::ics24_host::identifier::{ChannelId, ClientId, ConnectionId, PortId};
     use crate::mock::context::{MockClientTypes, MockContext};
-    use crate::relayer::ics18_relayer::context::Ics18Context;
     use crate::test_utils::get_dummy_account_id;
     use crate::timestamp::Timestamp;
     use crate::timestamp::ZERO_DURATION;
@@ -189,7 +188,7 @@ mod tests {
 
         let context = MockContext::default();
 
-        let host_height = context.query_latest_height().increment();
+        let host_height = context.latest_height().increment();
 
         let client_height = host_height.increment();
 

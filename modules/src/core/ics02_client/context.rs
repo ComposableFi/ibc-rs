@@ -5,7 +5,7 @@
 use crate::core::ics02_client::client_consensus::ConsensusState;
 use crate::core::ics02_client::client_def::{ClientDef, ConsensusUpdateResult};
 use crate::core::ics02_client::client_state::ClientState;
-use crate::core::ics02_client::client_type::ClientType;
+use crate::core::ics02_client::client_state::ClientType;
 use crate::core::ics02_client::error::{Error, ErrorDetail};
 use crate::core::ics02_client::handler::ClientResult::{self, Create, Update, Upgrade};
 use crate::core::ics02_client::header::Header;
@@ -31,9 +31,6 @@ pub trait ClientReader: ClientKeeper {
         client_id: &ClientId,
         height: Height,
     ) -> Result<Self::AnyConsensusState, Error>;
-
-    /// This should return the host type.
-    fn host_client_type(&self) -> ClientType;
 
     /// Similar to `consensus_state`, attempt to retrieve the consensus state,
     /// but return `None` if no state exists at the given height.
@@ -90,7 +87,7 @@ where
     Self: Clone + Debug + Eq,
 {
     type AnyHeader: Header;
-    type AnyClientState: ClientState + Eq;
+    type AnyClientState: ClientState<ClientDef = Self::ClientDef> + Eq;
     type AnyConsensusState: ConsensusState + Eq + 'static;
     type AnyMisbehaviour: Misbehaviour;
     type HostFunctions: HostFunctionsProvider + ics23::HostFunctionsProvider;

@@ -3,13 +3,13 @@ use ibc::prelude::*;
 use flex_error::{define_error, TraceError};
 
 use codec::Error as ScaleCodecError;
-use ibc::core::ics02_client::client_type::ClientType;
 use ibc::core::ics02_client::error::Error as Ics02Error;
 use ibc::core::ics23_commitment::error::Error as Ics23Error;
 use ibc::core::ics24_host::error::ValidationError;
 use ibc::core::ics24_host::identifier::ClientId;
 use ibc::timestamp::{Timestamp, TimestampOverflowError};
 
+use crate::ics11_beefy::client_state::ClientState;
 use ibc::Height;
 
 define_error! {
@@ -210,6 +210,6 @@ define_error! {
 
 impl From<Error> for Ics02Error {
     fn from(e: Error) -> Self {
-        Ics02Error::client_error(ClientType::Beefy, e.to_string())
+        Ics02Error::client_error(ClientState::client_type().to_owned(), e.to_string())
     }
 }

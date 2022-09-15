@@ -1,8 +1,7 @@
 use super::types::{CryptoHash, LightClientBlockView, ValidatorStakeView};
-use ibc::core::{
-    ics02_client::{client_state::ClientState, client_type::ClientType},
-    ics24_host::identifier::ChainId,
-};
+use crate::ics13_near::client_def::NearClient;
+use ibc::core::ics02_client::client_state::ClientType;
+use ibc::core::{ics02_client::client_state::ClientState, ics24_host::identifier::ChainId};
 use ibc::prelude::*;
 use ibc::Height;
 use serde::{Deserialize, Serialize};
@@ -43,6 +42,7 @@ impl NearClientState {
 
 impl ClientState for NearClientState {
     type UpgradeOptions = NearUpgradeOptions;
+    type ClientDef = NearClient;
 
     fn chain_id(&self) -> ChainId {
         self.chain_id.clone()
@@ -51,6 +51,10 @@ impl ClientState for NearClientState {
     fn client_type(&self) -> ClientType {
         todo!("implement client type for NEAR")
         // ClientType::Near
+    }
+
+    fn client_def(&self) -> Self::ClientDef {
+        NearClient::default()
     }
 
     fn latest_height(&self) -> Height {

@@ -38,7 +38,7 @@ where
         .consensus_state(&client_id, height)
         .map_err(|_| Error::error_invalid_consensus_state())?;
 
-    let client_def = Ctx::ClientDef::from_client_type(client_state.client_type());
+    let client_def = client_state.client_def();
 
     // Verify the proof for the channel state against the expected channel end.
     // A counterparty channel id of None in not possible, and is checked by validate_basic in msg.
@@ -78,7 +78,7 @@ pub fn verify_packet_recv_proofs<Ctx: ReaderContext>(
         .consensus_state(client_id, proofs.height())
         .map_err(|_| Error::error_invalid_consensus_state())?;
 
-    let client_def = Ctx::ClientDef::from_client_type(client_state.client_type());
+    let client_def = client_state.client_def();
 
     let commitment = ctx.packet_commitment(
         packet.data.clone(),
@@ -129,7 +129,7 @@ pub fn verify_packet_acknowledgement_proofs<Ctx: ReaderContext>(
 
     let ack_commitment = ctx.ack_commitment(acknowledgement);
 
-    let client_def = Ctx::ClientDef::from_client_type(client_state.client_type());
+    let client_def = client_state.client_def();
 
     // Verify the proof for the packet against the chain store.
     client_def
@@ -175,7 +175,7 @@ where
         .consensus_state(client_id, proofs.height())
         .map_err(|_| Error::error_invalid_consensus_state())?;
 
-    let client_def = Ctx::ClientDef::from_client_type(client_state.client_type());
+    let client_def = client_state.client_def();
 
     // Verify the proof for the packet against the chain store.
     client_def
@@ -218,7 +218,7 @@ where
         .consensus_state(client_id, proofs.height())
         .map_err(|_| Error::error_invalid_consensus_state())?;
 
-    let client_def = Ctx::ClientDef::from_client_type(client_state.client_type());
+    let client_def = client_state.client_def();
 
     // Verify the proof for the packet against the chain store.
     client_def

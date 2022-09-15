@@ -10,7 +10,7 @@ use ibc::core::ics02_client::client_consensus::ConsensusState;
 use ibc::core::ics02_client::client_def::ClientDef;
 use ibc::core::ics02_client::client_def::ConsensusUpdateResult;
 use ibc::core::ics02_client::client_state::ClientState;
-use ibc::core::ics02_client::client_type::ClientType;
+use ibc::core::ics02_client::client_state::ClientType;
 use ibc::core::ics02_client::error::Error;
 use ibc::core::ics02_client::header::Header;
 use ibc::core::ics02_client::height::Height;
@@ -46,7 +46,6 @@ pub const BEEFY_HEADER_TYPE_URL: &str = "/ibc.lightclients.beefy.v1.Header";
 pub const BEEFY_CONSENSUS_STATE_TYPE_URL: &str = "/ibc.lightclients.beefy.v1.ConsensusState";
 
 #[derive(Clone, Debug, PartialEq, Eq, ClientDef)]
-#[ibc(client_type = "ClientType")]
 pub enum AnyClient {
     Mock(MockClient),
     Beefy(BeefyClient),

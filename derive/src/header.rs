@@ -24,7 +24,6 @@ impl State {
 
     pub fn impl_header(&self) -> proc_macro2::TokenStream {
         let this = &self.self_ident;
-        let fn_client_type = self.impl_fn_client_type();
         let fn_height = self.impl_fn_height();
         let fn_downcast = self.impl_fn_downcast();
         let fn_wrap = self.impl_fn_wrap();
@@ -32,7 +31,6 @@ impl State {
 
         quote! {
             impl Header for #this {
-                #fn_client_type
                 #fn_height
                 #fn_downcast
                 #fn_wrap
