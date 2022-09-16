@@ -7,5 +7,4 @@ members = [
     "proto",
     "proto-compiler",
     "derive",
-    "clients",
 ]
