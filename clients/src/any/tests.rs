@@ -5,7 +5,7 @@ use crate::any::mock::MockClientTypes;
 use crate::ics07_tendermint::client_state::ClientState as TendermintClientState;
 use crate::ics07_tendermint::mock::host::MockHostType;
 use ibc::core::ics02_client::client_state::ClientState;
-use ibc::core::ics02_client::client_state::ClientType;
+
 use ibc::core::ics02_client::context::ClientReader;
 use ibc::core::ics02_client::handler::dispatch;
 use ibc::core::ics02_client::handler::ClientResult::Update;

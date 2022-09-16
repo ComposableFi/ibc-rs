@@ -83,7 +83,6 @@ mod tests {
     use crate::events::IbcEvent;
     use crate::prelude::*;
 
-    
     use crate::core::ics03_connection::connection::ConnectionEnd;
     use crate::core::ics03_connection::connection::Counterparty as ConnectionCounterparty;
     use crate::core::ics03_connection::connection::State as ConnectionState;

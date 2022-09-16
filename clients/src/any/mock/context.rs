@@ -215,21 +215,21 @@ pub fn get_dummy_tendermint_client_state(tm_header: Header) -> AnyClientState<Cr
 pub struct Crypto;
 
 impl HostFunctions for Crypto {
-    fn keccak_256(input: &[u8]) -> [u8; 32] {
+    fn keccak_256(_input: &[u8]) -> [u8; 32] {
         unimplemented!()
     }
 
     fn secp256k1_ecdsa_recover_compressed(
-        signature: &[u8; 65],
-        value: &[u8; 32],
+        _signature: &[u8; 65],
+        _value: &[u8; 32],
     ) -> Option<Vec<u8>> {
         unimplemented!()
     }
 
     fn verify_timestamp_extrinsic(
-        root: H256,
-        proof: &[Vec<u8>],
-        value: &[u8],
+        _root: H256,
+        _proof: &[Vec<u8>],
+        _value: &[u8],
     ) -> Result<(), BeefyClientError> {
         unimplemented!()
     }
@@ -240,99 +240,99 @@ impl HostFunctionsProvider for Crypto {
         sp_io::hashing::sha2_256(preimage)
     }
 
-    fn ed25519_verify(sig: &[u8], msg: &[u8], pub_key: &[u8]) -> bool {
+    fn ed25519_verify(_sig: &[u8], _msg: &[u8], _pub_key: &[u8]) -> bool {
         true // TODO: ed25519_verify
     }
 
-    fn secp256k1_verify(sig: &[u8], message: &[u8], public: &[u8]) -> bool {
+    fn secp256k1_verify(_sig: &[u8], _message: &[u8], _public: &[u8]) -> bool {
         unimplemented!()
     }
 }
 
 impl ics23::HostFunctionsProvider for Crypto {
-    fn sha2_256(message: &[u8]) -> [u8; 32] {
+    fn sha2_256(_message: &[u8]) -> [u8; 32] {
         unimplemented!()
     }
 
-    fn sha2_512(message: &[u8]) -> [u8; 64] {
+    fn sha2_512(_message: &[u8]) -> [u8; 64] {
         unimplemented!()
     }
 
-    fn sha2_512_truncated(message: &[u8]) -> [u8; 32] {
+    fn sha2_512_truncated(_message: &[u8]) -> [u8; 32] {
         unimplemented!()
     }
 
-    fn sha3_512(message: &[u8]) -> [u8; 64] {
+    fn sha3_512(_message: &[u8]) -> [u8; 64] {
         unimplemented!()
     }
 
-    fn ripemd160(message: &[u8]) -> [u8; 20] {
+    fn ripemd160(_message: &[u8]) -> [u8; 20] {
         unimplemented!()
     }
 }
 
 impl NearHostFunctions for Crypto {
-    fn keccak_256(input: &[u8]) -> [u8; 32] {
+    fn keccak_256(_input: &[u8]) -> [u8; 32] {
         unimplemented!()
     }
 
     fn secp256k1_ecdsa_recover_compressed(
-        signature: &[u8; 65],
-        value: &[u8; 32],
+        _signature: &[u8; 65],
+        _value: &[u8; 32],
     ) -> Option<Vec<u8>> {
         unimplemented!()
     }
 
-    fn ed25519_verify(signature: &[u8; 64], msg: &[u8], pubkey: &[u8]) -> bool {
+    fn ed25519_verify(_signature: &[u8; 64], _msg: &[u8], _pubkey: &[u8]) -> bool {
         unimplemented!()
     }
 
     fn verify_membership_trie_proof(
-        root: &[u8; 32],
-        proof: &[Vec<u8>],
-        key: &[u8],
-        value: &[u8],
+        _root: &[u8; 32],
+        _proof: &[Vec<u8>],
+        _key: &[u8],
+        _value: &[u8],
     ) -> Result<(), Error> {
         unimplemented!()
     }
 
     fn verify_non_membership_trie_proof(
-        root: &[u8; 32],
-        proof: &[Vec<u8>],
-        key: &[u8],
+        _root: &[u8; 32],
+        _proof: &[Vec<u8>],
+        _key: &[u8],
     ) -> Result<(), Error> {
         unimplemented!()
     }
 
     fn verify_timestamp_extrinsic(
-        root: &[u8; 32],
-        proof: &[Vec<u8>],
-        value: &[u8],
+        _root: &[u8; 32],
+        _proof: &[Vec<u8>],
+        _value: &[u8],
     ) -> Result<(), Error> {
         unimplemented!()
     }
 
-    fn sha256_digest(data: &[u8]) -> [u8; 32] {
+    fn sha256_digest(_data: &[u8]) -> [u8; 32] {
         unimplemented!()
     }
 
-    fn sha2_256(message: &[u8]) -> [u8; 32] {
+    fn sha2_256(_message: &[u8]) -> [u8; 32] {
         unimplemented!()
     }
 
-    fn sha2_512(message: &[u8]) -> [u8; 64] {
+    fn sha2_512(_message: &[u8]) -> [u8; 64] {
         unimplemented!()
     }
 
-    fn sha2_512_truncated(message: &[u8]) -> [u8; 32] {
+    fn sha2_512_truncated(_message: &[u8]) -> [u8; 32] {
         unimplemented!()
     }
 
-    fn sha3_512(message: &[u8]) -> [u8; 64] {
+    fn sha3_512(_message: &[u8]) -> [u8; 64] {
         unimplemented!()
     }
 
-    fn ripemd160(message: &[u8]) -> [u8; 20] {
+    fn ripemd160(_message: &[u8]) -> [u8; 20] {
         unimplemented!()
     }
 }
@@ -341,26 +341,26 @@ impl NearHostFunctionsTrait for Crypto {}
 
 impl BeefyHostFunctions for Crypto {
     fn verify_membership_trie_proof(
-        root: &[u8; 32],
-        proof: &[Vec<u8>],
-        key: &[u8],
-        value: &[u8],
+        _root: &[u8; 32],
+        _proof: &[Vec<u8>],
+        _key: &[u8],
+        _value: &[u8],
     ) -> Result<(), Error> {
         unimplemented!()
     }
 
     fn verify_non_membership_trie_proof(
-        root: &[u8; 32],
-        proof: &[Vec<u8>],
-        key: &[u8],
+        _root: &[u8; 32],
+        _proof: &[Vec<u8>],
+        _key: &[u8],
     ) -> Result<(), Error> {
         unimplemented!()
     }
 
     fn verify_timestamp_extrinsic(
-        root: &[u8; 32],
-        proof: &[Vec<u8>],
-        value: &[u8],
+        _root: &[u8; 32],
+        _proof: &[Vec<u8>],
+        _value: &[u8],
     ) -> Result<(), Error> {
         unimplemented!()
     }

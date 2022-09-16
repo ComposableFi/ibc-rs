@@ -3,7 +3,6 @@ use tendermint_proto::Protobuf;
 
 use ibc_proto::ibc::mock::Header as RawMockHeader;
 
-
 use crate::core::ics02_client::error::Error;
 use crate::core::ics02_client::header::Header;
 use crate::mock::client_state::AnyConsensusState;

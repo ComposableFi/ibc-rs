@@ -21,7 +21,8 @@ use crate::core::ics02_client::client_state::ClientState;
 use crate::core::ics02_client::client_state::ClientType;
 use crate::core::ics02_client::context::{ClientKeeper, ClientReader};
 use crate::core::ics02_client::error::Error as Ics02Error;
-
+#[cfg(test)]
+use crate::core::ics02_client::events::Attributes;
 use crate::core::ics02_client::header::Header;
 use crate::core::ics02_client::misbehaviour::Misbehaviour;
 use crate::core::ics03_connection::connection::ConnectionEnd;

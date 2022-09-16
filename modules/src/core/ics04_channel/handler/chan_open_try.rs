@@ -138,7 +138,6 @@ mod tests {
 
     use test_log::test;
 
-    
     use crate::core::ics02_client::context::ClientReader;
     use crate::core::ics02_client::error as ics02_error;
     use crate::core::ics03_connection::connection::ConnectionEnd;

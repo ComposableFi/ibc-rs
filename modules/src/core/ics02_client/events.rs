@@ -1,6 +1,5 @@
 //! Types for the IBC events emitted from Tendermint Websocket by the client module.
 
-
 use crate::core::ics02_client::height::Height;
 use crate::core::ics24_host::identifier::ClientId;
 use crate::events::IbcEvent;

@@ -24,8 +24,7 @@ use ibc::core::ics26_routing::context::ReaderContext;
 use ibc::downcast;
 #[cfg(any(test, feature = "mocks"))]
 use ibc::mock::client_def::MockClient;
-#[cfg(any(test, feature = "mocks"))]
-use ibc::mock::client_state::MockClientState;
+
 use ibc::prelude::*;
 use ibc::Height;
 

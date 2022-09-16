@@ -16,14 +16,14 @@ mod tests {
     use crate::ics07_tendermint::client_state::{
         ClientState as TendermintClientState, ClientState,
     };
-    use crate::ics07_tendermint::consensus_state::ConsensusState;
+
     use crate::ics07_tendermint::header::test_util::{
         get_dummy_ics07_header, get_dummy_tendermint_header,
     };
     use crate::ics07_tendermint::mock::{
         AnyClientState, AnyConsensusState, AnyHeader, MockClientTypes,
     };
-    use ibc::core::ics02_client::client_state::ClientType;
+
     use ibc::core::ics02_client::context::ClientReader;
     use ibc::core::ics02_client::handler::{dispatch, ClientResult};
     use ibc::core::ics02_client::msgs::update_client::MsgUpdateAnyClient;

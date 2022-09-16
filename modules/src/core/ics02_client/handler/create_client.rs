@@ -72,7 +72,7 @@ where
 #[cfg(test)]
 mod tests {
     use crate::core::ics02_client::client_state::ClientState;
-    
+
     use crate::core::ics02_client::context::ClientReader;
     use crate::core::ics02_client::handler::{dispatch, ClientResult};
     use crate::core::ics02_client::msgs::create_client::MsgCreateAnyClient;
