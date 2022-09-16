@@ -10,6 +10,8 @@ use crate::core::ics23_commitment::commitment::CommitmentProofBytes;
 use crate::core::ics26_routing::context::ReaderContext;
 use crate::proofs::ConsensusProof;
 use crate::Height;
+use alloc::vec::Vec;
+use alloc::format;
 
 /// Verifies the authenticity and semantic correctness of a commitment `proof`. The commitment
 /// claims to prove that an object of type connection exists on the source chain (i.e., the chain

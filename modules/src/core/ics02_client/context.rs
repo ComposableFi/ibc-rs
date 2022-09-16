@@ -14,6 +14,7 @@ use crate::core::ics24_host::identifier::ClientId;
 use crate::timestamp::Timestamp;
 use crate::Height;
 use alloc::vec::Vec;
+use alloc::string::String;
 use core::fmt::Debug;
 
 /// Defines the read-only part of ICS2 (client functions) context.
