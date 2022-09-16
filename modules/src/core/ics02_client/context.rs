@@ -31,6 +31,9 @@ pub trait ClientReader: ClientKeeper {
         height: Height,
     ) -> Result<Self::AnyConsensusState, Error>;
 
+    /// This should return the host type.
+    fn host_client_type(&self) -> String;
+
     /// Similar to `consensus_state`, attempt to retrieve the consensus state,
     /// but return `None` if no state exists at the given height.
     fn maybe_consensus_state(

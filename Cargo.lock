@@ -1906,6 +1906,7 @@ dependencies = [
  "ics23",
  "modelator",
  "num-traits",
+ "parity-scale-codec",
  "primitive-types",
  "prost",
  "prost-types",

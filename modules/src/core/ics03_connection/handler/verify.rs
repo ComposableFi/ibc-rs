@@ -129,14 +129,36 @@ pub fn verify_consensus_proof<Ctx: ReaderContext>(
 
     let client = client_state.client_def();
 
-    let consensus_proof = proof.proof().clone();
-    // let expected_consensus = client_state
-    //     .(proof.height(), None)
-    //     .map_err(|e| Error::consensus_state_verification_failure(proof.height(), e))?;
-
-    let expected_consensus = ctx
-        .host_consensus_state(proof.height(), None)
-        .map_err(|e| Error::consensus_state_verification_failure(proof.height(), e))?;
+    // todo: we can remove this hack, once this is merged https://github.com/cosmos/ibc/pull/839
+    let (consensus_proof, expected_consensus) = match ctx.host_client_type() {
+        client_type if client_type.contains("beefy") || client_type.contains("near") => {
+            #[derive(codec::Decode)]
+            struct ConsensusProofwithHostConsensusStateProof {
+                host_consensus_state_proof: Vec<u8>,
+                consensus_proof: Vec<u8>,
+            }
+            // if the host is beefy or near, we need to decode the proof before passing it on.
+            let connection_proof: ConsensusProofwithHostConsensusStateProof =
+                codec::Decode::decode(&mut proof.proof().as_bytes()).map_err(|e| {
+                    Error::implementation_specific(format!("failed to decode: {:?}", e))
+                })?;
+            // Fetch the expected consensus state from the historical (local) header data.
+            let expected_consensus = ctx
+                .host_consensus_state(proof.height(), Some(connection_proof.host_consensus_state_proof))
+                .map_err(|e| Error::consensus_state_verification_failure(proof.height(), e))?;
+            (
+                CommitmentProofBytes::try_from(connection_proof.consensus_proof).map_err(|e| {
+                    Error::implementation_specific(format!("empty proof bytes: {:?}", e))
+                })?,
+                expected_consensus,
+            )
+        }
+        _ => (
+            proof.proof().clone(),
+            ctx.host_consensus_state(proof.height(), None)
+                .map_err(|e| Error::consensus_state_verification_failure(proof.height(), e))?,
+        ),
+    };
 
     client
         .verify_client_consensus_state(
