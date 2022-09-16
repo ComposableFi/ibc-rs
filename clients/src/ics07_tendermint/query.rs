@@ -1,7 +1,9 @@
+#![allow(unused)]
+
 use tendermint_rpc::abci::transaction::Hash;
 
-use crate::core::ics02_client::client_consensus::QueryClientEventRequest;
-use crate::core::ics04_channel::channel::QueryPacketEventDataRequest;
+use ibc::core::ics02_client::client_consensus::QueryClientEventRequest;
+use ibc::core::ics04_channel::channel::QueryPacketEventDataRequest;
 
 /// Used for queries and not yet standardized in channel's query.proto
 #[derive(Clone, Debug)]

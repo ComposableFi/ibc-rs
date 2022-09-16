@@ -11,18 +11,6 @@ use crate::core::ics26_routing::context::ReaderContext;
 use crate::proofs::ConsensusProof;
 use crate::Height;
 
-#[cfg(feature = "ics11_beefy")]
-use codec::{Decode, Encode};
-#[cfg(feature = "ics11_beefy")]
-use sp_std::vec::Vec;
-#[cfg(feature = "ics11_beefy")]
-/// Connection proof type, used in relayer
-#[derive(Encode, Decode)]
-pub struct ConnectionProof {
-    pub host_proof: Vec<u8>,
-    pub connection_proof: Vec<u8>,
-}
-
 /// Verifies the authenticity and semantic correctness of a commitment `proof`. The commitment
 /// claims to prove that an object of type connection exists on the source chain (i.e., the chain
 /// which created this proof). This object must match the state of `expected_conn`.

@@ -60,8 +60,6 @@ pub mod handler;
 pub mod keys;
 pub mod macros;
 pub mod proofs;
-#[cfg(feature = "std")]
-pub mod query;
 pub mod signer;
 pub mod timestamp;
 pub mod tx_msg; // Context mock, the underlying host chain, and client types: for testing all handlers.

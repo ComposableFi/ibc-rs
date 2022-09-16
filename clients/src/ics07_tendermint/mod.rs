@@ -6,9 +6,11 @@ pub mod client_state;
 pub mod consensus_state;
 pub mod error;
 pub mod header;
+mod merkle;
 pub mod misbehaviour;
 #[cfg(any(test, feature = "mocks"))]
 pub mod mock;
+mod query;
 
 #[cfg(test)]
 mod tests {
