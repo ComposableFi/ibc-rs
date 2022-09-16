@@ -43,6 +43,8 @@ impl State {
 
     pub fn impl_consensus_state(&self) -> proc_macro2::TokenStream {
         let this = &self.self_ident;
+        let gens = &self.generics;
+        let gens_where = &self.generics.where_clause;
 
         let fn_root = self.impl_fn_root();
         let fn_timestamp = self.impl_fn_timestamp();
@@ -51,7 +53,7 @@ impl State {
         let fn_encode_to_vec = self.impl_fn_encode_to_vec();
 
         quote! {
-            impl ConsensusState for #this {
+            impl #gens ConsensusState for #this #gens #gens_where {
                 type Error = Infallible;
 
                 #fn_root

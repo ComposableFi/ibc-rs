@@ -4,6 +4,7 @@ use borsh::maybestd::{io::Write, string::String};
 use borsh::{BorshDeserialize, BorshSerialize};
 use sp_core::ed25519::{Public as Ed25519Public, Signature as Ed25519Signature};
 
+use crate::ics13_near::client_def::HostFunctions;
 use ibc::Height;
 
 #[derive(Debug)]
@@ -263,7 +264,7 @@ impl LightClientBlockView {
         }
     }
 
-    pub fn current_block_hash<H: HostFunctionsProvider>(&self) -> CryptoHash {
+    pub fn current_block_hash<H: HostFunctions>(&self) -> CryptoHash {
         current_block_hash::<H>(
             H::sha256_digest(self.inner_lite.try_to_vec().unwrap().as_ref())
                 .as_slice()
@@ -286,7 +287,7 @@ impl LightClientBlockView {
 /// prev_hash
 ///))
 /// ```
-fn current_block_hash<H: HostFunctionsProvider>(
+fn current_block_hash<H: HostFunctions>(
     inner_lite_hash: CryptoHash,
     inner_rest_hash: CryptoHash,
     prev_block_hash: CryptoHash,

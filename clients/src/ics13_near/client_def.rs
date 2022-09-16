@@ -4,8 +4,8 @@ use super::error::Error as NearError;
 use super::header::NearHeader;
 use super::types::{ApprovalInner, CryptoHash, LightClientBlockView};
 use borsh::BorshSerialize;
+use core::fmt::Debug;
 use ibc::core::ics02_client::client_def::{ClientDef, ConsensusUpdateResult};
-use ibc::core::ics02_client::context::ClientKeeper;
 use ibc::core::ics02_client::error::Error;
 use ibc::core::ics03_connection::connection::ConnectionEnd;
 use ibc::core::ics04_channel::channel::ChannelEnd;
@@ -18,11 +18,75 @@ use ibc::core::ics24_host::identifier::{ChannelId, ClientId, ConnectionId, PortI
 use ibc::core::ics26_routing::context::ReaderContext;
 use ibc::prelude::*;
 use ibc::Height;
+use ics23::HostFunctionsProvider;
+use std::marker::PhantomData;
+
+pub trait HostFunctionsTrait:
+    HostFunctions + HostFunctionsProvider + Clone + Debug + PartialEq + Eq + Default + Send + Sync
+{
+}
+
+/// This trait captures all the functions that the host chain should provide for
+/// crypto operations.
+pub trait HostFunctions: Clone + Send + Sync + Default {
+    /// Keccak 256 hash function
+    fn keccak_256(input: &[u8]) -> [u8; 32];
+
+    /// Compressed Ecdsa public key recovery from a signature
+    fn secp256k1_ecdsa_recover_compressed(
+        signature: &[u8; 65],
+        value: &[u8; 32],
+    ) -> Option<Vec<u8>>;
+
+    /// Recover the ED25519 pubkey that produced this signature, given a arbitrarily sized message
+    fn ed25519_verify(signature: &[u8; 64], msg: &[u8], pubkey: &[u8]) -> bool;
+
+    /// This function should verify membership in a trie proof using sp_state_machine's read_child_proof_check
+    fn verify_membership_trie_proof(
+        root: &[u8; 32],
+        proof: &[Vec<u8>],
+        key: &[u8],
+        value: &[u8],
+    ) -> Result<(), Error>;
+
+    /// This function should verify non membership in a trie proof using sp_state_machine's read_child_proof_check
+    fn verify_non_membership_trie_proof(
+        root: &[u8; 32],
+        proof: &[Vec<u8>],
+        key: &[u8],
+    ) -> Result<(), Error>;
+
+    /// This function should verify membership in a trie proof using parity's sp-trie package
+    /// with a BlakeTwo256 Hasher
+    fn verify_timestamp_extrinsic(
+        root: &[u8; 32],
+        proof: &[Vec<u8>],
+        value: &[u8],
+    ) -> Result<(), Error>;
+
+    /// Conduct a 256-bit Sha2 hash
+    fn sha256_digest(data: &[u8]) -> [u8; 32];
+
+    /// The SHA-256 hash algorithm
+    fn sha2_256(message: &[u8]) -> [u8; 32];
+
+    /// The SHA-512 hash algorithm
+    fn sha2_512(message: &[u8]) -> [u8; 64];
+
+    /// The SHA-512 hash algorithm with its output truncated to 256 bits.
+    fn sha2_512_truncated(message: &[u8]) -> [u8; 32];
+
+    /// SHA-3-512 hash function.
+    fn sha3_512(message: &[u8]) -> [u8; 64];
+
+    /// Ripemd160 hash function.
+    fn ripemd160(message: &[u8]) -> [u8; 20];
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
-pub struct NearClient;
+pub struct NearClient<H>(PhantomData<H>);
 
-impl ClientDef for NearClient {
+impl<H: HostFunctionsTrait> ClientDef for NearClient<H> {
     /// The data that we need to update the [`ClientState`] to a new block height
     type Header = NearHeader;
 
@@ -38,7 +102,7 @@ impl ClientDef for NearClient {
     ///     next_validators:  Vec<ValidatorStakeView>,
     /// }
     /// ```
-    type ClientState = NearClientState;
+    type ClientState = NearClientState<H>;
 
     /// This is usually just two things, that should be derived from the header:
     ///    - The ibc commitment root hash as described by ics23 (possibly from tx outcome/ state proof)
@@ -57,7 +121,7 @@ impl ClientDef for NearClient {
         Ctx: ReaderContext,
     {
         // your light client, shouldn't do storage anymore, it should just do verification here.
-        validate_light_block::<Ctx>(&header, client_state)
+        validate_light_block::<H>(&header, client_state)
     }
 
     fn update_state<Ctx: ReaderContext>(
@@ -238,9 +302,9 @@ impl ClientDef for NearClient {
 
 /// validates a light block that's contained on the `NearHeader` based on the current
 /// state of the light client.
-pub fn validate_light_block<Ctx: ClientKeeper>(
+pub fn validate_light_block<H: HostFunctionsTrait>(
     header: &NearHeader,
-    client_state: NearClientState,
+    client_state: NearClientState<H>,
 ) -> Result<(), Error>
 where
 {
@@ -260,7 +324,7 @@ where
     let new_block_view = header.get_light_client_block_view();
     let current_block_view = client_state.get_head();
     let (_current_block_hash, _next_block_hash, approval_message) =
-        reconstruct_light_client_block_view_fields::<Ctx::HostFunctions>(new_block_view)?;
+        reconstruct_light_client_block_view_fields::<H>(new_block_view)?;
 
     // (1)
     if new_block_view.inner_lite.height <= current_block_view.inner_lite.height {
@@ -308,9 +372,9 @@ where
         approved_stake += bp_stake;
 
         let validator_public_key = &bp_stake_view.public_key;
-        let data = Ctx::HostFunctions::sha256_digest(&approval_message);
+        let data = H::sha256_digest(&approval_message);
         let signature = maybe_signature.as_ref().unwrap();
-        if Ctx::HostFunctions::ed25519_verify(
+        if H::ed25519_verify(
             signature.get_inner(),
             &data,
             validator_public_key.get_inner(),
@@ -332,7 +396,7 @@ where
             .unwrap()
             .try_to_vec()
             .map_err(|_| Error::from(NearError::serialization_error()))?;
-        if Ctx::HostFunctions::sha256_digest(new_block_view_next_bps_serialized.as_ref()).as_slice()
+        if H::sha256_digest(new_block_view_next_bps_serialized.as_ref()).as_slice()
             != new_block_view.inner_lite.next_bp_hash.as_ref()
         {
             return Err(NearError::serialization_error().into());
@@ -341,7 +405,7 @@ where
     Ok(())
 }
 
-pub fn reconstruct_light_client_block_view_fields<H: HostFunctionsProvider>(
+pub fn reconstruct_light_client_block_view_fields<H: HostFunctions>(
     block_view: &LightClientBlockView,
 ) -> Result<(CryptoHash, CryptoHash, Vec<u8>), Error> {
     let current_block_hash = block_view.current_block_hash::<H>();
@@ -360,7 +424,7 @@ pub fn reconstruct_light_client_block_view_fields<H: HostFunctionsProvider>(
     Ok((current_block_hash, next_block_hash, approval_message))
 }
 
-pub(crate) fn next_block_hash<H: HostFunctionsProvider>(
+pub(crate) fn next_block_hash<H: HostFunctions>(
     next_block_inner_hash: CryptoHash,
     current_block_hash: CryptoHash,
 ) -> CryptoHash {

@@ -152,6 +152,8 @@ impl State {
 
     pub fn impl_client_state(&self) -> proc_macro2::TokenStream {
         let this = &self.self_ident;
+        let gens = &self.generics;
+        let gens_where = &self.generics.where_clause;
 
         let fn_chain_id = self.impl_fn_chain_id();
         let fn_client_type = self.impl_fn_client_type();
@@ -165,9 +167,9 @@ impl State {
         let fn_encode_to_vec = self.impl_fn_encode_to_vec();
 
         quote! {
-            impl ClientState for #this {
+            impl #gens ClientState for #this #gens #gens_where {
                 type UpgradeOptions = AnyUpgradeOptions; // TODO: make variable?
-                type ClientDef = AnyClient;
+                type ClientDef = AnyClient #gens;
 
                 #fn_chain_id
                 #fn_client_type

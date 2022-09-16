@@ -4,6 +4,7 @@ use crate::ics11_beefy::client_state::UpgradeOptions as BeefyUpgradeOptions;
 use crate::ics11_beefy::consensus_state::ConsensusState as BeefyConsensusState;
 use crate::ics11_beefy::header::BeefyHeader;
 
+use crate::any::mock::context::Crypto;
 use core::convert::Infallible;
 use core::time::Duration;
 use ibc::core::ics02_client::client_consensus::ConsensusState;
@@ -48,7 +49,7 @@ pub const BEEFY_CONSENSUS_STATE_TYPE_URL: &str = "/ibc.lightclients.beefy.v1.Con
 #[derive(Clone, Debug, PartialEq, Eq, ClientDef)]
 pub enum AnyClient {
     Mock(MockClient),
-    Beefy(BeefyClient),
+    Beefy(BeefyClient<Crypto>),
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -65,7 +66,7 @@ pub enum AnyClientState {
     Mock(MockClientState),
     #[serde(skip)]
     #[ibc(proto_url = "BEEFY_CLIENT_STATE_TYPE_URL")]
-    Beefy(BeefyClientState),
+    Beefy(BeefyClientState<Crypto>),
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize, Header, Protobuf)]

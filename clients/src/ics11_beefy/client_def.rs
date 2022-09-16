@@ -11,10 +11,10 @@ use crate::ics11_beefy::client_state::ClientState;
 use crate::ics11_beefy::consensus_state::ConsensusState;
 use crate::ics11_beefy::error::Error as BeefyError;
 use crate::ics11_beefy::header::BeefyHeader;
+use crate::AnyHostFunctionsTrait;
 use ibc::core::ics02_client::client_consensus::ConsensusState as _;
 use ibc::core::ics02_client::client_def::{ClientDef, ConsensusUpdateResult};
 use ibc::core::ics02_client::client_state::ClientState as _;
-use ibc::core::ics02_client::context::ClientKeeper;
 use ibc::core::ics02_client::error::Error;
 use ibc::core::ics03_connection::connection::ConnectionEnd;
 use ibc::core::ics04_channel::channel::ChannelEnd;
@@ -31,7 +31,6 @@ use ibc::core::ics24_host::path::{
 };
 use ibc::core::ics24_host::Path;
 use ibc::core::ics26_routing::context::ReaderContext;
-use ibc::host_functions::HostFunctionsProvider;
 use ibc::prelude::*;
 use ibc::Height;
 
@@ -64,13 +63,12 @@ pub trait HostFunctions {
     ) -> Result<(), Error>;
 }
 
-
 impl<H> ClientDef for BeefyClient<H>
-    where
-        H: beefy_client_primitives::HostFunctions + HostFunctions + Clone,
+where
+    H: AnyHostFunctionsTrait,
 {
     type Header = BeefyHeader;
-    type ClientState = ClientState;
+    type ClientState = ClientState<H>;
     type ConsensusState = ConsensusState;
 
     fn verify_header<Ctx: ReaderContext>(
@@ -90,11 +88,8 @@ impl<H> ClientDef for BeefyClient<H>
         // If mmr update exists verify it and return the new light client state
         // or else return existing light client state
         let light_client_state = if let Some(mmr_update) = header.mmr_update_proof {
-            beefy_client::verify_mmr_root_with_proof::<H>(
-                light_client_state,
-                mmr_update,
-            )
-            .map_err(|e| BeefyError::invalid_mmr_update(format!("{:?}", e)))?
+            beefy_client::verify_mmr_root_with_proof::<H>(light_client_state, mmr_update)
+                .map_err(|e| BeefyError::invalid_mmr_update(format!("{:?}", e)))?
         } else {
             light_client_state
         };
@@ -142,11 +137,8 @@ impl<H> ClientDef for BeefyClient<H>
             };
 
             // Perform the parachain header verification
-            beefy_client::verify_parachain_headers::<H>(
-                light_client_state,
-                parachain_update_proof,
-            )
-            .map_err(|e| BeefyError::invalid_mmr_update(format!("{:?}", e)))?
+            beefy_client::verify_parachain_headers::<H>(light_client_state, parachain_update_proof)
+                .map_err(|e| BeefyError::invalid_mmr_update(format!("{:?}", e)))?
         }
 
         Ok(())
@@ -468,12 +460,7 @@ where
     let trie_proof: Vec<Vec<u8>> =
         codec::Decode::decode(&mut &*trie_proof).map_err(|e| BeefyError::scale_decode(e))?;
     let root = H256::from_slice(root.as_bytes());
-    T::verify_membership_trie_proof(
-        root.as_fixed_bytes(),
-        &trie_proof,
-        &key,
-        &value,
-    )
+    T::verify_membership_trie_proof(root.as_fixed_bytes(), &trie_proof, &key, &value)
 }
 
 fn verify_non_membership<T, P>(
@@ -519,7 +506,7 @@ fn verify_delay_passed<Ctx: ReaderContext>(
     let delay_period_time = connection_end.delay_period();
     let delay_period_height = ctx.block_delay(delay_period_time);
 
-    ClientState::verify_delay_passed(
+    ClientState::<()>::verify_delay_passed(
         current_timestamp,
         current_height,
         processed_time,

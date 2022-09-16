@@ -210,6 +210,6 @@ define_error! {
 
 impl From<Error> for Ics02Error {
     fn from(e: Error) -> Self {
-        Ics02Error::client_error(ClientState::client_type().to_owned(), e.to_string())
+        Ics02Error::client_error(ClientState::<()>::client_type().to_owned(), e.to_string())
     }
 }

@@ -4,6 +4,7 @@ use crate::ics07_tendermint::client_state;
 use crate::ics11_beefy::client_state as beefy_client_state;
 #[cfg(any(test, feature = "ics11_beefy"))]
 use crate::ics13_near::client_state as near_client_state;
+use crate::AnyHostFunctionsTrait;
 use core::fmt::{Debug, Display};
 use core::time::Duration;
 use ibc::core::ics02_client::client_state::ClientState;
@@ -39,17 +40,20 @@ pub enum AnyUpgradeOptions {
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, ClientState, Protobuf)]
 #[serde(tag = "type")]
-pub enum AnyClientState {
+pub enum AnyClientState<H>
+where
+    H: AnyHostFunctionsTrait,
+{
     #[ibc(proto_url = "TENDERMINT_CLIENT_STATE_TYPE_URL")]
-    Tendermint(client_state::ClientState),
+    Tendermint(client_state::ClientState<H>),
     #[cfg(any(test, feature = "ics11_beefy"))]
     #[serde(skip)]
     #[ibc(proto_url = "BEEFY_CLIENT_STATE_TYPE_URL")]
-    Beefy(beefy_client_state::ClientState),
+    Beefy(beefy_client_state::ClientState<H>),
     #[cfg(any(test, feature = "ics11_beefy"))]
     #[serde(skip)]
     #[ibc(proto_url = "NEAR_CLIENT_STATE_TYPE_URL")]
-    Near(near_client_state::NearClientState),
+    Near(near_client_state::NearClientState<H>),
     #[cfg(any(test, feature = "mocks"))]
     #[ibc(proto_url = "MOCK_CLIENT_STATE_TYPE_URL")]
     Mock(MockClientState),
@@ -57,13 +61,13 @@ pub enum AnyClientState {
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "type")]
-pub struct IdentifiedAnyClientState {
+pub struct IdentifiedAnyClientState<H: AnyHostFunctionsTrait> {
     pub client_id: ClientId,
-    pub client_state: AnyClientState,
+    pub client_state: AnyClientState<H>,
 }
 
-impl IdentifiedAnyClientState {
-    pub fn new(client_id: ClientId, client_state: AnyClientState) -> Self {
+impl<H: AnyHostFunctionsTrait> IdentifiedAnyClientState<H> {
+    pub fn new(client_id: ClientId, client_state: AnyClientState<H>) -> Self {
         IdentifiedAnyClientState {
             client_id,
             client_state,
@@ -71,17 +75,17 @@ impl IdentifiedAnyClientState {
     }
 }
 
-impl Protobuf<IdentifiedClientState> for IdentifiedAnyClientState
+impl<H: AnyHostFunctionsTrait> Protobuf<IdentifiedClientState> for IdentifiedAnyClientState<H>
 where
-    IdentifiedAnyClientState: TryFrom<IdentifiedClientState>,
-    <IdentifiedAnyClientState as TryFrom<IdentifiedClientState>>::Error: Display,
+    Self: TryFrom<IdentifiedClientState>,
+    <Self as TryFrom<IdentifiedClientState>>::Error: Display,
 {
 }
 
-impl TryFrom<IdentifiedClientState> for IdentifiedAnyClientState
+impl<H: AnyHostFunctionsTrait> TryFrom<IdentifiedClientState> for IdentifiedAnyClientState<H>
 where
-    AnyClientState: TryFrom<Any>,
-    Error: From<<AnyClientState as TryFrom<Any>>::Error>,
+    AnyClientState<H>: TryFrom<Any>,
+    Error: From<<AnyClientState<H> as TryFrom<Any>>::Error>,
 {
     type Error = Error;
 
@@ -98,8 +102,8 @@ where
     }
 }
 
-impl From<IdentifiedAnyClientState> for IdentifiedClientState {
-    fn from(value: IdentifiedAnyClientState) -> Self {
+impl<H: AnyHostFunctionsTrait> From<IdentifiedAnyClientState<H>> for IdentifiedClientState {
+    fn from(value: IdentifiedAnyClientState<H>) -> Self {
         IdentifiedClientState {
             client_id: value.client_id.to_string(),
             client_state: Some(value.client_state.into()),

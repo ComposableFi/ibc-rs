@@ -1,4 +1,3 @@
-use codec::Encode;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -20,14 +19,12 @@ use crate::core::ics05_port::context::PortReader;
 use crate::core::ics05_port::error::Error as PortError;
 use crate::core::ics24_host::identifier::{ChannelId, ClientId, ConnectionId, PortId};
 use crate::core::ics26_routing::context::{Module, ModuleId, ModuleOutputBuilder, ReaderContext};
-use crate::host_functions::HostFunctionsProvider;
 use crate::mock::context::{ClientTypes, MockIbcStore};
 use crate::prelude::*;
 use crate::signer::Signer;
 use crate::timestamp::Timestamp;
 use crate::Height;
-use sp_core::keccak_256;
-use sp_trie::LayoutV0;
+
 use tendermint::{block, consensus, evidence, public_key::Algorithm};
 
 // Needed in mocks.
@@ -101,7 +98,7 @@ impl<C: ClientTypes + 'static> Module for DummyTransferModule<C> {
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Crypto;
-
+/*
 impl HostFunctionsProvider for Crypto {
     fn keccak_256(input: &[u8]) -> [u8; 32] {
         keccak_256(input)
@@ -217,27 +214,28 @@ impl HostFunctionsProvider for Crypto {
         })
     }
 }
+ */
 
 // implementation for ics23
 impl ics23::HostFunctionsProvider for Crypto {
-    fn sha2_256(message: &[u8]) -> [u8; 32] {
-        <Self as HostFunctionsProvider>::sha2_256(message)
+    fn sha2_256(_message: &[u8]) -> [u8; 32] {
+        unimplemented!()
     }
 
-    fn sha2_512(message: &[u8]) -> [u8; 64] {
-        <Self as HostFunctionsProvider>::sha2_512(message)
+    fn sha2_512(_message: &[u8]) -> [u8; 64] {
+        unimplemented!()
     }
 
-    fn sha2_512_truncated(message: &[u8]) -> [u8; 32] {
-        <Self as HostFunctionsProvider>::sha2_512_truncated(message)
+    fn sha2_512_truncated(_message: &[u8]) -> [u8; 32] {
+        unimplemented!()
     }
 
-    fn sha3_512(message: &[u8]) -> [u8; 64] {
-        <Self as HostFunctionsProvider>::sha3_512(message)
+    fn sha3_512(_message: &[u8]) -> [u8; 64] {
+        unimplemented!()
     }
 
-    fn ripemd160(message: &[u8]) -> [u8; 20] {
-        <Self as HostFunctionsProvider>::ripemd160(message)
+    fn ripemd160(_message: &[u8]) -> [u8; 20] {
+        unimplemented!()
     }
 }
 
@@ -595,7 +593,6 @@ impl<C: ClientTypes> ClientKeeper for DummyTransferModule<C> {
     type AnyClientState = C::AnyClientState;
     type AnyConsensusState = C::AnyConsensusState;
     type AnyMisbehaviour = C::AnyMisbehaviour;
-    type HostFunctions = C::HostFunctions;
     type ClientDef = C::ClientDef;
 
     fn store_client_type(

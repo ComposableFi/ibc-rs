@@ -180,14 +180,14 @@ impl Packet {
     }
 
     pub fn timeout_variant(
-        &self,
+        packet: &Packet,
         dst_chain_ts: &Timestamp,
         dst_chain_height: Height,
     ) -> Option<TimeoutVariant> {
         let height_timeout =
-            self.timeout_height != Height::zero() && self.timeout_height < dst_chain_height;
-        let timestamp_timeout = self.timeout_timestamp != Timestamp::none()
-            && (dst_chain_ts.check_expiry(&self.timeout_timestamp) == Expired);
+            packet.timeout_height != Height::zero() && packet.timeout_height <= dst_chain_height;
+        let timestamp_timeout = packet.timeout_timestamp != Timestamp::none()
+            && (dst_chain_ts.check_expiry(&packet.timeout_timestamp) == Expired);
         if height_timeout && !timestamp_timeout {
             Some(TimeoutVariant::Height)
         } else if timestamp_timeout && !height_timeout {

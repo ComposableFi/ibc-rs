@@ -1,27 +1,29 @@
 use super::types::{CryptoHash, LightClientBlockView, ValidatorStakeView};
-use crate::ics13_near::client_def::NearClient;
+use crate::ics13_near::client_def::{HostFunctionsTrait, NearClient};
 use ibc::core::ics02_client::client_state::ClientType;
 use ibc::core::{ics02_client::client_state::ClientState, ics24_host::identifier::ChainId};
 use ibc::prelude::*;
 use ibc::Height;
 use serde::{Deserialize, Serialize};
+use std::marker::PhantomData;
 use std::time::Duration;
 use tendermint_proto::Protobuf;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct NearClientState {
+pub struct NearClientState<H> {
     chain_id: ChainId,
     head: LightClientBlockView,
     current_epoch: CryptoHash,
     next_epoch: CryptoHash,
     current_validators: Vec<ValidatorStakeView>,
     next_validators: Vec<ValidatorStakeView>,
+    _phantom: PhantomData<H>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct NearUpgradeOptions {}
 
-impl NearClientState {
+impl<H: HostFunctionsTrait> NearClientState<H> {
     pub fn get_validators_by_epoch(
         &self,
         epoch_id: &CryptoHash,
@@ -40,9 +42,9 @@ impl NearClientState {
     }
 }
 
-impl ClientState for NearClientState {
+impl<H: HostFunctionsTrait> ClientState for NearClientState<H> {
     type UpgradeOptions = NearUpgradeOptions;
-    type ClientDef = NearClient;
+    type ClientDef = NearClient<H>;
 
     fn chain_id(&self) -> ChainId {
         self.chain_id.clone()
@@ -89,15 +91,15 @@ impl ClientState for NearClientState {
     }
 }
 
-impl Protobuf<()> for NearClientState {}
+impl<H: HostFunctionsTrait> Protobuf<()> for NearClientState<H> {}
 
-impl From<NearClientState> for () {
-    fn from(_: NearClientState) -> Self {
+impl<H: HostFunctionsTrait> From<NearClientState<H>> for () {
+    fn from(_: NearClientState<H>) -> Self {
         todo!()
     }
 }
 
-impl From<()> for NearClientState {
+impl<H: HostFunctionsTrait> From<()> for NearClientState<H> {
     fn from(_: ()) -> Self {
         todo!()
     }

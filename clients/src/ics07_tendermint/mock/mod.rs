@@ -7,6 +7,7 @@ use crate::ics07_tendermint::client_state::UpgradeOptions as TendermintUpgradeOp
 use crate::ics07_tendermint::consensus_state::ConsensusState as TendermintConsensusState;
 use crate::ics07_tendermint::header::Header as TendermintHeader;
 
+use crate::any::mock::context::Crypto;
 use crate::ics07_tendermint::mock::host::MockHostBlock;
 use core::convert::Infallible;
 use core::time::Duration;
@@ -37,7 +38,6 @@ use ibc::mock::context::ClientTypes;
 use ibc::mock::header::MockHeader;
 use ibc::mock::misbehaviour::MockMisbehaviour;
 use ibc::prelude::*;
-use ibc::test_utils::Crypto;
 use ibc::timestamp::Timestamp;
 use ibc_proto::google::protobuf::Any;
 use tendermint_proto::Protobuf;
@@ -55,7 +55,7 @@ pub const TENDERMINT_CONSENSUS_STATE_TYPE_URL: &str =
 #[derive(Clone, Debug, PartialEq, Eq, ClientDef)]
 pub enum AnyClient {
     Mock(MockClient),
-    Tendermint(TendermintClient),
+    Tendermint(TendermintClient<Crypto>),
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -72,7 +72,7 @@ pub enum AnyClientState {
     Mock(MockClientState),
     #[serde(skip)]
     #[ibc(proto_url = "TENDERMINT_CLIENT_STATE_TYPE_URL")]
-    Tendermint(TendermintClientState),
+    Tendermint(TendermintClientState<Crypto>),
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize, Header, Protobuf)]

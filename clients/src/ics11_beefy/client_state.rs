@@ -10,6 +10,7 @@ use ibc::prelude::*;
 use serde::{Deserialize, Serialize};
 use sp_core::H256;
 use sp_runtime::SaturatedConversion;
+use std::marker::PhantomData;
 use tendermint_proto::Protobuf;
 
 use ibc_proto::ibc::lightclients::beefy::v1::{BeefyAuthoritySet, ClientState as RawClientState};
@@ -18,13 +19,14 @@ use crate::ics11_beefy::error::Error;
 use crate::ics11_beefy::header::BeefyHeader;
 
 use crate::ics11_beefy::client_def::BeefyClient;
+use crate::AnyHostFunctionsTrait;
 use ibc::core::ics02_client::client_state::ClientType;
 use ibc::core::ics24_host::identifier::ChainId;
 use ibc::timestamp::Timestamp;
 use ibc::Height;
 
 #[derive(PartialEq, Eq, Clone, Debug)]
-pub struct ClientState {
+pub struct ClientState<H> {
     /// The chain id
     pub chain_id: ChainId,
     /// Relay chain
@@ -46,11 +48,12 @@ pub struct ClientState {
     pub authority: BeefyNextAuthoritySet<H256>,
     /// authorities for the next round
     pub next_authority_set: BeefyNextAuthoritySet<H256>,
+    _phantom: PhantomData<H>,
 }
 
-impl Protobuf<RawClientState> for ClientState {}
+impl<H: Clone> Protobuf<RawClientState> for ClientState<H> {}
 
-impl ClientState {
+impl<H: Clone> ClientState<H> {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         relay_chain: RelayChain,
@@ -61,7 +64,7 @@ impl ClientState {
         latest_beefy_height: u32,
         authority_set: BeefyNextAuthoritySet<H256>,
         next_authority_set: BeefyNextAuthoritySet<H256>,
-    ) -> Result<ClientState, Error> {
+    ) -> Result<ClientState<H>, Error> {
         if beefy_activation_block > latest_beefy_height {
             return Err(Error::validation(
                 "ClientState beefy activation block cannot be greater than latest_beefy_height"
@@ -88,6 +91,7 @@ impl ClientState {
             relay_chain,
             latest_para_height,
             para_id,
+            _phantom: PhantomData,
         })
     }
 
@@ -194,7 +198,7 @@ impl ClientState {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct UpgradeOptions;
 
-impl ClientState {
+impl<H> ClientState<H> {
     pub fn latest_height(&self) -> Height {
         Height::new(self.para_id.into(), self.latest_para_height.into())
     }
@@ -231,9 +235,12 @@ impl ClientState {
     }
 }
 
-impl ibc::core::ics02_client::client_state::ClientState for ClientState {
+impl<H> ibc::core::ics02_client::client_state::ClientState for ClientState<H>
+where
+    H: AnyHostFunctionsTrait,
+{
     type UpgradeOptions = UpgradeOptions;
-    type ClientDef = BeefyClient;
+    type ClientDef = BeefyClient<H>;
 
     fn chain_id(&self) -> ChainId {
         self.chain_id()
@@ -273,7 +280,7 @@ impl ibc::core::ics02_client::client_state::ClientState for ClientState {
     }
 }
 
-impl TryFrom<RawClientState> for ClientState {
+impl<H> TryFrom<RawClientState> for ClientState<H> {
     type Error = Error;
 
     fn try_from(raw: RawClientState) -> Result<Self, Self::Error> {
@@ -323,12 +330,13 @@ impl TryFrom<RawClientState> for ClientState {
             relay_chain,
             latest_para_height: raw.latest_para_height,
             para_id: raw.para_id,
+            _phantom: Default::default(),
         })
     }
 }
 
-impl From<ClientState> for RawClientState {
-    fn from(client_state: ClientState) -> Self {
+impl<H> From<ClientState<H>> for RawClientState {
+    fn from(client_state: ClientState<H>) -> Self {
         RawClientState {
             mmr_root_hash: client_state.mmr_root_hash.encode(),
             latest_beefy_height: client_state.latest_beefy_height,

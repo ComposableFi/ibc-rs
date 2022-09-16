@@ -188,7 +188,7 @@ mod tests {
         let attributes = Attributes {
             height,
             client_id: "test_client".parse().unwrap(),
-            client_type: ClientState::client_type(),
+            client_type: ClientState::<()>::client_type(),
             consensus_height: height,
         };
         let mut abci_events = vec![];

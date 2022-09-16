@@ -4,12 +4,19 @@ use crate::any::mock::MockClientTypes;
 use crate::ics07_tendermint::client_state::ClientState as TMClientState;
 use crate::ics07_tendermint::client_state::ClientState as TendermintClientState;
 use crate::ics07_tendermint::mock::host::MockHostBlock;
+use crate::ics11_beefy::client_def::HostFunctions as BeefyHostFunctions;
 use crate::ics11_beefy::client_state::ClientState as BeefyClientState;
 use crate::ics11_beefy::client_state::{ClientState, RelayChain};
 use crate::ics11_beefy::consensus_state::ConsensusState;
+use crate::ics13_near::client_def::HostFunctions as NearHostFunctions;
+use crate::ics13_near::client_def::HostFunctionsTrait as NearHostFunctionsTrait;
+use crate::AnyHostFunctionsTrait;
+use beefy_client_primitives::error::BeefyClientError;
+use beefy_client_primitives::HostFunctions;
 use core::time::Duration;
 use frame_support::log::debug;
 use ibc::core::ics02_client::client_state::ClientType;
+use ibc::core::ics02_client::error::Error;
 use ibc::core::ics24_host::identifier::ChainId;
 use ibc::core::ics24_host::identifier::ClientId;
 use ibc::mock::client_state::{MockClientRecord, MockClientState, MockConsensusState};
@@ -18,9 +25,11 @@ use ibc::mock::header::MockHeader;
 use ibc::prelude::*;
 use ibc::timestamp::Timestamp;
 use ibc::Height;
+use primitive_types::H256;
 use std::ops::Sub;
 use tendermint::block::Header;
 use tendermint::Time;
+use tendermint_light_client_verifier::host_functions::HostFunctionsProvider;
 
 /// Similar to `with_client`, this function associates a client record to this context, but
 /// additionally permits to parametrize two details of the client. If `client_type` is None,
@@ -43,12 +52,12 @@ pub fn with_client_parametrized(
             Some(MockClientState::new(MockHeader::new(client_state_height)).into()),
             MockConsensusState::new(MockHeader::new(cs_height)).into(),
         ),
-        client_type if client_type == BeefyClientState::client_type() => (
+        client_type if client_type == BeefyClientState::<()>::client_type() => (
             Some(get_dummy_beefy_state()),
             get_dummy_beefy_consensus_state(),
         ),
         // If it's a Tendermint client, we need TM states.
-        client_type if client_type == TendermintClientState::client_type() => {
+        client_type if client_type == TendermintClientState::<()>::client_type() => {
             let light_block = MockHostBlock::generate_tm_block(
                 ctx.host_chain_id.clone(),
                 cs_height.revision_height,
@@ -100,12 +109,12 @@ pub fn with_client_parametrized_history(
             MockConsensusState::new(MockHeader::new(cs_height)).into(),
         ),
 
-        client_type if client_type == BeefyClientState::client_type() => (
+        client_type if client_type == BeefyClientState::<()>::client_type() => (
             Some(get_dummy_beefy_state()),
             get_dummy_beefy_consensus_state(),
         ),
         // If it's a Tendermint client, we need TM states.
-        client_type if client_type == TendermintClientState::client_type() => {
+        client_type if client_type == TendermintClientState::<()>::client_type() => {
             let light_block = MockHostBlock::generate_tm_block(
                 ctx.host_chain_id.clone(),
                 cs_height.revision_height,
@@ -126,7 +135,7 @@ pub fn with_client_parametrized_history(
         client_type if client_type == MockClientState::client_type() => {
             MockConsensusState::new(MockHeader::new(prev_cs_height)).into()
         }
-        client_type if client_type == TendermintClientState::client_type() => {
+        client_type if client_type == TendermintClientState::<()>::client_type() => {
             let light_block = MockHostBlock::generate_tm_block(
                 ctx.host_chain_id.clone(),
                 prev_cs_height.revision_height,
@@ -160,7 +169,7 @@ pub fn with_client_parametrized_history(
     ctx
 }
 
-pub fn get_dummy_beefy_state() -> AnyClientState {
+pub fn get_dummy_beefy_state() -> AnyClientState<Crypto> {
     AnyClientState::Beefy(
         ClientState::new(
             RelayChain::Rococo,
@@ -183,7 +192,7 @@ pub fn get_dummy_beefy_consensus_state() -> AnyConsensusState {
     })
 }
 
-pub fn get_dummy_tendermint_client_state(tm_header: Header) -> AnyClientState {
+pub fn get_dummy_tendermint_client_state(tm_header: Header) -> AnyClientState<Crypto> {
     AnyClientState::Tendermint(
         TMClientState::new(
             ChainId::from(tm_header.chain_id.clone()),
@@ -201,3 +210,160 @@ pub fn get_dummy_tendermint_client_state(tm_header: Header) -> AnyClientState {
         .unwrap(),
     )
 }
+
+#[derive(Clone, Debug, PartialEq, Eq, Default)]
+pub struct Crypto;
+
+impl HostFunctions for Crypto {
+    fn keccak_256(input: &[u8]) -> [u8; 32] {
+        unimplemented!()
+    }
+
+    fn secp256k1_ecdsa_recover_compressed(
+        signature: &[u8; 65],
+        value: &[u8; 32],
+    ) -> Option<Vec<u8>> {
+        unimplemented!()
+    }
+
+    fn verify_timestamp_extrinsic(
+        root: H256,
+        proof: &[Vec<u8>],
+        value: &[u8],
+    ) -> Result<(), BeefyClientError> {
+        unimplemented!()
+    }
+}
+
+impl HostFunctionsProvider for Crypto {
+    fn sha2_256(preimage: &[u8]) -> [u8; 32] {
+        sp_io::hashing::sha2_256(preimage)
+    }
+
+    fn ed25519_verify(sig: &[u8], msg: &[u8], pub_key: &[u8]) -> bool {
+        true // TODO: ed25519_verify
+    }
+
+    fn secp256k1_verify(sig: &[u8], message: &[u8], public: &[u8]) -> bool {
+        unimplemented!()
+    }
+}
+
+impl ics23::HostFunctionsProvider for Crypto {
+    fn sha2_256(message: &[u8]) -> [u8; 32] {
+        unimplemented!()
+    }
+
+    fn sha2_512(message: &[u8]) -> [u8; 64] {
+        unimplemented!()
+    }
+
+    fn sha2_512_truncated(message: &[u8]) -> [u8; 32] {
+        unimplemented!()
+    }
+
+    fn sha3_512(message: &[u8]) -> [u8; 64] {
+        unimplemented!()
+    }
+
+    fn ripemd160(message: &[u8]) -> [u8; 20] {
+        unimplemented!()
+    }
+}
+
+impl NearHostFunctions for Crypto {
+    fn keccak_256(input: &[u8]) -> [u8; 32] {
+        unimplemented!()
+    }
+
+    fn secp256k1_ecdsa_recover_compressed(
+        signature: &[u8; 65],
+        value: &[u8; 32],
+    ) -> Option<Vec<u8>> {
+        unimplemented!()
+    }
+
+    fn ed25519_verify(signature: &[u8; 64], msg: &[u8], pubkey: &[u8]) -> bool {
+        unimplemented!()
+    }
+
+    fn verify_membership_trie_proof(
+        root: &[u8; 32],
+        proof: &[Vec<u8>],
+        key: &[u8],
+        value: &[u8],
+    ) -> Result<(), Error> {
+        unimplemented!()
+    }
+
+    fn verify_non_membership_trie_proof(
+        root: &[u8; 32],
+        proof: &[Vec<u8>],
+        key: &[u8],
+    ) -> Result<(), Error> {
+        unimplemented!()
+    }
+
+    fn verify_timestamp_extrinsic(
+        root: &[u8; 32],
+        proof: &[Vec<u8>],
+        value: &[u8],
+    ) -> Result<(), Error> {
+        unimplemented!()
+    }
+
+    fn sha256_digest(data: &[u8]) -> [u8; 32] {
+        unimplemented!()
+    }
+
+    fn sha2_256(message: &[u8]) -> [u8; 32] {
+        unimplemented!()
+    }
+
+    fn sha2_512(message: &[u8]) -> [u8; 64] {
+        unimplemented!()
+    }
+
+    fn sha2_512_truncated(message: &[u8]) -> [u8; 32] {
+        unimplemented!()
+    }
+
+    fn sha3_512(message: &[u8]) -> [u8; 64] {
+        unimplemented!()
+    }
+
+    fn ripemd160(message: &[u8]) -> [u8; 20] {
+        unimplemented!()
+    }
+}
+
+impl NearHostFunctionsTrait for Crypto {}
+
+impl BeefyHostFunctions for Crypto {
+    fn verify_membership_trie_proof(
+        root: &[u8; 32],
+        proof: &[Vec<u8>],
+        key: &[u8],
+        value: &[u8],
+    ) -> Result<(), Error> {
+        unimplemented!()
+    }
+
+    fn verify_non_membership_trie_proof(
+        root: &[u8; 32],
+        proof: &[Vec<u8>],
+        key: &[u8],
+    ) -> Result<(), Error> {
+        unimplemented!()
+    }
+
+    fn verify_timestamp_extrinsic(
+        root: &[u8; 32],
+        proof: &[Vec<u8>],
+        value: &[u8],
+    ) -> Result<(), Error> {
+        unimplemented!()
+    }
+}
+
+impl AnyHostFunctionsTrait for Crypto {}

@@ -3,6 +3,7 @@ use ibc::prelude::*;
 use core::convert::{TryFrom, TryInto};
 use core::fmt::Debug;
 use core::time::Duration;
+use std::marker::PhantomData;
 
 use serde::{Deserialize, Serialize};
 use tendermint_light_client_verifier::options::Options;
@@ -14,6 +15,7 @@ use crate::ics07_tendermint::error::Error;
 use crate::ics07_tendermint::header::Header;
 
 use crate::ics07_tendermint::client_def::TendermintClient;
+use crate::AnyHostFunctionsTrait;
 use ibc::core::ics02_client::client_state::ClientType;
 use ibc::core::ics02_client::error::Error as Ics02Error;
 use ibc::core::ics02_client::trust_threshold::TrustThreshold;
@@ -23,7 +25,7 @@ use ibc::timestamp::{Timestamp, ZERO_DURATION};
 use ibc::Height;
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
-pub struct ClientState {
+pub struct ClientState<H> {
     pub chain_id: ChainId,
     pub trust_level: TrustThreshold,
     pub trusting_period: Duration,
@@ -33,11 +35,12 @@ pub struct ClientState {
     pub proof_specs: ProofSpecs,
     pub upgrade_path: Vec<String>,
     pub frozen_height: Option<Height>,
+    pub _phantom: PhantomData<H>,
 }
 
-impl Protobuf<RawClientState> for ClientState {}
+impl<H: Clone> Protobuf<RawClientState> for ClientState<H> {}
 
-impl ClientState {
+impl<H> ClientState<H> {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         chain_id: ChainId,
@@ -48,7 +51,7 @@ impl ClientState {
         latest_height: Height,
         proof_specs: ProofSpecs,
         upgrade_path: Vec<String>,
-    ) -> Result<ClientState, Error> {
+    ) -> Result<ClientState<H>, Error> {
         // Basic validation of trusting period and unbonding period: each should be non-zero.
         if trusting_period <= Duration::new(0, 0) {
             return Err(Error::invalid_trusting_period(format!(
@@ -103,6 +106,7 @@ impl ClientState {
             proof_specs,
             upgrade_path,
             frozen_height: None,
+            _phantom: Default::default(),
         })
     }
 
@@ -238,9 +242,12 @@ pub struct UpgradeOptions {
     pub unbonding_period: Duration,
 }
 
-impl ibc::core::ics02_client::client_state::ClientState for ClientState {
+impl<H> ibc::core::ics02_client::client_state::ClientState for ClientState<H>
+where
+    H: AnyHostFunctionsTrait,
+{
     type UpgradeOptions = UpgradeOptions;
-    type ClientDef = TendermintClient;
+    type ClientDef = TendermintClient<H>;
 
     fn chain_id(&self) -> ChainId {
         self.chain_id()
@@ -284,7 +291,7 @@ impl ibc::core::ics02_client::client_state::ClientState for ClientState {
     }
 }
 
-impl TryFrom<RawClientState> for ClientState {
+impl<H> TryFrom<RawClientState> for ClientState<H> {
     type Error = Error;
 
     fn try_from(raw: RawClientState) -> Result<Self, Self::Error> {
@@ -329,12 +336,13 @@ impl TryFrom<RawClientState> for ClientState {
             frozen_height,
             upgrade_path: raw.upgrade_path,
             proof_specs: raw.proof_specs.into(),
+            _phantom: Default::default(),
         })
     }
 }
 
-impl From<ClientState> for RawClientState {
-    fn from(value: ClientState) -> Self {
+impl<H> From<ClientState<H>> for RawClientState {
+    fn from(value: ClientState<H>) -> Self {
         RawClientState {
             chain_id: value.chain_id.to_string(),
             trust_level: Some(value.trust_level.into()),
@@ -360,6 +368,7 @@ mod tests {
     use ibc_proto::ics23::ProofSpec as Ics23ProofSpec;
     use tendermint_rpc::endpoint::abci_query::AbciQuery;
 
+    use crate::any::mock::context::Crypto;
     use crate::ics07_tendermint::client_state::ClientState;
     use ibc::core::ics02_client::trust_threshold::TrustThreshold;
     use ibc::core::ics23_commitment::specs::ProofSpecs;
@@ -473,7 +482,7 @@ mod tests {
         for test in tests {
             let p = test.params.clone();
 
-            let cs_result = ClientState::new(
+            let cs_result = ClientState::<Crypto>::new(
                 p.id,
                 p.trust_level,
                 p.trusting_period,
@@ -553,7 +562,7 @@ mod tests {
         ];
 
         for test in tests {
-            let res = ClientState::verify_delay_passed(
+            let res = ClientState::<Crypto>::verify_delay_passed(
                 test.params.current_time,
                 test.params.current_height,
                 test.params.processed_time,
@@ -590,7 +599,7 @@ mod tests {
         struct Test {
             name: String,
             height: Height,
-            setup: Option<Box<dyn FnOnce(ClientState) -> ClientState>>,
+            setup: Option<Box<dyn FnOnce(ClientState<Crypto>) -> ClientState<Crypto>>>,
             want_pass: bool,
         }
 

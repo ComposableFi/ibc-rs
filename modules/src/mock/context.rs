@@ -43,7 +43,6 @@ use crate::core::ics26_routing::context::{
 use crate::core::ics26_routing::error::Error as Ics26Error;
 use crate::core::ics26_routing::handler::dispatch;
 use crate::core::ics26_routing::msgs::Ics26Envelope;
-use crate::host_functions::HostFunctionsProvider;
 use crate::mock::client_def::AnyClient;
 use crate::mock::client_state::AnyClientState;
 use crate::mock::client_state::{AnyConsensusState, AnyConsensusStateWithHeight};
@@ -1101,7 +1100,7 @@ where
         + From<Self::HostBlock>
         + 'static;
     type AnyMisbehaviour: Misbehaviour;
-    type HostFunctions: HostFunctionsProvider + ics23::HostFunctionsProvider;
+    type HostFunctions: ics23::HostFunctionsProvider;
     type ClientDef: ClientDef<
         Header = Self::AnyHeader,
         ClientState = Self::AnyClientState,
@@ -1125,7 +1124,6 @@ impl<C: ClientTypes> ClientKeeper for MockContext<C> {
     type AnyClientState = C::AnyClientState;
     type AnyConsensusState = C::AnyConsensusState;
     type AnyMisbehaviour = C::AnyMisbehaviour;
-    type HostFunctions = C::HostFunctions;
     type ClientDef = C::ClientDef;
 
     fn store_client_type(

@@ -100,14 +100,15 @@ mod tests {
             }) => {
                 assert_eq!(events.len(), 1);
                 let event = events.pop().unwrap();
-                let expected_client_id = ClientId::new(ClientState::client_type(), 0).unwrap();
+                let expected_client_id =
+                    ClientId::new(ClientState::<()>::client_type(), 0).unwrap();
                 assert!(
                     matches!(event, IbcEvent::CreateClient(ref e) if e.client_id() == &expected_client_id)
                 );
                 assert_eq!(event.height(), ctx.host_height());
                 match result {
                     ClientResult::Create(create_res) => {
-                        assert_eq!(create_res.client_type, ClientState::client_type());
+                        assert_eq!(create_res.client_type, ClientState::<()>::client_type());
                         assert_eq!(create_res.client_id, expected_client_id);
                         assert_eq!(create_res.client_state, msg.client_state);
                         assert_eq!(create_res.consensus_state, msg.consensus_state);

@@ -15,7 +15,7 @@ async fn test_continuous_update_of_beefy_client() {
     use codec::{Decode, Encode};
     use subxt::rpc::{rpc_params, JsonValue, Subscription, SubscriptionClientT};
 
-    let client_id = ClientId::new(ClientState::client_type(), 0).unwrap();
+    let client_id = ClientId::new(ClientState::<()>::client_type(), 0).unwrap();
 
     let chain_start_height = Height::new(1, 11);
 

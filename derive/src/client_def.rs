@@ -5,6 +5,8 @@ impl State {
     fn impl_fn_verify_header(&self) -> proc_macro2::TokenStream {
         let any_client_state = &self.any_data.client_state_ident;
         let any_header = &self.any_data.header_ident;
+        let gen_params = &self.generics.params;
+
         let cases = self.clients.iter().map(|client| {
             let variant_ident = &client.variant_ident;
             let attrs = &client.attrs;
@@ -13,7 +15,7 @@ impl State {
                 Self::#variant_ident(client) => {
                     let client_type = client_state.client_type().to_owned();
                     let (client_state, header) = downcast!(
-                        client_state => #any_client_state::#variant_ident,
+                        client_state => #any_client_state::<#gen_params>::#variant_ident,
                         header => #any_header::#variant_ident,
                     )
                     .ok_or_else(|| Error::client_args_type_mismatch(client_type))?;
@@ -45,6 +47,7 @@ impl State {
     fn impl_fn_update_state(&self) -> proc_macro2::TokenStream {
         let any_client_state = &self.any_data.client_state_ident;
         let any_header = &self.any_data.header_ident;
+        let gen_params = &self.generics.params;
         let cases = self.clients.iter().map(|client| {
             let variant_ident = &client.variant_ident;
             let attrs = &client.attrs;
@@ -53,7 +56,7 @@ impl State {
                 Self::#variant_ident(client) => {
                     let client_type = client_state.client_type().to_owned();
                     let (client_state, header) = downcast!(
-                        client_state => #any_client_state::#variant_ident,
+                        client_state => #any_client_state::<#gen_params>::#variant_ident,
                         header => #any_header::#variant_ident,
                     )
                     .ok_or_else(|| Error::client_args_type_mismatch(client_type))?;
@@ -88,6 +91,7 @@ impl State {
     fn impl_fn_update_state_on_misbehaviour(&self) -> proc_macro2::TokenStream {
         let any_client_state = &self.any_data.client_state_ident;
         let any_header = &self.any_data.header_ident;
+        let gen_params = &self.generics.params;
         let cases = self.clients.iter().map(|client| {
             let variant_ident = &client.variant_ident;
             let attrs = &client.attrs;
@@ -96,7 +100,7 @@ impl State {
                 Self::#variant_ident(client) => {
                     let client_type = client_state.client_type().to_owned();
                     let (client_state, header) = downcast!(
-                        client_state => #any_client_state::#variant_ident,
+                        client_state => #any_client_state::<#gen_params>::#variant_ident,
                         header => #any_header::#variant_ident,
                     )
                     .ok_or_else(|| Error::client_args_type_mismatch(client_type))?;
@@ -596,6 +600,9 @@ impl State {
         let any_header = &self.any_data.header_ident;
         let any_client_state = &self.any_data.client_state_ident;
         let any_consensus_state = &self.any_data.consensus_state_ident;
+        let gens = &self.generics;
+        let gens_where = &self.generics.where_clause;
+        let gen_params = &self.generics.params;
 
         let fn_verify_header = self.impl_fn_verify_header();
         let fn_update_state = self.impl_fn_update_state();
@@ -612,9 +619,9 @@ impl State {
         let fn_verify_packet_receipt_absence = self.impl_fn_verify_packet_receipt_absence();
 
         quote! {
-            impl ClientDef for #this {
+            impl #gens ClientDef for #this #gens #gens_where {
                 type Header = #any_header;
-                type ClientState = #any_client_state;
+                type ClientState = #any_client_state::<#gen_params>;
                 type ConsensusState = #any_consensus_state;
 
                 #fn_verify_header

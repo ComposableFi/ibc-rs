@@ -9,7 +9,6 @@ use crate::ics07_tendermint::header::Header;
 use ibc::core::ics02_client::client_consensus::ConsensusState as _;
 use ibc::core::ics02_client::client_def::{ClientDef, ConsensusUpdateResult};
 use ibc::core::ics02_client::client_state::ClientState as _;
-use ibc::core::ics02_client::context::ClientKeeper;
 use ibc::core::ics02_client::error::Error as Ics02Error;
 use ibc::core::ics03_connection::connection::ConnectionEnd;
 use ibc::core::ics04_channel::channel::ChannelEnd;
@@ -30,22 +29,23 @@ use ibc::core::ics26_routing::context::ReaderContext;
 use ibc_proto::ibc::core::commitment::v1::MerkleProof as RawMerkleProof;
 use prost::Message;
 use tendermint_light_client_verifier::types::{TrustedBlockState, UntrustedBlockState};
-use tendermint_light_client_verifier::{ProdVerifier, Verdict, Verifier, host_functions};
+use tendermint_light_client_verifier::{ProdVerifier, Verdict, Verifier};
 use tendermint_proto::Protobuf;
 
+use crate::AnyHostFunctionsTrait;
 use ibc::prelude::*;
 use ibc::timestamp::Timestamp;
 use ibc::Height;
 
 #[derive(Clone, Debug, PartialEq, Eq, Default)]
-pub struct TendermintClient<T>(PhantomData<T>);
+pub struct TendermintClient<H>(PhantomData<H>);
 
 impl<H> ClientDef for TendermintClient<H>
-    where
-        H: host_functions::HostFunctionsProvider + ics23::HostFunctionsProvider + Clone,
+where
+    H: AnyHostFunctionsTrait,
 {
     type Header = Header;
-    type ClientState = ClientState;
+    type ClientState = ClientState<H>;
     type ConsensusState = ConsensusState;
 
     fn verify_header<Ctx>(
@@ -93,7 +93,7 @@ impl<H> ClientDef for TendermintClient<H>
             .consensus_state(&client_id, header.trusted_height)?
             .downcast()
             .ok_or(Ics02Error::client_args_type_mismatch(
-                ClientState::client_type().to_owned(),
+                ClientState::<H>::client_type().to_owned(),
             ))?;
 
         let trusted_state = TrustedBlockState {
@@ -184,24 +184,25 @@ impl<H> ClientDef for TendermintClient<H>
         // match the untrusted header.
         let header_consensus_state = <ConsensusState as From<Header>>::from(header.clone());
 
-        let existing_consensus_state = match ctx
-            .maybe_consensus_state(&client_id, header.height())?
-        {
-            Some(cs) => {
-                let cs = cs.downcast::<ConsensusState>().ok_or(
-                    Ics02Error::client_args_type_mismatch(ClientState::client_type().to_owned()),
-                )?;
-                // If this consensus state matches, skip verification
-                // (optimization)
-                if header_consensus_state == cs {
-                    // Header is already installed and matches the incoming
-                    // header (already verified)
-                    return Ok(false);
+        let existing_consensus_state =
+            match ctx.maybe_consensus_state(&client_id, header.height())? {
+                Some(cs) => {
+                    let cs = cs.downcast::<ConsensusState>().ok_or(
+                        Ics02Error::client_args_type_mismatch(
+                            ClientState::<()>::client_type().to_owned(),
+                        ),
+                    )?;
+                    // If this consensus state matches, skip verification
+                    // (optimization)
+                    if header_consensus_state == cs {
+                        // Header is already installed and matches the incoming
+                        // header (already verified)
+                        return Ok(false);
+                    }
+                    Some(cs)
                 }
-                Some(cs)
-            }
-            None => None,
-        };
+                None => None,
+            };
 
         // If the header has verified, but its corresponding consensus state
         // differs from the existing consensus state for that height, freeze the
@@ -220,7 +221,7 @@ impl<H> ClientDef for TendermintClient<H>
                 .map(|cs| {
                     cs.downcast::<ConsensusState>()
                         .ok_or(Ics02Error::client_args_type_mismatch(
-                            ClientState::client_type().to_owned(),
+                            ClientState::<H>::client_type().to_owned(),
                         ))
                 })
                 .transpose()?;
@@ -246,7 +247,7 @@ impl<H> ClientDef for TendermintClient<H>
                 .map(|cs| {
                     cs.downcast::<ConsensusState>()
                         .ok_or(Ics02Error::client_args_type_mismatch(
-                            ClientState::client_type().to_owned(),
+                            ClientState::<()>::client_type().to_owned(),
                         ))
                 })
                 .transpose()?;
@@ -490,7 +491,7 @@ impl<H> ClientDef for TendermintClient<H>
 }
 
 fn verify_membership<H, P>(
-    client_state: &ClientState,
+    client_state: &ClientState<H>,
     prefix: &CommitmentPrefix,
     proof: &CommitmentProofBytes,
     root: &CommitmentRoot,
@@ -518,7 +519,7 @@ where
 }
 
 fn verify_non_membership<H, P>(
-    client_state: &ClientState,
+    client_state: &ClientState<H>,
     prefix: &CommitmentPrefix,
     proof: &CommitmentProofBytes,
     root: &CommitmentRoot,
@@ -557,7 +558,7 @@ fn verify_delay_passed<Ctx: ReaderContext>(
     let delay_period_time = connection_end.delay_period();
     let delay_period_height = ctx.block_delay(delay_period_time);
 
-    ClientState::verify_delay_passed(
+    ClientState::<()>::verify_delay_passed(
         current_timestamp,
         current_height,
         processed_time,

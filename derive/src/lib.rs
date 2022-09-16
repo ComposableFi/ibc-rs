@@ -9,7 +9,7 @@ mod protobuf;
 use proc_macro::TokenStream;
 use proc_macro2::Ident;
 
-use syn::{parse_macro_input, Data, TypePath};
+use syn::{parse_macro_input, Data, Generics, TypePath};
 use syn::{DeriveInput, Type};
 
 struct AnyData {
@@ -54,24 +54,21 @@ struct State {
     pub any_data: AnyData,
     pub clients: Vec<ClientData>,
     pub self_ident: Ident,
+    pub generics: Generics,
 }
 
 #[proc_macro_derive(ClientDef, attributes(ibc))]
 pub fn derive_client_def(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
     let state = State::from_input(input, client_data_with_proto_attrs);
-    let s = state.impl_client_def().into();
-    // println!("{}", s);
-    s
+    state.impl_client_def().into()
 }
 
 #[proc_macro_derive(ClientState, attributes(ibc))]
 pub fn derive_client_state(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
     let state = State::from_input(input, client_data_with_proto_attrs);
-    let s = state.impl_client_state().into();
-    // println!("{}", s);
-    s
+    state.impl_client_state().into()
 }
 
 #[proc_macro_derive(ConsensusState, attributes(ibc))]
@@ -165,7 +162,6 @@ impl State {
             Data::Enum(data) => data,
             _ => panic!("Only enums are supported"),
         };
-
         let span = input.ident.span();
         State {
             self_ident: input.ident,
@@ -175,6 +171,7 @@ impl State {
                 consensus_state_ident: Ident::new("AnyConsensusState", span),
             },
             clients: data.variants.iter().map(client_fn).collect(),
+            generics: input.generics.clone(),
         }
     }
 }

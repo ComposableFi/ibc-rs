@@ -1,6 +1,6 @@
 #[test]
 fn test_update_synthetic_tendermint_client_lower_height() {
-    let client_id = ClientId::new(ClientState::client_type(), 0).unwrap();
+    let client_id = ClientId::new(ClientState::<()>::client_type(), 0).unwrap();
     let client_height = Height::new(1, 20);
 
     let client_update_height = Height::new(1, 19);
@@ -16,7 +16,7 @@ fn test_update_synthetic_tendermint_client_lower_height() {
     .with_client_parametrized(
         &client_id,
         client_height,
-        Some(ClientState::client_type()), // The target host chain (B) is synthetic TM.
+        Some(ClientState::<()>::client_type()), // The target host chain (B) is synthetic TM.
         Some(client_height),
     );
 

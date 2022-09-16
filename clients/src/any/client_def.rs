@@ -6,6 +6,7 @@ use crate::ics07_tendermint::client_def::TendermintClient;
 use crate::ics11_beefy::client_def::BeefyClient;
 #[cfg(any(test, feature = "ics11_beefy"))]
 use crate::ics13_near::client_def::NearClient;
+use crate::AnyHostFunctionsTrait;
 use core::fmt::Debug;
 use ibc::core::ics02_client::client_def::ClientDef;
 use ibc::core::ics02_client::client_def::ConsensusUpdateResult;
@@ -29,12 +30,15 @@ use ibc::prelude::*;
 use ibc::Height;
 
 #[derive(Clone, Debug, PartialEq, Eq, ClientDef)]
-pub enum AnyClient {
-    Tendermint(TendermintClient),
+pub enum AnyClient<H>
+where
+    H: AnyHostFunctionsTrait,
+{
+    Tendermint(TendermintClient<H>),
     #[cfg(any(test, feature = "ics11_beefy"))]
-    Beefy(BeefyClient),
+    Beefy(BeefyClient<H>),
     #[cfg(any(test, feature = "ics11_beefy"))]
-    Near(NearClient),
+    Near(NearClient<H>),
     #[cfg(any(test, feature = "mocks"))]
     Mock(MockClient),
 }

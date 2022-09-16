@@ -6,11 +6,11 @@ use crate::any::client_state::AnyClientState;
 use crate::any::consensus_state::AnyConsensusState;
 use crate::any::header::AnyHeader;
 use crate::any::misbehaviour::AnyMisbehaviour;
+use crate::any::mock::context::Crypto;
 use crate::ics07_tendermint::mock::host::MockHostBlock;
 use ibc::mock::client_state::{MockClientState, MockConsensusState};
 use ibc::mock::context::ClientTypes;
 use ibc::prelude::*;
-use ibc::test_utils::Crypto;
 
 impl From<MockConsensusState> for AnyConsensusState {
     fn from(mcs: MockConsensusState) -> Self {
@@ -18,7 +18,7 @@ impl From<MockConsensusState> for AnyConsensusState {
     }
 }
 
-impl From<MockClientState> for AnyClientState {
+impl From<MockClientState> for AnyClientState<Crypto> {
     fn from(mcs: MockClientState) -> Self {
         Self::Mock(mcs)
     }
@@ -28,11 +28,11 @@ impl From<MockClientState> for AnyClientState {
 pub struct MockClientTypes;
 impl ClientTypes for MockClientTypes {
     type AnyHeader = AnyHeader;
-    type AnyClientState = AnyClientState;
+    type AnyClientState = AnyClientState<Crypto>;
     type AnyConsensusState = AnyConsensusState;
     type AnyMisbehaviour = AnyMisbehaviour;
     type HostFunctions = Crypto;
-    type ClientDef = AnyClient;
+    type ClientDef = AnyClient<Crypto>;
     type HostBlock = MockHostBlock;
 }
 
