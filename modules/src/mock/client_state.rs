@@ -27,9 +27,8 @@ use crate::{
 	timestamp::Timestamp,
 	Height,
 };
-use ibc_proto::{
-	google::protobuf::Any,
-	ibc::mock::{ClientState as RawMockClientState, ConsensusState as RawMockConsensusState},
+use ibc_proto::ibc::mock::{
+	ClientState as RawMockClientState, ConsensusState as RawMockConsensusState,
 };
 
 pub const MOCK_CLIENT_STATE_TYPE_URL: &str = "/ibc.mock.ClientState";

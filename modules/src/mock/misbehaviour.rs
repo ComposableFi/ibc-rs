@@ -12,7 +12,6 @@ use crate::{
 	mock::header::MockHeader,
 	Height,
 };
-use ibc_proto::google::protobuf::Any;
 
 pub const MOCK_MISBEHAVIOUR_TYPE_URL: &str = "/ibc.mock.Misbehavior";
 

@@ -9,7 +9,6 @@ use crate::{
 	timestamp::Timestamp,
 	Height,
 };
-use ibc_proto::google::protobuf::Any;
 
 pub const MOCK_HEADER_TYPE_URL: &str = "/ibc.mock.Header";
 

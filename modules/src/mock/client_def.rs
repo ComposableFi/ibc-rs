@@ -1,7 +1,6 @@
 use crate::core::ics02_client::{
 	client_consensus::ConsensusState,
 	client_def::{ClientDef, ConsensusUpdateResult},
-	client_state::ClientState,
 };
 
 use crate::{
@@ -61,7 +60,7 @@ impl ClientDef for MockClient {
 		header: Self::Header,
 	) -> Result<(Self::ClientState, ConsensusUpdateResult<Ctx>), Error> {
 		if client_state.latest_height() >= header.height() {
-			return Err(Error::low_header_height(header.height(), client_state.latest_height()))
+			return Err(Error::low_header_height(header.height(), client_state.latest_height()));
 		}
 
 		Ok((

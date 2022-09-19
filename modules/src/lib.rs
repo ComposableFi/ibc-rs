@@ -61,11 +61,14 @@ pub mod handler;
 pub mod keys;
 pub mod macros;
 pub mod proofs;
+mod serializers;
 pub mod signer;
 pub mod timestamp;
 pub mod tx_msg; // Context mock, the underlying host chain, and client types: for testing all handlers.
 
-mod serializers;
+pub mod protobuf {
+	pub use tendermint_proto::*;
+}
 
 /// Re-export of ICS 002 Height domain type
 pub type Height = core::ics02_client::height::Height;
@@ -78,3 +81,6 @@ pub mod test_utils;
 
 #[cfg(any(test, feature = "mocks"))]
 pub mod mock;
+
+// #[derive(ClientDef)]
+// enum AnyClient {}
