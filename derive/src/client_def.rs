@@ -2,9 +2,9 @@ use crate::State;
 use quote::quote;
 
 impl State {
-	fn impl_fn_verify_header(&self) -> proc_macro2::TokenStream {
+	fn impl_fn_verify_client_message(&self) -> proc_macro2::TokenStream {
 		let any_client_state = &self.any_data.client_state_ident;
-		let any_header = &self.any_data.header_ident;
+		let any_client_message = &self.any_data.client_message_ident;
 		let gen_params = &self.generics.params;
 		let error = &self.current_impl_error;
 		let crate_ = &self.crate_ident;
@@ -17,25 +17,25 @@ impl State {
 				#(#attrs)*
 				Self::#variant_ident(client) => {
 					let client_type = #client_state_trait::client_type(&client_state).to_owned();
-					let (client_state, header) = #crate_::downcast!(
+					let (client_state, client_message) = #crate_::downcast!(
 						client_state => #any_client_state::<#gen_params>::#variant_ident,
-						header => #any_header::#variant_ident,
+						client_message => #any_client_message::#variant_ident,
 					)
 					.ok_or_else(|| #error::client_args_type_mismatch(client_type))?;
 
-					#trait_::verify_header::<Ctx>(client, ctx, client_id, client_state, header)
+					#trait_::verify_client_message::<Ctx>(client, ctx, client_id, client_state, client_message)
 				}
 			}
 		});
 
 		quote! {
-			#[doc = "Validate an incoming header"]
-			fn verify_header<Ctx>(
+			#[doc = "Validate an incoming client message"]
+			fn verify_client_message<Ctx>(
 				&self,
 				ctx: &Ctx,
 				client_id: #crate_::core::ics24_host::identifier::ClientId,
 				client_state: Self::ClientState,
-				header: Self::Header,
+				client_message: Self::ClientMessage,
 			) -> ::core::result::Result<(), #error>
 			where
 				Ctx: #crate_::core::ics26_routing::context::ReaderContext,
@@ -53,7 +53,7 @@ impl State {
 		let trait_ = &self.current_impl_trait;
 		let client_state_trait = &self.client_state_trait;
 		let any_client_state = &self.any_data.client_state_ident;
-		let any_header = &self.any_data.header_ident;
+		let any_client_message = &self.any_data.client_message_ident;
 		let gen_params = &self.generics.params;
 		let cases = self.clients.iter().map(|client| {
 			let variant_ident = &client.variant_ident;
@@ -62,14 +62,14 @@ impl State {
 				#(#attrs)*
 				Self::#variant_ident(client) => {
 					let client_type = #client_state_trait::client_type(&client_state).to_owned();
-					let (client_state, header) = #crate_::downcast!(
+					let (client_state, client_message) = #crate_::downcast!(
 						client_state => #any_client_state::<#gen_params>::#variant_ident,
-						header => #any_header::#variant_ident,
+						client_message => #any_client_message::#variant_ident,
 					)
 					.ok_or_else(|| #error::client_args_type_mismatch(client_type))?;
 
 					let (new_state, new_consensus) =
-						#trait_::update_state(client, ctx, client_id, client_state, header)?;
+						#trait_::update_state(client, ctx, client_id, client_state, client_message)?;
 
 					Ok((Self::ClientState::#variant_ident(new_state), new_consensus))
 				}
@@ -77,13 +77,13 @@ impl State {
 		});
 
 		quote! {
-			#[doc = "Validates an incoming `header` against the latest consensus state of this client."]
+			#[doc = "Validates an incoming `client_message` against the latest consensus state of this client."]
 			fn update_state<Ctx>(
 				&self,
 				ctx: &Ctx,
 				client_id: #crate_::core::ics24_host::identifier::ClientId,
 				client_state: Self::ClientState,
-				header: Self::Header,
+				client_message: Self::ClientMessage,
 			) -> ::core::result::Result<(Self::ClientState, #crate_::core::ics02_client::client_def::ConsensusUpdateResult<Ctx>), #error>
 			where
 				Ctx: #crate_::core::ics26_routing::context::ReaderContext,
@@ -100,7 +100,7 @@ impl State {
 		let trait_ = &self.current_impl_trait;
 		let error = &self.current_impl_error;
 		let any_client_state = &self.any_data.client_state_ident;
-		let any_header = &self.any_data.header_ident;
+		let any_client_message = &self.any_data.client_message_ident;
 		let gen_params = &self.generics.params;
 		let client_state_trait = &self.client_state_trait;
 		let cases = self.clients.iter().map(|client| {
@@ -110,13 +110,13 @@ impl State {
 				#(#attrs)*
 				Self::#variant_ident(client) => {
 					let client_type = #client_state_trait::client_type(&client_state).to_owned();
-					let (client_state, header) = #crate_::downcast!(
+					let (client_state, client_message) = #crate_::downcast!(
 						client_state => #any_client_state::<#gen_params>::#variant_ident,
-						header => #any_header::#variant_ident,
+						client_message => #any_client_message::#variant_ident,
 					)
 					.ok_or_else(|| #error::client_args_type_mismatch(client_type))?;
 
-					let client_state = #trait_::update_state_on_misbehaviour(client, client_state, header)?;
+					let client_state = #trait_::update_state_on_misbehaviour(client, client_state, client_message)?;
 					Ok(Self::ClientState::#variant_ident(client_state))
 				}
 			}
@@ -126,7 +126,7 @@ impl State {
 			fn update_state_on_misbehaviour(
 				&self,
 				client_state: Self::ClientState,
-				header: Self::Header,
+				client_message: Self::ClientMessage,
 			) -> ::core::result::Result<Self::ClientState, #error> {
 				match self {
 					#(#cases)*
@@ -147,24 +147,24 @@ impl State {
 				#(#attrs)*
 				Self::#variant_ident(client) => {
 					let client_type = #client_state_trait::client_type(&client_state).to_owned();
-					let (client_state, header) = #crate_::downcast!(
+					let (client_state, client_message) = #crate_::downcast!(
 						client_state => Self::ClientState::#variant_ident,
-						header => Self::Header::#variant_ident,
+						client_message => Self::ClientMessage::#variant_ident,
 					)
 					.ok_or_else(|| #error::client_args_type_mismatch(client_type))?;
-					#trait_::check_for_misbehaviour(client, ctx, client_id, client_state, header)
+					#trait_::check_for_misbehaviour(client, ctx, client_id, client_state, client_message)
 				}
 			}
 		});
 
 		quote! {
-			#[doc = "Checks for misbehaviour in an incoming header"]
+			#[doc = "Checks for misbehaviour in an incoming client_message"]
 			fn check_for_misbehaviour<Ctx>(
 				&self,
 				ctx: &Ctx,
 				client_id: #crate_::core::ics24_host::identifier::ClientId,
 				client_state: Self::ClientState,
-				header: Self::Header,
+				client_message: Self::ClientMessage,
 			) -> ::core::result::Result<bool, #error>
 			where
 				Ctx: #crate_::core::ics26_routing::context::ReaderContext,
@@ -663,13 +663,13 @@ impl State {
 			syn::parse2(quote! { #crate_::core::ics02_client::error::Error }).unwrap();
 
 		let this = &self.self_ident;
-		let any_header = &self.any_data.header_ident;
+		let any_client_message = &self.any_data.client_message_ident;
 		let any_client_state = &self.any_data.client_state_ident;
 		let any_consensus_state = &self.any_data.consensus_state_ident;
 		let client_def_trait = &self.current_impl_trait;
 		let (impl_generics, ty_generics, where_clause) = self.generics.split_for_impl();
 
-		let fn_verify_header = self.impl_fn_verify_header();
+		let fn_verify_client_message = self.impl_fn_verify_client_message();
 		let fn_update_state = self.impl_fn_update_state();
 		let fn_update_state_on_misbehaviour = self.impl_fn_update_state_on_misbehaviour();
 		let fn_check_for_misbehaviour = self.impl_fn_check_for_misbehaviour();
@@ -685,11 +685,11 @@ impl State {
 
 		quote! {
 			impl #impl_generics #client_def_trait for #this #ty_generics #where_clause {
-				type Header = #any_header;
+				type ClientMessage = #any_client_message;
 				type ClientState = #any_client_state::<#ty_generics>;
 				type ConsensusState = #any_consensus_state;
 
-				#fn_verify_header
+				#fn_verify_client_message
 				#fn_update_state
 				#fn_update_state_on_misbehaviour
 				#fn_check_for_misbehaviour

@@ -15,7 +15,7 @@ use crate::utils::{generate_crate_access_2018, ident_path};
 use syn::{parse_macro_input, Data, DeriveInput, Generics, Path, Type, TypePath};
 
 struct AnyData {
-	pub header_ident: Ident,
+	pub client_message_ident: Ident,
 	pub client_state_ident: Ident,
 	pub consensus_state_ident: Ident,
 }
@@ -82,11 +82,11 @@ pub fn derive_consensus_state(input: TokenStream) -> TokenStream {
 	state.impl_consensus_state().into()
 }
 
-#[proc_macro_derive(Header, attributes(ibc))]
-pub fn derive_header(input: TokenStream) -> TokenStream {
+#[proc_macro_derive(ClientMessage, attributes(ibc))]
+pub fn derive_client_message(input: TokenStream) -> TokenStream {
 	let input = parse_macro_input!(input as DeriveInput);
 	let mut state = State::from_input(input, client_data_with_proto_attrs);
-	state.impl_header().into()
+	state.impl_client_message().into()
 }
 
 #[proc_macro_derive(Misbehaviour, attributes(ibc))]
@@ -163,7 +163,7 @@ impl State {
 		State {
 			self_ident: input.ident,
 			any_data: AnyData {
-				header_ident: Ident::new("AnyHeader", span),
+				client_message_ident: Ident::new("AnyClientMessage", span),
 				client_state_ident: Ident::new("AnyClientState", span),
 				consensus_state_ident: Ident::new("AnyConsensusState", span),
 			},

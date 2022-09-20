@@ -24,11 +24,12 @@ impl State {
 		}
 	}
 
-	pub fn impl_header(&mut self) -> proc_macro2::TokenStream {
+	pub fn impl_client_message(&mut self) -> proc_macro2::TokenStream {
 		let crate_ = &self.crate_ident;
 		let this = &self.self_ident;
 		self.current_impl_trait =
-			syn::parse2(quote! { #crate_::core::ics02_client::header::Header }).unwrap();
+			syn::parse2(quote! { #crate_::core::ics02_client::client_message::ClientMessage })
+				.unwrap();
 		self.current_impl_error =
 			syn::parse2(quote! { #crate_::core::ics02_client::error::Error }).unwrap();
 		let trait_ = &self.current_impl_trait;

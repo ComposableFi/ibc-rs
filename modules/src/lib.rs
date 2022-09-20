@@ -48,6 +48,9 @@ extern crate alloc;
 #[allow(unused_imports)]
 #[macro_use]
 extern crate derive;
+#[cfg(any(test, feature = "mocks"))]
+#[macro_use]
+extern crate serde;
 #[cfg(feature = "std")]
 extern crate std;
 

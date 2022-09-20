@@ -8,6 +8,7 @@ use ibc_proto::ibc::core::client::v1::ConsensusStateWithHeight;
 use serde::{Deserialize, Serialize};
 use tendermint_proto::Protobuf;
 
+use crate::mock::header::MockClientMessage;
 use crate::{
 	core::{
 		ics02_client::{
@@ -71,8 +72,8 @@ pub struct MockClientState {
 impl Protobuf<RawMockClientState> for MockClientState {}
 
 impl MockClientState {
-	pub fn new(header: MockHeader) -> Self {
-		Self { header, frozen_height: None }
+	pub fn new(client_message: MockClientMessage) -> Self {
+		Self { header: client_message.header(), frozen_height: None }
 	}
 
 	pub fn refresh_time(&self) -> Option<Duration> {
@@ -90,7 +91,7 @@ impl TryFrom<RawMockClientState> for MockClientState {
 	type Error = Error;
 
 	fn try_from(raw: RawMockClientState) -> Result<Self, Self::Error> {
-		Ok(Self::new(raw.header.unwrap().try_into()?))
+		Ok(Self::new(MockHeader::try_from(raw.header.unwrap())?.into()))
 	}
 }
 
@@ -175,7 +176,7 @@ impl MockClientState {
 
 impl From<MockConsensusState> for MockClientState {
 	fn from(cs: MockConsensusState) -> Self {
-		Self::new(cs.header)
+		Self::new(cs.header.into())
 	}
 }
 
