@@ -17,22 +17,26 @@
 
 use proc_macro2::Span;
 use proc_macro_crate::{crate_name, FoundCrate};
+use quote::quote;
 use syn::parse::Error;
-use syn::{Ident, TypePath};
+use syn::{Ident, Path, TypePath};
 
 /// Generate the crate access for the crate using 2018 syntax.
 ///
 /// for `ibc` output will for example be `ibc_rs`.
-pub fn generate_crate_access_2018(def_crate: &str) -> Result<syn::Ident, Error> {
+pub fn generate_crate_access_2018(def_crate: &str) -> Result<Path, Error> {
 	if std::env::var("CARGO_PKG_NAME").unwrap() == def_crate {
-		return Ok(Ident::new(&"crate", Span::call_site()));
+		return Ok(Ident::new(&"crate", Span::call_site()).into());
 	}
 	match crate_name(def_crate) {
 		Ok(FoundCrate::Itself) => {
-			let name = def_crate.to_string().replace("-", "_");
-			Ok(syn::Ident::new(&name, Span::call_site()))
+			let path = Ident::new(&def_crate.to_string().replace("-", "_"), Span::call_site());
+			Ok(syn::parse2(quote! { ::#path })?)
 		},
-		Ok(FoundCrate::Name(name)) => Ok(Ident::new(&name, Span::call_site())),
+		Ok(FoundCrate::Name(name)) => {
+			let ident = Ident::new(&name, Span::call_site());
+			Ok(syn::parse2(quote! { ::#ident })?)
+		},
 		Err(e) => Err(Error::new(Span::call_site(), e)),
 	}
 }

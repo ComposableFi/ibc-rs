@@ -12,7 +12,7 @@ use proc_macro2::Ident;
 use quote::quote;
 
 use crate::utils::{generate_crate_access_2018, ident_path};
-use syn::{parse_macro_input, Data, DeriveInput, Generics, Type, TypePath};
+use syn::{parse_macro_input, Data, DeriveInput, Generics, Path, Type, TypePath};
 
 struct AnyData {
 	pub header_ident: Ident,
@@ -55,7 +55,7 @@ struct State {
 	pub clients: Vec<ClientData>,
 	pub self_ident: Ident,
 	pub generics: Generics,
-	pub crate_ident: Ident,
+	pub crate_ident: Path,
 	pub current_impl_trait: TypePath,
 	pub current_impl_error: TypePath,
 	pub client_state_trait: TypePath,

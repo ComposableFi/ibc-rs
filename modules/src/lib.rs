@@ -59,6 +59,7 @@ pub mod core;
 pub mod events;
 pub mod handler;
 pub mod keys;
+#[macro_use]
 pub mod macros;
 pub mod proofs;
 mod serializers;

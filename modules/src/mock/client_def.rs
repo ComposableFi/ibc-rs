@@ -23,7 +23,6 @@ use crate::{
 		},
 		ics26_routing::context::ReaderContext,
 	},
-	downcast,
 	mock::{
 		client_state::{AnyClientState, AnyConsensusState, MockClientState, MockConsensusState},
 		header::{AnyHeader, MockHeader},
