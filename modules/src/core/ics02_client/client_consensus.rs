@@ -8,6 +8,7 @@ use core::{
 	fmt::Debug,
 	marker::{Send, Sync},
 };
+use crate::core::ics02_client::error::Error;
 
 pub trait ConsensusState: Clone + Debug + Send + Sync {
 	type Error;
@@ -33,6 +34,8 @@ pub trait ConsensusState: Clone + Debug + Send + Sync {
 	}
 
 	fn encode_to_vec(&self) -> Vec<u8>;
+
+	fn decode_from_vec(bytes: Vec<u8>) -> Result<Self, Error>;
 }
 
 /// Query request for a single client event, identified by `event_id`, for `client_id`.

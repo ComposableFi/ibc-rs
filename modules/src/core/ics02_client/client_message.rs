@@ -1,4 +1,5 @@
 use alloc::vec::Vec;
+use crate::core::ics02_client::error::Error;
 
 /// Abstract of consensus state update information
 pub trait ClientMessage: Clone + core::fmt::Debug + Send + Sync {
@@ -17,4 +18,6 @@ pub trait ClientMessage: Clone + core::fmt::Debug + Send + Sync {
 	}
 
 	fn encode_to_vec(&self) -> Vec<u8>;
+
+	fn decode_from_vec(bytes: Vec<u8>) -> Result<Self, Error>;
 }
