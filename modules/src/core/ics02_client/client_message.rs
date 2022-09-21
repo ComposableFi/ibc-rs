@@ -1,4 +1,3 @@
-use crate::{prelude::*, Height};
 
 /// Abstract of consensus state update information
 pub trait ClientMessage: Clone + core::fmt::Debug + Send + Sync {
@@ -17,7 +16,4 @@ pub trait ClientMessage: Clone + core::fmt::Debug + Send + Sync {
 	}
 
 	fn encode_to_vec(&self) -> Vec<u8>;
-
-	/// The height of the header
-	fn height(&self) -> Height;
 }
