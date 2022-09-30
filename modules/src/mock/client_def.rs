@@ -212,6 +212,7 @@ impl ClientDef for MockClient {
 
 	fn verify_upgrade_and_update_state<Ctx: ReaderContext>(
 		&self,
+		_ctx: &Ctx,
 		client_state: &Self::ClientState,
 		consensus_state: &Self::ConsensusState,
 		_proof_upgrade_client: Vec<u8>,

@@ -77,6 +77,7 @@ pub trait ClientDef: Clone {
 	/// TODO
 	fn verify_upgrade_and_update_state<Ctx: ReaderContext>(
 		&self,
+		ctx: &Ctx,
 		client_state: &Self::ClientState,
 		consensus_state: &Self::ConsensusState,
 		proof_upgrade_client: Vec<u8>,

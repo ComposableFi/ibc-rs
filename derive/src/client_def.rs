@@ -210,6 +210,7 @@ impl State {
 		quote! {
 			fn verify_upgrade_and_update_state<Ctx: #crate_::core::ics26_routing::context::ReaderContext>(
 				&self,
+				ctx: &Ctx,
 				client_state: &Self::ClientState,
 				consensus_state: &Self::ConsensusState,
 				proof_upgrade_client: ::alloc::vec::Vec<u8>,
